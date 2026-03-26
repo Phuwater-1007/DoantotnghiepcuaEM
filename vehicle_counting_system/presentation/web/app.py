@@ -4,8 +4,10 @@ import os
 import secrets
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.templating import Jinja2Templates
 
@@ -30,7 +32,8 @@ def create_app() -> FastAPI:
             "TRAFFIC_MONITORING_SESSION_SECRET is not set. Generated an ephemeral session secret for this process."
         )
 
-    app.add_middleware(SessionMiddleware, secret_key=session_secret)
+    app.add_middleware(CSRFMiddleware)
+    app.add_middleware(SessionMiddleware, secret_key=session_secret, https_only=False, same_site="lax")
     app.state.container = build_container()
     # Không reset output files - giữ kết quả từ VS Code (run_with_web_roi.py)
     app.state.client_presence = ClientPresence()
@@ -54,3 +57,73 @@ def create_app() -> FastAPI:
     app.include_router(users.build_router(templates))
 
     return app
+
+
+# ---------------------------------------------------------------------------
+# Lightweight CSRF middleware
+# ---------------------------------------------------------------------------
+_CSRF_SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
+_CSRF_SKIP_PATHS = {"/api/"}  # JSON API uses auth tokens; forms use CSRF
+
+
+class CSRFMiddleware:
+    """Validates a csrf_token form field on state-changing form submissions.
+
+    Skips:
+    - Safe HTTP methods (GET, HEAD, OPTIONS)
+    - Paths starting with /api/ (use existing auth)
+    - Requests with Content-Type: application/json (API clients)
+    """
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            return await self.app(scope, receive, send)
+
+        request = Request(scope, receive)
+
+        if request.method in _CSRF_SAFE_METHODS:
+            return await self.app(scope, receive, send)
+
+        path = request.url.path
+        if any(path.startswith(prefix) for prefix in _CSRF_SKIP_PATHS):
+            return await self.app(scope, receive, send)
+
+        content_type = request.headers.get("content-type", "")
+        if "application/json" in content_type:
+            return await self.app(scope, receive, send)
+
+        # Buffer the body to read form safely without starving downstream apps
+        body = b""
+        more_body = True
+        while more_body:
+            message = await receive()
+            body += message.get("body", b"")
+            more_body = message.get("more_body", False)
+
+        async def mock_receive():
+            return {"type": "http.request", "body": body}
+
+        req_copy = Request(scope, mock_receive)
+        
+        session_token = req_copy.session.get("csrf_token")
+        if not session_token:
+            req_copy.session["csrf_token"] = secrets.token_urlsafe(32)
+            response = JSONResponse(status_code=403, content={"error": "CSRF token missing. Please reload the page."})
+            return await response(scope, mock_receive, send)
+            
+        form = await req_copy.form()
+        form_token = form.get("csrf_token", "")
+        if not secrets.compare_digest(str(session_token), str(form_token)):
+            response = JSONResponse(status_code=403, content={"error": "CSRF token invalid. Please reload the page."})
+            return await response(scope, mock_receive, send)
+
+        # CSRF valid! Replay the body to the actual app
+        messages = [{"type": "http.request", "body": body}]
+        async def replay_receive():
+            if messages:
+                return messages.pop(0)
+            return {"type": "http.request", "body": b""}
+
+        return await self.app(scope, replay_receive, send)

@@ -163,7 +163,15 @@ def build_router() -> APIRouter:
         if ext not in VIDEO_EXTENSIONS:
             return JSONResponse(status_code=400, content={"error": f"Định dạng không hỗ trợ. Cho phép: {', '.join(sorted(VIDEO_EXTENSIONS))}"})
         ensure_dir(INPUT_VIDEOS_DIR)
+
+        # Auto-rename on conflict: video.mp4 → video_1.mp4 → video_2.mp4 ...
+        stem = Path(file.filename).stem
         dest = INPUT_VIDEOS_DIR / file.filename
+        counter = 0
+        while dest.exists():
+            counter += 1
+            dest = INPUT_VIDEOS_DIR / f"{stem}_{counter}{ext}"
+
         try:
             with open(dest, "wb") as f:
                 shutil.copyfileobj(file.file, f)
@@ -174,8 +182,8 @@ def build_router() -> APIRouter:
         container = get_container(request)
         existing = container.source_service.get_source_by_uri(rel_str)
         if existing:
-            return {"ok": True, "path": rel_str, "source_id": existing.id}
-        name = Path(file.filename).stem
+            return {"ok": True, "path": rel_str, "source_id": existing.id, "renamed": counter > 0, "final_name": dest.name}
+        name = dest.stem
         try:
             container.source_service.create_source(
                 name=name,
@@ -187,7 +195,7 @@ def build_router() -> APIRouter:
             return JSONResponse(status_code=400, content={"error": str(e)})
         row = container.db.fetchone("SELECT id FROM sources ORDER BY id DESC LIMIT 1")
         source_id = int(row["id"]) if row else None
-        return {"ok": True, "path": rel_str, "source_id": source_id}
+        return {"ok": True, "path": rel_str, "source_id": source_id, "renamed": counter > 0, "final_name": dest.name}
 
     @router.get("/video/input")
     def api_input_video(request: Request, path: str = ""):
@@ -316,7 +324,23 @@ def build_router() -> APIRouter:
             "direction": "both",
         }
 
-        path = save_source_config(source_id, roi_norm, line_norm)
+        # --- Server-side ROI/line validation (matches runtime requirements) ---
+        if len(roi_norm) < 3:
+            return JSONResponse(status_code=400, content={"error": "ROI phải có ít nhất 3 điểm."})
+        for i, pt in enumerate(roi_norm):
+            if not (0 <= pt[0] <= 1 and 0 <= pt[1] <= 1):
+                return JSONResponse(status_code=400, content={"error": f"Điểm ROI #{i+1} nằm ngoài khung hình."})
+
+        ls, le = line_norm["start"], line_norm["end"]
+        if not (0 <= ls[0] <= 1 and 0 <= ls[1] <= 1 and 0 <= le[0] <= 1 and 0 <= le[1] <= 1):
+            return JSONResponse(status_code=400, content={"error": "Đường đếm nằm ngoài khung hình."})
+        if abs(ls[0] - le[0]) < 1e-6 and abs(ls[1] - le[1]) < 1e-6:
+            return JSONResponse(status_code=400, content={"error": "Điểm đầu và cuối đường đếm trùng nhau."})
+
+        try:
+            path = save_source_config(source_id, roi_norm, line_norm)
+        except ValueError as exc:
+            return JSONResponse(status_code=400, content={"error": str(exc)})
         container.source_service.update_counting_config(source_id, path)
         return {"ok": True, "path": path}
 

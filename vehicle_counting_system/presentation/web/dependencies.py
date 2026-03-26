@@ -122,9 +122,21 @@ def require_admin(request: Request):
     return user
 
 
+def _ensure_csrf_token(request: Request) -> str:
+    """Return CSRF token from session, generating one if missing."""
+    import secrets
+
+    token = request.session.get("csrf_token")
+    if not token:
+        token = secrets.token_urlsafe(32)
+        request.session["csrf_token"] = token
+    return token
+
+
 def base_context(request: Request, **extra: Any) -> dict[str, Any]:
     return {
         "request": request,
         "current_user": get_current_user(request),
+        "csrf_token": _ensure_csrf_token(request),
         **extra,
     }

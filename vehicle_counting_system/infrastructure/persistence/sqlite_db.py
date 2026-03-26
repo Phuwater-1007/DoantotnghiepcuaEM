@@ -98,44 +98,72 @@ class SQLiteDatabase:
                     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY(session_id) REFERENCES analysis_sessions(id)
                 );
+
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_sources_uri ON sources(source_uri);
                 """
             )
 
     def seed_defaults(self, auth_service) -> None:
-        admin = self.fetchone("SELECT id FROM users WHERE username = ?", ("admin",))
-        if admin is None:
-            self.execute(
-                """
-                INSERT INTO users (username, password_hash, full_name, role)
-                VALUES (?, ?, ?, ?)
-                """,
-                ("admin", auth_service.hash_password("admin123"), "System Admin", "admin"),
-            )
+        import os
+        admin_pass = os.getenv("DEFAULT_ADMIN_PASSWORD")
+        is_demo = os.getenv("DEMO_MODE", "0").strip() == "1"
+        if not admin_pass and is_demo:
+            admin_pass = "admin123"
 
-        demo_user = self.fetchone("SELECT id FROM users WHERE username = ?", ("demo",))
-        if demo_user is None:
-            self.execute(
-                """
-                INSERT INTO users (username, password_hash, full_name, role)
-                VALUES (?, ?, ?, ?)
-                """,
-                ("demo", auth_service.hash_password("demo123"), "Demo Operator", "user"),
-            )
+        if admin_pass:
+            admin = self.fetchone("SELECT id FROM users WHERE username = ?", ("admin",))
+            if admin is None:
+                self.execute(
+                    """
+                    INSERT INTO users (username, password_hash, full_name, role)
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    ("admin", auth_service.hash_password(admin_pass), "System Admin", "admin"),
+                )
 
-        demo_source = self.fetchone("SELECT id FROM sources WHERE name = ?", ("Demo Video",))
-        if demo_source is None:
-            default_video = INPUT_VIDEOS_DIR / "test.mp4"
-            self.execute(
-                """
-                INSERT INTO sources (name, source_type, source_uri, is_active, status, notes)
-                VALUES (?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    "Demo Video",
-                    "video",
-                    str(default_video),
-                    1,
-                    "ready",
-                    "Default thesis demo source",
-                ),
-            )
+        if is_demo:
+            demo_user = self.fetchone("SELECT id FROM users WHERE username = ?", ("demo",))
+            if demo_user is None:
+                self.execute(
+                    """
+                    INSERT INTO users (username, password_hash, full_name, role)
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    ("demo", auth_service.hash_password("demo123"), "Demo Operator", "user"),
+                )
+
+            demo_source = self.fetchone("SELECT id FROM sources WHERE name = ?", ("Demo Video",))
+            if demo_source is None:
+                default_video = INPUT_VIDEOS_DIR / "test.mp4"
+                self.execute(
+                    """
+                    INSERT INTO sources (name, source_type, source_uri, is_active, status, notes)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        "Demo Video",
+                        "video",
+                        str(default_video),
+                        1,
+                        "ready",
+                        "Default thesis demo source",
+                    ),
+                )
+
+    def recover_stale_sessions(self) -> int:
+        """Mark any 'running' or 'queued' sessions as 'failed' (server restarted)."""
+        stale = self.fetchall(
+            "SELECT id FROM analysis_sessions WHERE status IN ('running', 'queued')"
+        )
+        if not stale:
+            return 0
+        self.execute(
+            """
+            UPDATE analysis_sessions
+            SET status = 'failed',
+                finished_at = CURRENT_TIMESTAMP,
+                error_message = 'Server restarted – phiên bị gián đoạn.'
+            WHERE status IN ('running', 'queued')
+            """
+        )
+        return len(stale)

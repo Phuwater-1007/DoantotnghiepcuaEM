@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import RedirectResponse
 
-from vehicle_counting_system.presentation.web.dependencies import base_context, get_container, get_current_user
+from vehicle_counting_system.presentation.web.dependencies import base_context, get_container, get_current_user, _ensure_csrf_token
 
 
 def build_router(templates) -> APIRouter:
@@ -36,7 +36,7 @@ def build_router(templates) -> APIRouter:
         request.session["user_id"] = user.id
         return RedirectResponse("/dashboard", status_code=303)
 
-    @router.get("/logout")
+    @router.post("/logout")
     def logout(request: Request):
         request.session.clear()
         return RedirectResponse("/login", status_code=303)

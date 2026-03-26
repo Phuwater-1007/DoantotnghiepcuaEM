@@ -233,7 +233,7 @@ class MonitoringService:
                     frame_index=frame_index,
                 )
 
-            output_path = OUTPUT_VIDEOS_DIR / f"{Path(source.name).stem}_result.mp4"
+            output_path = OUTPUT_VIDEOS_DIR / f"session_{session_id}_result.mp4"
             result = analyze_video_source(
                 video_path,
                 output_path=output_path,
@@ -261,17 +261,20 @@ class MonitoringService:
                     session_id,
                 ),
             )
-            session_row = self.db.fetchone(
-                "SELECT started_at FROM analysis_sessions WHERE id = ?",
-                (session_id,),
-            )
-            started_at = str(session_row["started_at"]) if session_row is not None else ""
-            self.report_service.save_report_snapshot(
-                session_id=session_id,
-                started_at=started_at,
-                total=int(result["total"]),
-                per_class=dict(result["per_class"]),
-            )
+            # Only save report snapshot for completed sessions (not stopped/failed)
+            if finished_status == "completed":
+                session_row = self.db.fetchone(
+                    "SELECT started_at, finished_at FROM analysis_sessions WHERE id = ?",
+                    (session_id,),
+                )
+                finished_at = str(session_row["finished_at"]) if session_row and session_row["finished_at"] else ""
+                started_at = str(session_row["started_at"]) if session_row is not None else ""
+                self.report_service.save_report_snapshot(
+                    session_id=session_id,
+                    finished_at=finished_at or started_at,
+                    total=int(result["total"]),
+                    per_class=dict(result["per_class"]),
+                )
             self._set_live_state(
                 session_id=session_id,
                 source_id=source_id,
@@ -282,11 +285,12 @@ class MonitoringService:
             )
             summary_for_file = {
                 "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S"),
+                "session_id": session_id,
                 "total": result["total"],
                 "per_class": result["per_class"],
             }
             try:
-                summary_path = OUTPUT_VIDEOS_DIR / f"{Path(source.name).stem}_summary.json"
+                summary_path = OUTPUT_VIDEOS_DIR / f"session_{session_id}_summary.json"
                 with open(summary_path, "w", encoding="utf-8") as f:
                     json.dump(summary_for_file, f, ensure_ascii=False, indent=2)
             except Exception:

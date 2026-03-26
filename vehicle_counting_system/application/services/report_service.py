@@ -47,8 +47,10 @@ class ReportService:
             )
         return reports
 
-    def save_report_snapshot(self, session_id: int, started_at: str, total: int, per_class: dict[str, int]) -> None:
-        peak_hour_label = started_at[11:13] + ":00" if len(started_at) >= 13 else "N/A"
+    def save_report_snapshot(self, session_id: int, finished_at: str, total: int, per_class: dict[str, int]) -> None:
+        # Use finished_at for report_date so midnight-crossing sessions are dated correctly
+        report_date = finished_at[:10] if len(finished_at) >= 10 else "N/A"
+        peak_hour_label = finished_at[11:13] + ":00" if len(finished_at) >= 13 else "N/A"
         self.db.execute(
             """
             INSERT OR REPLACE INTO report_snapshots (session_id, report_date, total, per_class_json, peak_hour_label)
@@ -56,7 +58,7 @@ class ReportService:
             """,
             (
                 session_id,
-                started_at[:10],
+                report_date,
                 total,
                 json.dumps(per_class, ensure_ascii=False),
                 peak_hour_label,

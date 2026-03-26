@@ -25,7 +25,10 @@
       <div class="sidebar-footer">
         {% if current_user %}
         <div class="user-chip">{{ current_user.full_name }} ({{ current_user.role }})</div>
-        <a class="logout-link" href="/logout">Đăng xuất</a>
+        <form method="post" action="/logout" style="display:inline;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button type="submit" class="logout-link">Đăng xuất</button>
+        </form>
         {% endif %}
       </div>
     </aside>

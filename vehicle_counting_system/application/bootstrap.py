@@ -29,6 +29,7 @@ def build_container() -> AppContainer:
     monitoring_service = MonitoringService(db, source_service, report_service)
 
     db.init_schema()
+    db.recover_stale_sessions()
     db.seed_defaults(auth_service)
 
     return AppContainer(

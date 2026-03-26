@@ -40,6 +40,7 @@
         <td>{{ source.status }}</td>
         <td>
           <form method="post" action="/monitoring/start" style="display:inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <input type="hidden" name="source_id" value="{{ source.id }}">
             <button type="submit" class="run-now-btn">Chạy</button>
           </form>

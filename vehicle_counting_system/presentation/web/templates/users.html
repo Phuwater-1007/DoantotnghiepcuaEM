@@ -4,6 +4,7 @@
   <div class="card">
     <h2>Tạo người dùng</h2>
     <form method="post" action="/users" class="form-grid">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <label>Tên đăng nhập</label>
       <input type="text" name="username" required>
       <label>Mật khẩu</label>

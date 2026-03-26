@@ -14,6 +14,7 @@
     <div class="alert alert-error">{{ error }}</div>
     {% endif %}
     <form method="post" action="/login" class="form-grid">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <label>Tên đăng nhập</label>
       <input type="text" name="username" placeholder="Nhập tên đăng nhập" required>
       <label>Mật khẩu</label>

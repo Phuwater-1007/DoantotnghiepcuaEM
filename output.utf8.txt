@@ -1,0 +1,58 @@
+============================= test session starts =============================
+platform win32 -- Python 3.10.0, pytest-9.0.2, pluggy-1.6.0 -- C:\Users\admin\Desktop\Python\doan\.venv\Scripts\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\admin\Desktop\Python\doan
+plugins: anyio-4.12.1
+collecting ... collected 4 items
+
+vehicle_counting_system/tests/test_hardening.py::TestHardeningIntegration::test_5_1_upload_duplicate_filename LOGIN FAILED. Status: 422, Body: {"detail":[{"type":"missing","loc":["body","username"],"msg":"Field required","input":null},{"type":"missing","loc":["body","password"],"msg":"Field required","input":null}]}, Token used: H9fO8oilHM8A8NLX3VvdEcHGXqGPuaIoluQXwQI2NkM
+FAILED
+vehicle_counting_system/tests/test_hardening.py::TestHardeningIntegration::test_5_2_and_5_5_session_lifecycle PASSED
+vehicle_counting_system/tests/test_hardening.py::TestHardeningIntegration::test_5_3_roi_validation_rejects LOGIN FAILED. Status: 422, Body: {"detail":[{"type":"missing","loc":["body","username"],"msg":"Field required","input":null},{"type":"missing","loc":["body","password"],"msg":"Field required","input":null}]}, Token used: hw51P9prIr0GI9iF0trvume5S64Vz3oCApXMcUKraW4
+FAILED
+vehicle_counting_system/tests/test_hardening.py::TestHardeningIntegration::test_5_4_logout_post_and_csrf PASSED
+
+================================== FAILURES ===================================
+_________ TestHardeningIntegration.test_5_1_upload_duplicate_filename _________
+
+self = <test_hardening.TestHardeningIntegration testMethod=test_5_1_upload_duplicate_filename>
+
+    def test_5_1_upload_duplicate_filename(self):
+>       self._login()
+
+vehicle_counting_system\tests\test_hardening.py:121: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+vehicle_counting_system\tests\test_hardening.py:83: in _login
+    self.assertTrue(resp.status_code in (200, 303, 302))
+E   AssertionError: False is not true
+------------------------------ Captured log call ------------------------------
+WARNING  vehicle_counting_system.presentation.web.app:app.py:31 TRAFFIC_MONITORING_SESSION_SECRET is not set. Generated an ephemeral session secret for this process.
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/login "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/login "HTTP/1.1 422 Unprocessable Entity"
+__________ TestHardeningIntegration.test_5_3_roi_validation_rejects ___________
+
+self = <test_hardening.TestHardeningIntegration testMethod=test_5_3_roi_validation_rejects>
+
+    def test_5_3_roi_validation_rejects(self):
+>       self._login()
+
+vehicle_counting_system\tests\test_hardening.py:96: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+vehicle_counting_system\tests\test_hardening.py:83: in _login
+    self.assertTrue(resp.status_code in (200, 303, 302))
+E   AssertionError: False is not true
+------------------------------ Captured log call ------------------------------
+WARNING  vehicle_counting_system.presentation.web.app:app.py:31 TRAFFIC_MONITORING_SESSION_SECRET is not set. Generated an ephemeral session secret for this process.
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/login "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/login "HTTP/1.1 422 Unprocessable Entity"
+============================== warnings summary ===============================
+vehicle_counting_system/tests/test_hardening.py::TestHardeningIntegration::test_5_1_upload_duplicate_filename
+vehicle_counting_system/tests/test_hardening.py::TestHardeningIntegration::test_5_3_roi_validation_rejects
+  DeprecationWarning: The `name` is not the first parameter anymore. The first parameter should be the `Request` instance.
+  Replace `TemplateResponse(name, {"request": request})` by `TemplateResponse(request, name)`.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED vehicle_counting_system/tests/test_hardening.py::TestHardeningIntegration::test_5_1_upload_duplicate_filename
+FAILED vehicle_counting_system/tests/test_hardening.py::TestHardeningIntegration::test_5_3_roi_validation_rejects
+=================== 2 failed, 2 passed, 2 warnings in 4.42s ===================

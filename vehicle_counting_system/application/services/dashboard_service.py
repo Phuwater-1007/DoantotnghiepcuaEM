@@ -30,6 +30,7 @@ class DashboardService:
             JOIN analysis_sessions sess ON sess.id = rs.session_id
             JOIN sources s ON s.id = sess.source_id
             WHERE rs.report_date = ?
+              AND sess.status = 'completed'
             """,
             (today,),
         )
@@ -37,7 +38,8 @@ class DashboardService:
         completed_today_rows = self.db.fetchall(
             """
             SELECT id FROM analysis_sessions
-            WHERE finished_at IS NOT NULL
+            WHERE status = 'completed'
+              AND finished_at IS NOT NULL
               AND date(finished_at) = ?
             """,
             (today,),
@@ -54,11 +56,13 @@ class DashboardService:
 
         hourly_rows = self.db.fetchall(
             """
-            SELECT substr(sess.started_at, 12, 2) AS hour_label, COALESCE(SUM(rs.total), 0) AS vehicle_count
+            SELECT substr(sess.finished_at, 12, 2) AS hour_label, COALESCE(SUM(rs.total), 0) AS vehicle_count
             FROM analysis_sessions sess
             LEFT JOIN report_snapshots rs ON rs.session_id = sess.id
-            WHERE date(sess.started_at) = ?
-            GROUP BY substr(sess.started_at, 12, 2)
+            WHERE sess.status = 'completed'
+              AND sess.finished_at IS NOT NULL
+              AND date(sess.finished_at) = ?
+            GROUP BY substr(sess.finished_at, 12, 2)
             ORDER BY hour_label ASC
             """,
             (today,),
