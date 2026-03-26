@@ -1,0 +1,29 @@
+{
+  "video_resolution": [960, 720],
+
+  "lines": [
+    {
+      "id": "main_road_downstream",
+      "start": [220, 430],
+      "end": [740, 430],
+      "direction": "both"
+    }
+  ],
+
+  "roi": [
+    [120, 385],
+    [835, 385],
+    [920, 720],
+    [30, 720]
+  ],
+
+  "note": [
+    "Base fallback config. Ban co the de yen file nay de tranh sua nham.",
+    "Hay uu tien chinh configs/editable_roi.json de tinh ROI/line an toan hon.",
+    "Config tuned for 960x720 demo video (4:3).",
+    "ROI is a polygon [[x1,y1], ...] covering the lower part of the main road where vehicles are close to camera.",
+    "To move counting line up/down: change the Y value of 'start' and 'end' (both should have similar Y).",
+    "To make ROI wider/narrower: adjust the X coordinates; to move ROI up/down: adjust the Y coordinates.",
+    "Tip: open a frame in an image viewer, hover mouse to read (x,y), then update this file and rerun."
+  ]
+}

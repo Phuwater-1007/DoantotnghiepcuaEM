@@ -1,0 +1,22 @@
+{
+  "coordinates_mode": "normalized",
+  "lines": [
+    {
+      "id": "main_road_downstream",
+      "start": [0.23, 0.6],
+      "end": [0.77, 0.6],
+      "direction": "both"
+    }
+  ],
+  "roi": [
+    [360, 0.535],
+    [0.87, 0.535],
+    [0.96, 2.0],
+    [0.03, 960]
+  ],
+  "note": [
+    "Tọa độ chuẩn hóa (0-1) - dùng chung cho mọi độ phân giải cùng góc quay.",
+    "start/end: x,y trong [0,1] (x=0 là trái, x=1 là phải; y=0 là trên, y=1 là dưới).",
+    "Một config này hoạt động với 720p, 1080p, 4K... cùng góc camera."
+  ]
+}

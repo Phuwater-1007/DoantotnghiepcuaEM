@@ -1,0 +1,26 @@
+# Core dependencies
+# YOLO11 + export TensorRT: dùng ultralytics 8.3+ (theo docs Ultralytics).
+ultralytics>=8.3.0
+opencv-python>=4.5.5
+PyYAML>=6.0
+python-dotenv>=1.0.0
+# PyTorch: cài bản có CUDA khớp máy (xem pytorch.org). Chỉ CPU thì không chạy được .engine.
+torch
+supervision
+
+# TensorRT (.engine): KHÔNG bắt buộc trong mọi máy — cần driver NVIDIA + CUDA + wheel TensorRT đúng phiên bản.
+# Hướng dẫn & export: https://docs.ultralytics.com/integrations/tensorrt/
+# Ví dụ export: yolo export model=yolo11s.pt format=engine imgsz=960 half=True   # FP16 engine
+#               yolo export model=yolo11s.pt format=engine imgsz=960 half=False  # FP32 engine
+psutil
+fastapi
+uvicorn
+jinja2
+python-multipart
+itsdangerous
+
+# GUI
+# PyQt6>=6.5
+
+# Data and utilities
+numpy>=1.23.0

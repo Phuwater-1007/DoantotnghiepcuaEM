@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="two-column">
+  <div class="card">
+    <h2>Tạo người dùng</h2>
+    <form method="post" action="/users" class="form-grid">
+      <label>Tên đăng nhập</label>
+      <input type="text" name="username" required>
+      <label>Mật khẩu</label>
+      <input type="password" name="password" required>
+      <label>Họ tên</label>
+      <input type="text" name="full_name" required>
+      <label>Vai trò</label>
+      <select name="role">
+        <option value="user">Người dùng</option>
+        <option value="admin">Quản trị viên</option>
+      </select>
+      <button type="submit">Tạo người dùng</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Hướng dẫn vai trò</h2>
+    <ul class="flat-list">
+      <li>Admin: quản lý người dùng, nguồn video và toàn bộ báo cáo.</li>
+      <li>User: xem bảng điều khiển, giám sát và báo cáo.</li>
+    </ul>
+  </div>
+</section>
+
+<section class="card">
+  <h2>Tài khoản người dùng</h2>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Tên đăng nhập</th>
+        <th>Họ tên</th>
+        <th>Vai trò</th>
+        <th>Trạng thái</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for user in users %}
+      <tr>
+        <td>{{ user.id }}</td>
+        <td>{{ user.username }}</td>
+        <td>{{ user.full_name }}</td>
+        <td>{{ user.role }}</td>
+        <td>{{ "Hoạt động" if user.is_active else "Không hoạt động" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

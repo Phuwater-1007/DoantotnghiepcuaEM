@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card sources-hero">
+  <div>
+    <h2>Thư viện video</h2>
+    <p class="muted">
+      Trang này chỉ dùng để quản lý danh sách video và chỉnh ROI nhanh. Việc tải video mới và chạy phân tích nên thực hiện trực tiếp ở
+      <a href="/monitoring">Giám sát</a>.
+    </p>
+  </div>
+  <a href="/monitoring" class="btn btn-primary">Mở trang Giám sát</a>
+</section>
+
+<section class="card">
+  <h2>Danh sách video đã thêm</h2>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Tên video</th>
+        <th>Loại</th>
+        <th>Đường dẫn</th>
+        <th>ROI</th>
+        <th>Trạng thái</th>
+        <th>Thao tác</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for source in sources %}
+      <tr>
+        <td>{{ source.name }}</td>
+        <td>{{ source.source_type }}</td>
+        <td class="source-uri">{{ source.source_uri }}</td>
+        <td>
+          {% if source.counting_config_path %}
+          <span class="pill">Đã cấu hình</span>
+          {% else %}
+          <span class="pill">Chưa có ROI</span>
+          {% endif %}
+        </td>
+        <td>{{ source.status }}</td>
+        <td>
+          <form method="post" action="/monitoring/start" style="display:inline;">
+            <input type="hidden" name="source_id" value="{{ source.id }}">
+            <button type="submit" class="run-now-btn">Chạy</button>
+          </form>
+          <a href="/sources/{{ source.id }}/edit-roi" class="secondary-button source-action-link">Chỉnh ROI</a>
+          <a href="/monitoring" class="secondary-button source-action-link">Xem ở Giám sát</a>
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="6" class="muted" style="text-align:center;padding:24px;">Chưa có video nào. Hãy vào <a href="/monitoring">Giám sát</a> để tải video lên và bắt đầu phân tích.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

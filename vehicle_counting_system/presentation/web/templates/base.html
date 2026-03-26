@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ page_title }} | Hệ thống Giám sát Giao thông</title>
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-title">Giám sát Giao thông</div>
+        <div class="brand-subtitle">Đồ án Demo</div>
+      </div>
+      <nav class="nav-links">
+        <a href="/dashboard" class="{% if request.url.path in ['/', '/dashboard'] %}active{% endif %}">Bảng điều khiển</a>
+        <a href="/monitoring" class="{% if request.url.path == '/monitoring' %}active{% endif %}">Giám sát</a>
+        <a href="/sources" class="{% if request.url.path == '/sources' %}active{% endif %}">Thư viện video</a>
+        <a href="/reports" class="{% if request.url.path == '/reports' %}active{% endif %}">Báo cáo</a>
+        {% if current_user and current_user.role == "admin" %}
+        <a href="/users" class="{% if request.url.path == '/users' %}active{% endif %}">Người dùng</a>
+        {% endif %}
+      </nav>
+      <div class="sidebar-footer">
+        {% if current_user %}
+        <div class="user-chip">{{ current_user.full_name }} ({{ current_user.role }})</div>
+        <a class="logout-link" href="/logout">Đăng xuất</a>
+        {% endif %}
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="page-header">
+        <div>
+          <h1>{{ page_title }}</h1>
+          <p class="page-subtitle">Hệ thống giám sát giao thông thông minh</p>
+        </div>
+      </header>
+
+      {% if error %}
+      <div class="alert alert-error">{{ error }}</div>
+      {% endif %}
+
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+
+  <script>
+  (function () {
+    function post(url) {
+      return fetch(url, { method: "POST", credentials: "same-origin" }).catch(function () {});
+    }
+
+    function heartbeat() {
+      post("/api/client/heartbeat");
+    }
+
+    heartbeat();
+    setInterval(heartbeat, 1000);
+
+    window.addEventListener("pagehide", function () {
+      if (navigator.sendBeacon) {
+        try {
+          navigator.sendBeacon("/api/client/disconnect");
+          return;
+        } catch (e) {}
+      }
+      post("/api/client/disconnect");
+    });
+  })();
+  </script>
+</body>
+</html>

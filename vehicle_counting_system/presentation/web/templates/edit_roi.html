@@ -1,0 +1,270 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card roi-editor-page">
+  <div class="roi-editor-head">
+    <div>
+      <h2>ROI cho video: {{ source.name }}</h2>
+      <p class="muted roi-editor-subtitle">
+        ROI va duong dem duoc luu rieng cho video nay. Mo lai trang van thay dung vung da luu.
+      </p>
+    </div>
+    <div class="roi-editor-meta">
+      <div class="roi-editor-meta-item">
+        <span class="muted">Source ID</span>
+        <strong>#{{ source.id }}</strong>
+      </div>
+      <div class="roi-editor-meta-item roi-editor-path">
+        <span class="muted">Video</span>
+        <strong>{{ source.source_uri }}</strong>
+      </div>
+    </div>
+  </div>
+
+  <div class="roi-editor-guide">
+    <div class="roi-guide-step"><strong>1.</strong> Bam <strong>Ve ROI</strong> roi click it nhat 3 diem.</div>
+    <div class="roi-guide-step"><strong>2.</strong> Bam <strong>Ve duong dem</strong> roi chon diem dau va diem cuoi.</div>
+    <div class="roi-guide-step"><strong>3.</strong> Bam <strong>Luu ROI</strong>. Cac toa do duoc luu dang normalized nen tu scale theo video.</div>
+  </div>
+
+  <div class="edit-roi-toolbar roi-toolbar">
+    <button type="button" id="btn-roi" class="btn btn-outline">Ve ROI</button>
+    <button type="button" id="btn-line" class="btn btn-outline">Ve duong dem</button>
+    <button type="button" id="btn-clear" class="btn btn-outline">Xoa het</button>
+    <button type="button" id="btn-save" class="btn btn-primary">Luu ROI</button>
+    <a href="/monitoring" class="btn btn-outline">Quay lai Giam sat</a>
+  </div>
+
+  <div class="roi-canvas-card">
+    <div class="canvas-wrap">
+      <canvas id="roi-canvas"></canvas>
+    </div>
+  </div>
+  <p id="status" class="muted roi-status">Dang tai du lieu ROI...</p>
+</section>
+
+<script>
+(function() {
+  const sourceId = {{ source.id }};
+  const canvas = document.getElementById('roi-canvas');
+  const ctx = canvas.getContext('2d');
+  const statusEl = document.getElementById('status');
+
+  let img = null;
+  let imgW = 0, imgH = 0;
+  let mode = 'roi'; // 'roi' | 'line'
+  let roiPoints = [];
+  let lineStart = null;
+  let lineEnd = null;
+  let savedConfig = null;
+
+  function setStatus(msg) {
+    statusEl.textContent = msg;
+  }
+
+  function toPixelPoint(point) {
+    return [
+      Math.round(Number(point[0]) * imgW),
+      Math.round(Number(point[1]) * imgH)
+    ];
+  }
+
+  function loadSavedConfig(config) {
+    roiPoints = [];
+    lineStart = null;
+    lineEnd = null;
+
+    if (!config || !config.has_config) {
+      setStatus('Chua co ROI da luu. Hay ve moi cho video nay.');
+      draw();
+      return;
+    }
+
+    savedConfig = config;
+
+    if (Array.isArray(config.roi)) {
+      roiPoints = config.roi.map(toPixelPoint);
+    }
+
+    if (config.line && Array.isArray(config.line.start) && Array.isArray(config.line.end)) {
+      lineStart = toPixelPoint(config.line.start);
+      lineEnd = toPixelPoint(config.line.end);
+    }
+
+    draw();
+    setStatus('Da nap ROI da luu cho video nay. Ban co the chinh sua va luu lai.');
+  }
+
+  function loadEditorData() {
+    Promise.all([
+      fetch('/api/sources/' + sourceId + '/preview-frame').then(r => r.json()),
+      fetch('/api/sources/' + sourceId + '/config').then(r => r.json())
+    ])
+      .then(([previewData, configData]) => {
+        if (previewData.error) {
+          setStatus('Loi tai frame: ' + previewData.error);
+          return;
+        }
+        if (configData.error) {
+          setStatus('Loi tai config ROI: ' + configData.error);
+          return;
+        }
+
+        img = new Image();
+        img.onload = function() {
+          imgW = img.width;
+          imgH = img.height;
+          canvas.width = imgW;
+          canvas.height = imgH;
+          loadSavedConfig(configData);
+        };
+        img.src = previewData.image;
+      })
+      .catch(e => {
+        setStatus('Loi tai du lieu ROI: ' + e);
+      });
+  }
+
+  function draw() {
+    if (!img) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0);
+
+    ctx.strokeStyle = 'rgba(0, 255, 0, 0.8)';
+    ctx.lineWidth = 3;
+    ctx.fillStyle = 'rgba(0, 255, 0, 0.2)';
+    if (roiPoints.length >= 2) {
+      ctx.beginPath();
+      ctx.moveTo(roiPoints[0][0], roiPoints[0][1]);
+      for (let i = 1; i < roiPoints.length; i++) {
+        ctx.lineTo(roiPoints[i][0], roiPoints[i][1]);
+      }
+      if (roiPoints.length >= 3) ctx.closePath();
+      ctx.stroke();
+      if (roiPoints.length >= 3) ctx.fill();
+    }
+    roiPoints.forEach((p, i) => {
+      ctx.fillStyle = '#0f0';
+      ctx.beginPath();
+      ctx.arc(p[0], p[1], 6, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    ctx.strokeStyle = 'rgba(255, 200, 0, 0.9)';
+    ctx.lineWidth = 4;
+    if (lineStart && lineEnd) {
+      ctx.beginPath();
+      ctx.moveTo(lineStart[0], lineStart[1]);
+      ctx.lineTo(lineEnd[0], lineEnd[1]);
+      ctx.stroke();
+    }
+    if (lineStart) {
+      ctx.fillStyle = '#ff0';
+      ctx.beginPath();
+      ctx.arc(lineStart[0], lineStart[1], 8, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    if (lineEnd) {
+      ctx.fillStyle = '#fa0';
+      ctx.beginPath();
+      ctx.arc(lineEnd[0], lineEnd[1], 8, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  function getMousePos(e) {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    return [
+      Math.round((e.clientX - rect.left) * scaleX),
+      Math.round((e.clientY - rect.top) * scaleY)
+    ];
+  }
+
+  canvas.addEventListener('click', function(e) {
+    const p = getMousePos(e);
+    if (mode === 'roi') {
+      roiPoints.push(p);
+      setStatus('ROI: ' + roiPoints.length + ' điểm (double-click để đóng)');
+    } else if (mode === 'line') {
+      if (!lineStart) {
+        lineStart = p;
+        setStatus('Đường đếm: đã chọn điểm đầu, click điểm cuối');
+      } else {
+        lineEnd = p;
+        setStatus('Đường đếm: đã xong. Có thể Lưu config.');
+      }
+    }
+    draw();
+  });
+
+  canvas.addEventListener('dblclick', function(e) {
+    if (mode === 'roi' && roiPoints.length >= 3) {
+      setStatus('ROI đã đóng. Chuyển sang bước 2 để vẽ đường đếm.');
+    }
+  });
+
+  document.getElementById('btn-roi').onclick = function() {
+    mode = 'roi';
+    setStatus('Che do ROI: click de them diem.');
+  };
+  document.getElementById('btn-line').onclick = function() {
+    mode = 'line';
+    setStatus('Che do duong dem: click diem dau roi click diem cuoi.');
+  };
+  document.getElementById('btn-clear').onclick = function() {
+    roiPoints = [];
+    lineStart = null;
+    lineEnd = null;
+    savedConfig = null;
+    setStatus('Da xoa ROI hien tai. Ve lai tu dau.');
+    draw();
+  };
+
+  document.getElementById('btn-save').onclick = function() {
+    if (roiPoints.length < 3) {
+      setStatus('Can it nhat 3 diem cho ROI.');
+      return;
+    }
+    if (!lineStart || !lineEnd) {
+      setStatus('Can ve duong dem gom 2 diem.');
+      return;
+    }
+    const roi = roiPoints.map(p => [p[0], p[1]]);
+    const line = {
+      id: 'main_road_downstream',
+      start: [lineStart[0], lineStart[1]],
+      end: [lineEnd[0], lineEnd[1]],
+      direction: 'both'
+    };
+    fetch('/api/sources/' + sourceId + '/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        roi: roi,
+        line: line,
+        width: imgW,
+        height: imgH
+      })
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.ok) {
+        setStatus('Da luu ROI thanh cong. Video nay se dung ROI vua luu khi phan tich.');
+        return fetch('/api/sources/' + sourceId + '/config').then(r => r.json());
+      } else {
+        throw new Error(data.error || 'Unknown');
+      }
+    })
+    .then(configData => {
+      if (configData && !configData.error) {
+        loadSavedConfig(configData);
+      }
+    })
+    .catch(e => setStatus('Loi luu ROI: ' + e));
+  };
+
+  loadEditorData();
+})();
+</script>
+{% endblock %}

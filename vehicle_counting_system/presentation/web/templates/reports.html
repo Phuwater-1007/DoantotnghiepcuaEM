@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block content %}
+{% if reports %}
+<section class="report-summary">
+  <div class="report-summary-item">
+    <span class="muted">Tổng số báo cáo</span>
+    <strong>{{ report_summary.total_reports }}</strong>
+  </div>
+  <div class="report-summary-item">
+    <span class="muted">Tổng xe (tất cả phiên)</span>
+    <strong>{{ report_summary.total_vehicles }}</strong>
+  </div>
+</section>
+{% endif %}
+
+<section class="card">
+  <h2>Báo cáo phiên phân tích</h2>
+  {% if reports %}
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Phiên</th>
+        <th>Ngày</th>
+        <th>Nguồn</th>
+        <th>Tổng</th>
+        <th>Loại xe</th>
+        <th>Giờ cao điểm</th>
+        <th>Trạng thái</th>
+        <th>Video</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for report in reports %}
+      <tr>
+        <td>#{{ report.session_id }}</td>
+        <td>{{ report.report_date }}</td>
+        <td>{{ report.source_name }}</td>
+        <td><strong>{{ report.total }}</strong></td>
+        <td>
+          {% for key, value in report.per_class.items() %}
+          <span class="pill">{{ key }}: {{ value }}</span>
+          {% else %}
+          —
+          {% endfor %}
+        </td>
+        <td>{{ report.peak_hour_label }}</td>
+        <td><span class="pill status-{{ report.status }}">{% if report.status == 'completed' %}Hoàn thành{% elif report.status == 'running' %}Đang chạy{% elif report.status == 'queued' %}Đang chờ{% elif report.status == 'failed' %}Thất bại{% elif report.status == 'stopped' %}Đã dừng{% else %}{{ report.status }}{% endif %}</span></td>
+        <td>
+          {% if report.media_url %}
+          <a href="{{ report.media_url }}" target="_blank">Mở video</a>
+          {% else %}
+          —
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-state-icon">—</div>
+    <p>Chưa có báo cáo. Hoàn thành phiên phân tích từ trang Giám sát để xem báo cáo ở đây.</p>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

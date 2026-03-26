@@ -1,0 +1,9 @@
+# ===== file: configs/hardware_cfg.yaml =====
+# Configuration about available hardware and preferences
+
+# GPU
+use_gpu: true
+# additional GPU-specific settings could go here
+
+# camera defaults
+default_camera_index: 0

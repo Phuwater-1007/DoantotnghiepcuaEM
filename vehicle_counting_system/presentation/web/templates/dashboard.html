@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card dashboard-hero">
+  <div>
+    <h2>Toàn cảnh phân tích giao thông</h2>
+    <p class="dashboard-hero-text">
+      Theo dõi số lượng xe hôm nay, mức độ sẵn sàng của video đã cấu hình ROI và kết quả phiên gần nhất.
+    </p>
+  </div>
+  <div class="dashboard-hero-side">
+    <div class="dashboard-pill">
+      {% if dashboard.running_session %}
+      Đang phân tích phiên #{{ dashboard.running_session.id }}
+      {% else %}
+      Hệ thống đang sẵn sàng
+      {% endif %}
+    </div>
+  </div>
+</section>
+
+<section class="card-grid">
+  <div class="card stat-card">
+    <div class="stat-label">Tổng số xe hôm nay</div>
+    <div class="stat-value">{{ dashboard.today_total }}</div>
+  </div>
+  <div class="card stat-card">
+    <div class="stat-label">Ô tô hôm nay</div>
+    <div class="stat-value">{{ dashboard.vehicle_mix.automobile }}</div>
+  </div>
+  <div class="card stat-card">
+    <div class="stat-label">Xe máy hôm nay</div>
+    <div class="stat-value">{{ dashboard.vehicle_mix.motorcycle }}</div>
+  </div>
+  <div class="card stat-card">
+    <div class="stat-label">Video đã có ROI</div>
+    <div class="stat-value small">{{ dashboard.configured_sources }} / {{ dashboard.sources_total }}</div>
+  </div>
+</section>
+
+<section class="two-column">
+  <div class="card">
+    <h2>Cơ cấu phương tiện</h2>
+    {% if dashboard.per_class %}
+    <div class="dashboard-mix-grid">
+      <div class="dashboard-mix-item">
+        <span class="muted">Ô tô</span>
+        <strong>{{ dashboard.vehicle_mix.automobile }}</strong>
+      </div>
+      <div class="dashboard-mix-item">
+        <span class="muted">Xe máy</span>
+        <strong>{{ dashboard.vehicle_mix.motorcycle }}</strong>
+      </div>
+      <div class="dashboard-mix-item">
+        <span class="muted">Xe buýt</span>
+        <strong>{{ dashboard.vehicle_mix.bus }}</strong>
+      </div>
+      <div class="dashboard-mix-item">
+        <span class="muted">Xe tải</span>
+        <strong>{{ dashboard.vehicle_mix.truck }}</strong>
+      </div>
+    </div>
+    <div class="pill-list" style="margin-top: 14px;">
+      {% for key, value in dashboard.per_class.items() %}
+      <span class="pill">{{ key }}: {{ value }}</span>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <div class="empty-state-icon">—</div>
+      <p>Chưa có dữ liệu phân tích. Hãy chạy video từ trang Giám sát để sinh số liệu và video đếm xe.</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h2>Hoạt động theo giờ</h2>
+    {% if dashboard.hourly_activity %}
+    <div class="bar-list">
+      {% for item in dashboard.hourly_activity %}
+      <div class="bar-row">
+        <span>{{ item.hour }}:00</span>
+        <div class="bar-track">
+          <div class="bar-fill" style="width: {{ (item.count / dashboard.max_hourly_count * 100) if dashboard.max_hourly_count > 0 else 0 }}%;"></div>
+        </div>
+        <strong>{{ item.count }}</strong>
+      </div>
+      {% endfor %}
+    </div>
+    {% if dashboard.peak_hour %}
+    <p class="muted" style="margin-top: 12px; font-size: 13px;">Khung giờ cao điểm hôm nay: {{ dashboard.peak_hour }}</p>
+    {% endif %}
+    {% else %}
+    <div class="empty-state">
+      <div class="empty-state-icon">—</div>
+      <p>Chưa có dữ liệu theo giờ. Khi có phiên phân tích hoàn thành, biểu đồ sẽ hiện ở đây.</p>
+    </div>
+    {% endif %}
+  </div>
+</section>
+
+<section class="card">
+  <h2>Phiên phân tích gần nhất</h2>
+  {% if dashboard.latest_session %}
+  <div class="session-summary">
+    <div class="session-summary-row">
+      <span class="muted">Phiên #{{ dashboard.latest_session.id }}</span>
+      <span class="pill status-{{ dashboard.latest_session.status }}">
+        {% if dashboard.latest_session.status == 'completed' %}Hoàn thành{% elif dashboard.latest_session.status == 'running' %}Đang chạy{% elif dashboard.latest_session.status == 'queued' %}Đang chờ{% elif dashboard.latest_session.status == 'failed' %}Thất bại{% elif dashboard.latest_session.status == 'stopped' %}Đã dừng{% else %}{{ dashboard.latest_session.status }}{% endif %}
+      </span>
+    </div>
+    <div class="session-summary-row">
+      <span class="muted">Video</span>
+      <span>{{ dashboard.latest_session.source_name }}</span>
+    </div>
+    <div class="session-summary-row">
+      <span class="muted">Tổng số xe</span>
+      <span><strong>{{ dashboard.latest_session.summary.total if dashboard.latest_session.summary and dashboard.latest_session.summary.total is defined else 0 }}</strong></span>
+    </div>
+    <div class="session-summary-row">
+      <span class="muted">Ô tô</span>
+      <span>{{ dashboard.latest_session.vehicle_mix.automobile }}</span>
+    </div>
+    <div class="session-summary-row">
+      <span class="muted">Xe máy</span>
+      <span>{{ dashboard.latest_session.vehicle_mix.motorcycle }}</span>
+    </div>
+    <div class="session-summary-row">
+      <span class="muted">Bắt đầu</span>
+      <span>{{ dashboard.latest_session.started_at }}</span>
+    </div>
+    {% if dashboard.latest_session.finished_at %}
+    <div class="session-summary-row">
+      <span class="muted">Kết thúc</span>
+      <span>{{ dashboard.latest_session.finished_at }}</span>
+    </div>
+    {% endif %}
+    {% if dashboard.latest_session.summary.per_class %}
+    <div class="session-summary-row">
+      <span class="muted">Chi tiết</span>
+      <span>
+        {% for k, v in dashboard.latest_session.summary.per_class.items() %}
+        <span class="pill">{{ k }}: {{ v }}</span>
+        {% endfor %}
+      </span>
+    </div>
+    {% endif %}
+    {% if dashboard.latest_session.error_message %}
+    <div class="alert alert-error">{{ dashboard.latest_session.error_message }}</div>
+    {% endif %}
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-state-icon">—</div>
+    <p>Chưa có phiên gần nhất. Sau khi chạy phân tích ở trang Giám sát, kết quả sẽ được đổ về đây.</p>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

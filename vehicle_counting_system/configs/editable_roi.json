@@ -1,0 +1,23 @@
+{
+  "enabled": true,
+  "line": {
+    "id": "main_road_downstream",
+    "start": [100, 430],
+    "end": [830, 460],
+    "direction": "both"
+  },
+  "roi": [
+    [160, 360],
+    [800, 360],
+    [920, 720],
+    [-360, 720]
+  ],
+  "guide": [
+    "Chi chinh file nay neu ban muon doi ROI/line.",
+    "Neu sua sai JSON hoac sai cau truc, app se bo qua file nay va quay ve counting_lines.json.",
+    "ROI can it nhat 3 diem. Moi diem co dang [x, y].",
+    "De chinh rieng ben trai, chi sua 2 diem dau-cuoi phia trai trong ROI.",
+    "Ben phai dang kha khit, nen han che sua 2 diem phia phai neu khong can.",
+    "Line display mode hien tai duoc dieu khien trong .env qua COUNTING_LINE_MODE=soft|outline|hidden."
+  ]
+}
