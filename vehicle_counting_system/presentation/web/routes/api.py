@@ -14,6 +14,9 @@ from pydantic import BaseModel
 from vehicle_counting_system.configs.paths import DATA_DIR, INPUT_VIDEOS_DIR, PROJECT_ROOT
 from vehicle_counting_system.presentation.web.dependencies import get_container, get_current_user, to_media_url
 from vehicle_counting_system.utils.file_utils import VIDEO_EXTENSIONS, ensure_dir
+from vehicle_counting_system.utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class SaveConfigBody(BaseModel):
@@ -176,7 +179,8 @@ def build_router() -> APIRouter:
             with open(dest, "wb") as f:
                 shutil.copyfileobj(file.file, f)
         except Exception as e:
-            return JSONResponse(status_code=500, content={"error": str(e)})
+            logger.error(f"Error saving uploaded file: {e}", exc_info=True)
+            return JSONResponse(status_code=500, content={"error": "Lỗi máy chủ khi lưu file tải lên"})
         rel = dest.relative_to(PROJECT_ROOT)
         rel_str = str(rel).replace("\\", "/")
         container = get_container(request)
@@ -191,8 +195,11 @@ def build_router() -> APIRouter:
                 source_uri=rel_str,
                 notes="Upload từ web",
             )
-        except Exception as e:
+        except ValueError as e:
             return JSONResponse(status_code=400, content={"error": str(e)})
+        except Exception as e:
+            logger.error(f"Error creating source from upload: {e}", exc_info=True)
+            return JSONResponse(status_code=500, content={"error": "Lỗi máy chủ khi tạo thông tin file"})
         row = container.db.fetchone("SELECT id FROM sources ORDER BY id DESC LIMIT 1")
         source_id = int(row["id"]) if row else None
         return {"ok": True, "path": rel_str, "source_id": source_id, "renamed": counter > 0, "final_name": dest.name}
@@ -364,8 +371,11 @@ def build_router() -> APIRouter:
             return JSONResponse(status_code=409, content={"error": "Đang có phiên phân tích chạy, vui lòng đợi hoặc dừng"})
         try:
             session_id = container.monitoring_service.start_session(source_id, user_id=user.id)
+        except ValueError as e:
+            return JSONResponse(status_code=400, content={"error": str(e)})
         except Exception as e:
-            return JSONResponse(status_code=500, content={"error": str(e)})
+            logger.error(f"Error starting monitoring session: {e}", exc_info=True)
+            return JSONResponse(status_code=500, content={"error": "Lỗi máy chủ khi bắt đầu phân tích"})
         return {"ok": True, "session_id": session_id, "source_id": source_id, "source_name": source.name}
 
     @router.post("/monitoring/stop")
