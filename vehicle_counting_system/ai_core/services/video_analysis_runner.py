@@ -3,6 +3,7 @@ from __future__ import annotations
 import time
 from pathlib import Path
 from threading import Event
+from threading import Lock
 from typing import Callable
 
 import cv2
@@ -19,6 +20,25 @@ from vehicle_counting_system.utils.logger import get_logger
 from vehicle_counting_system.utils.video_utils import get_video_info, validate_video_source
 
 logger = get_logger(__name__)
+
+_SHARED_YOLO_DETECTOR = None
+_SHARED_YOLO_LOCK = Lock()
+
+
+def _get_shared_yolo_detector() -> YOLODetector:
+    """
+    Reuse a single YOLO model instance across analysis sessions.
+
+    Without this, each session constructs YOLODetector and reloads weights,
+    which can cause VRAM/RAM pressure and instability on repeated runs.
+    """
+    global _SHARED_YOLO_DETECTOR
+    if _SHARED_YOLO_DETECTOR is not None:
+        return _SHARED_YOLO_DETECTOR
+    with _SHARED_YOLO_LOCK:
+        if _SHARED_YOLO_DETECTOR is None:
+            _SHARED_YOLO_DETECTOR = YOLODetector(shared=True)
+    return _SHARED_YOLO_DETECTOR
 
 
 def analyze_video_source(
@@ -49,7 +69,7 @@ def analyze_video_source(
     stride = max(1, int(stride))
 
     # Reuse YOLO model between sessions to reduce startup time/VRAM churn.
-    _shared_detector = YOLODetector(shared=True)
+    _shared_detector = _get_shared_yolo_detector()
     processor = FrameProcessor(
         detector=_shared_detector,
         tracker=ByteTrackTracker(),

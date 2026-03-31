@@ -30,8 +30,8 @@ python -m uvicorn product_web:app --reload --host 127.0.0.1 --port 8000
    - Đặt file video vào `vehicle_counting_system/data/input/videos/` (tự tạo khi chạy web)
    - Đường dẫn: `data/input/videos/ten_file.mp4`
 3. **Giám sát** → Chọn video → **Chỉnh ROI** → Lưu
-4. **Chạy trong VS Code**: `python run_with_web_roi.py --source "data/input/videos/ten_file.mp4"`
-5. **Giám sát** → Bấm **Chạy phân tích** → Xem video đã xử lý và số đếm
+4. **Giám sát** → Chọn video có ROI → Bấm **Chạy phân tích**
+5. Theo dõi trạng thái trên web hoặc xem video kết quả trong `vehicle_counting_system/data/outputs/videos/`
 
 ## Chạy local dùng ROI từ web (mượt hơn, ít lag)
 
@@ -43,10 +43,10 @@ python run_with_web_roi.py
 python run_with_web_roi.py --source data/input/videos/test.mp4
 ```
 
-Trên trang Giám sát, khi video đã có ROI, sẽ hiện lệnh và nút **Copy** để chạy local.
+Trên trang Giám sát, khi video đã có ROI, bạn vẫn có thể chạy local trong terminal để giảm tải cho web.
 
 ## Lưu ý
 
 - Video output: `vehicle_counting_system/data/outputs/videos/{tên}_result.mp4` (vd: Test3_result.mp4)
-- Web **không** chạy phân tích – chỉ hiển thị video đã xử lý từ VS Code
+- Web có thể chạy phân tích headless, nhưng nếu máy yếu hoặc video nặng thì nên chạy local bằng `run_with_web_roi.py`
 - Kết quả giữ nguyên đến khi đổi video hoặc refresh trang

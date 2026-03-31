@@ -18,8 +18,8 @@ class ReportService:
                 rs.per_class_json,
                 rs.peak_hour_label,
                 sess.status,
-                sess.started_at,
-                sess.finished_at,
+                datetime(sess.started_at, 'localtime') AS started_at,
+                CASE WHEN sess.finished_at IS NULL THEN NULL ELSE datetime(sess.finished_at, 'localtime') END AS finished_at,
                 sess.output_video_path,
                 src.name AS source_name
             FROM report_snapshots rs

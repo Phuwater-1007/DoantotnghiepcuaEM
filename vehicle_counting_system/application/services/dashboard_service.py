@@ -40,7 +40,7 @@ class DashboardService:
             SELECT id FROM analysis_sessions
             WHERE status = 'completed'
               AND finished_at IS NOT NULL
-              AND date(finished_at) = ?
+              AND date(datetime(finished_at, 'localtime')) = ?
             """,
             (today,),
         )
@@ -56,13 +56,13 @@ class DashboardService:
 
         hourly_rows = self.db.fetchall(
             """
-            SELECT substr(sess.finished_at, 12, 2) AS hour_label, COALESCE(SUM(rs.total), 0) AS vehicle_count
+            SELECT substr(datetime(sess.finished_at, 'localtime'), 12, 2) AS hour_label, COALESCE(SUM(rs.total), 0) AS vehicle_count
             FROM analysis_sessions sess
             LEFT JOIN report_snapshots rs ON rs.session_id = sess.id
             WHERE sess.status = 'completed'
               AND sess.finished_at IS NOT NULL
-              AND date(sess.finished_at) = ?
-            GROUP BY substr(sess.finished_at, 12, 2)
+              AND date(datetime(sess.finished_at, 'localtime')) = ?
+            GROUP BY substr(datetime(sess.finished_at, 'localtime'), 12, 2)
             ORDER BY hour_label ASC
             """,
             (today,),
@@ -71,7 +71,7 @@ class DashboardService:
         configured_sources = sum(1 for source in sources if source.counting_config_path)
         running_row = self.db.fetchone(
             """
-            SELECT id, source_id, started_at
+            SELECT id, source_id, datetime(started_at, 'localtime') AS started_at
             FROM analysis_sessions
             WHERE status = 'running'
             ORDER BY id DESC
@@ -91,7 +91,9 @@ class DashboardService:
 
         latest_row = self.db.fetchone(
             """
-            SELECT sess.id, sess.status, sess.started_at, sess.finished_at,
+            SELECT sess.id, sess.status,
+                   datetime(sess.started_at, 'localtime') AS started_at,
+                   CASE WHEN sess.finished_at IS NULL THEN NULL ELSE datetime(sess.finished_at, 'localtime') END AS finished_at,
                    sess.summary_json, sess.error_message, src.name AS source_name, src.source_type
             FROM analysis_sessions sess
             JOIN sources src ON src.id = sess.source_id

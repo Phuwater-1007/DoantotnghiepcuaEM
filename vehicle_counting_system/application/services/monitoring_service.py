@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import copy
 import cv2
+import os
 import json
 import threading
 import time
@@ -114,9 +115,22 @@ class MonitoringService:
             if self._stop_event is not None:
                 self._stop_event.set()
             worker = self._worker
-        if worker is not None:
-            # Avoid blocking shutdown too long in web demo mode.
-            worker.join(timeout=5.0)
+        if worker is None:
+            return
+
+        # Avoid blocking shutdown too long in web demo mode.
+        # You can tune it via env vars:
+        # - `WEB_STOP_SESSION_NO_JOIN=1` => don't wait at all
+        # - `WEB_STOP_SESSION_JOIN_TIMEOUT` => seconds (float)
+        no_join = os.getenv("WEB_STOP_SESSION_NO_JOIN", "").strip() not in ("", "0", "false", "False")
+        if no_join:
+            return
+
+        join_timeout = float(os.getenv("WEB_STOP_SESSION_JOIN_TIMEOUT", "1.0"))
+        if join_timeout <= 0:
+            return
+
+        worker.join(timeout=join_timeout)
 
     def reset_runtime_state(self) -> None:
         """Lam sach du lieu phan tich tam de moi lan bat web la mot workspace gon."""

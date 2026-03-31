@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{ page_title }} | Hệ thống Giám sát Giao thông</title>
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
   <link rel="stylesheet" href="/static/app.css">
 </head>
 <body>
@@ -63,13 +64,13 @@
     setInterval(heartbeat, 1000);
 
     window.addEventListener("pagehide", function () {
-      if (navigator.sendBeacon) {
-        try {
-          navigator.sendBeacon("/api/client/disconnect");
-          return;
-        } catch (e) {}
-      }
-      post("/api/client/disconnect");
+      var url = "/api/client/disconnect";
+      try {
+        if (navigator.sendBeacon) {
+          navigator.sendBeacon(url);
+        }
+      } catch (e) {}
+      post(url);
     });
   })();
   </script>

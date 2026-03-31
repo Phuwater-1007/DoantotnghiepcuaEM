@@ -84,7 +84,9 @@ def build_router() -> APIRouter:
         container = get_container(request)
         rows = container.db.fetchall(
             """
-            SELECT sess.id, sess.source_id, sess.status, sess.started_at, sess.finished_at,
+            SELECT sess.id, sess.source_id, sess.status,
+                   datetime(sess.started_at, 'localtime') AS started_at,
+                   CASE WHEN sess.finished_at IS NULL THEN NULL ELSE datetime(sess.finished_at, 'localtime') END AS finished_at,
                    sess.summary_json, sess.output_video_path, sess.error_message,
                    src.name AS source_name, src.source_type
             FROM analysis_sessions sess
@@ -120,7 +122,9 @@ def build_router() -> APIRouter:
         container = get_container(request)
         row = container.db.fetchone(
             """
-            SELECT sess.id, sess.source_id, sess.status, sess.started_at, sess.finished_at,
+            SELECT sess.id, sess.source_id, sess.status,
+                   datetime(sess.started_at, 'localtime') AS started_at,
+                   CASE WHEN sess.finished_at IS NULL THEN NULL ELSE datetime(sess.finished_at, 'localtime') END AS finished_at,
                    sess.summary_json, sess.output_video_path, sess.error_message,
                    src.name AS source_name, src.source_type
             FROM analysis_sessions sess

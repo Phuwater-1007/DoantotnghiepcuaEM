@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <defs>
+    <style>
+      .o { fill: #ff5a00; }
+      .t { fill: #ff5a00; font: 700 26px/1 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+    </style>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="#ffffff"/>
+  <!-- simplified "bridge" mark -->
+  <path class="o" d="M10 30c7-6 15-9 22-9s15 3 22 9v5c-7-7-15-10-22-10S17 28 10 35v-5z"/>
+  <rect class="o" x="12" y="26" width="7" height="18" rx="2"/>
+  <rect class="o" x="45" y="26" width="7" height="18" rx="2"/>
+  <!-- UTT monogram -->
+  <text class="t" x="32" y="56" text-anchor="middle">UTT</text>
+</svg>

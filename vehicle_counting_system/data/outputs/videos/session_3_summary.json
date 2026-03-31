@@ -1,0 +1,9 @@
+{
+  "timestamp": "2026-03-31T09:17:42",
+  "session_id": 3,
+  "total": 3,
+  "per_class": {
+    "car": 2,
+    "truck": 1
+  }
+}
