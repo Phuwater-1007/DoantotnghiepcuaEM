@@ -1721,3 +1721,258 @@ button:disabled {
     width: auto;
   }
 }
+
+/* Access Denied */
+.access-denied-container {
+  display: grid;
+  place-items: center;
+  min-height: 60vh;
+}
+
+.access-denied-card {
+  max-width: 480px;
+  width: 100%;
+  text-align: center;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 40px 32px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+}
+
+.access-denied-icon {
+  margin-bottom: 20px;
+  animation: access-denied-shake 0.5s ease-in-out;
+}
+
+@keyframes access-denied-shake {
+  0%, 100% { transform: rotate(0deg); }
+  20% { transform: rotate(-8deg); }
+  40% { transform: rotate(8deg); }
+  60% { transform: rotate(-4deg); }
+  80% { transform: rotate(4deg); }
+}
+
+.access-denied-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #dc2626;
+  margin: 0 0 12px 0;
+}
+
+.access-denied-message {
+  color: #6b7280;
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 0 0 24px 0;
+}
+
+.access-denied-info {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  background: #fafafa;
+  border: 1px solid #f3f4f6;
+  border-radius: 12px;
+  margin-bottom: 24px;
+  text-align: left;
+}
+
+.access-denied-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+}
+
+.access-denied-label {
+  color: #6b7280;
+}
+
+.access-denied-value {
+  color: #111827;
+  font-weight: 600;
+}
+
+.access-denied-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 20px;
+  background: #111827;
+  color: #fff;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.2s ease;
+}
+
+.access-denied-back-btn:hover {
+  background: #1f2937;
+  text-decoration: none;
+  color: #fff;
+}
+
+/* Admin action buttons - use !important to override global button{background:#111827} */
+.btn-sm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: auto !important;
+  padding: 6px 12px !important;
+  font-size: 12px !important;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  border: 1px solid transparent !important;
+  transition: background 0.15s ease;
+}
+
+button.btn-toggle-active {
+  background: #fef3c7 !important;
+  color: #92400e !important;
+  border: 1px solid #fde68a !important;
+}
+
+button.btn-toggle-active:hover:not(:disabled) {
+  background: #fde68a !important;
+}
+
+button.btn-toggle-inactive {
+  background: #d1fae5 !important;
+  color: #065f46 !important;
+  border: 1px solid #a7f3d0 !important;
+}
+
+button.btn-toggle-inactive:hover:not(:disabled) {
+  background: #a7f3d0 !important;
+}
+
+button.btn-delete-user {
+  background: #fee2e2 !important;
+  color: #991b1b !important;
+  border: 1px solid #fecaca !important;
+}
+
+button.btn-delete-user:hover:not(:disabled) {
+  background: #fecaca !important;
+}
+
+button.btn-reset-pw {
+  background: #eff6ff !important;
+  color: #1d4ed8 !important;
+  border: 1px solid #bfdbfe !important;
+}
+
+button.btn-reset-pw:hover:not(:disabled) {
+  background: #dbeafe !important;
+}
+
+/* Admin page */
+.admin-action-card {
+  padding: 14px 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #fafafa;
+}
+
+.admin-action-card strong {
+  color: #111827;
+  font-size: 14px;
+}
+
+/* User actions in table */
+.user-actions-cell {
+  min-width: 240px;
+}
+
+.user-actions-cell form {
+  display: inline;
+  margin: 0;
+}
+
+.user-actions-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.user-actions-row button,
+.user-actions-row .btn-sm {
+  width: auto !important;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Reset password panel */
+.reset-pw-panel {
+  margin-top: 10px;
+  padding: 12px 14px;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 10px;
+}
+
+.reset-pw-label {
+  display: block;
+  font-size: 12px;
+  color: #0369a1;
+  margin-bottom: 8px;
+  padding: 0;
+  border: none;
+  width: auto;
+}
+
+.reset-pw-input-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.reset-pw-input {
+  flex: 1;
+  min-width: 160px;
+  padding: 8px 12px !important;
+  font-size: 13px !important;
+  border: 1px solid #d1d5db !important;
+  border-radius: 6px;
+  background: #fff !important;
+  color: #111827 !important;
+  width: auto !important;
+}
+
+button.reset-pw-save {
+  width: auto !important;
+  padding: 8px 16px !important;
+  background: #2563eb !important;
+  color: #fff !important;
+  border: none !important;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 13px !important;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+button.reset-pw-save:hover {
+  background: #1d4ed8 !important;
+}
+
+button.reset-pw-cancel {
+  width: auto !important;
+  padding: 8px 14px !important;
+  background: #f3f4f6 !important;
+  color: #374151 !important;
+  border: 1px solid #d1d5db !important;
+  border-radius: 6px;
+  font-size: 13px !important;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+button.reset-pw-cancel:hover {
+  background: #e5e7eb !important;
+}
+

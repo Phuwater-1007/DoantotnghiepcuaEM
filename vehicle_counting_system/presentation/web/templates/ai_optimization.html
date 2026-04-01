@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <h2>Tối ưu AI & Cảnh báo</h2>
+  <p class="muted">Tinh chỉnh lõi AI (YOLO) để loại bỏ hiện tượng đếm sót xe trong các video có góc quay khó, và theo dõi log cảnh báo hệ thống.</p>
+</div>
+
+{% if success_message %}
+<div class="alert alert-success" style="background: rgba(16, 185, 129, 0.1); border-left: 4px solid #10b981; padding: 16px; border-radius: 8px; margin-bottom: 24px;">
+  {{ success_message }}
+</div>
+{% endif %}
+
+{% if error %}
+<div class="alert alert-error" style="background: rgba(239, 68, 68, 0.1); border-left: 4px solid #ef4444; padding: 16px; border-radius: 8px; margin-bottom: 24px;">
+  {{ error }}
+</div>
+{% endif %}
+
+<div class="card-grid" style="grid-template-columns: 1fr 2fr; gap: 24px;">
+  <!-- Phần Cấu hình AI -->
+  <div class="card">
+    <h3 style="margin-bottom: 16px;">Biến số Nhận diện (AI Core)</h3>
+    <p class="muted" style="margin-bottom: 24px; font-size: 14px;">
+      Giảm "Ngưỡng Tự tin" nếu model bỏ sót nhiều xe ở xa (như file test1, test2). Tăng lên nếu nhận diện nhầm rác thành xe.
+    </p>
+    
+    <form method="POST" action="/ai-config">
+      {{ csrf_token_html(request) | safe }}
+      <div class="form-group" style="margin-bottom: 24px;">
+        <label for="conf_threshold" style="display: flex; justify-content: space-between; font-weight: 600; margin-bottom: 8px;">
+          Ngưỡng Tự tin (Confidence)
+          <span id="conf-val" style="color: #3b82f6;">{{ ai_config.conf_threshold }}</span>
+        </label>
+        <input type="range" id="conf_threshold" name="conf_threshold" min="0.1" max="1.0" step="0.05" value="{{ ai_config.conf_threshold }}" 
+               style="width: 100%; accent-color: #3b82f6;"
+               oninput="document.getElementById('conf-val').innerText = this.value">
+        <small class="muted" style="display: block; margin-top: 8px; font-size: 12px;">Mặc định: 0.5. Thử để <b>0.25</b> cho các video mờ.</small>
+      </div>
+
+      <div class="form-group" style="margin-bottom: 32px;">
+        <label for="min_box_area" style="display: flex; justify-content: space-between; font-weight: 600; margin-bottom: 8px;">
+          Kích thước vật thể tối thiểu (Min Box Area)
+          <span id="area-val" style="color: #3b82f6;">{{ ai_config.min_box_area }}</span>
+        </label>
+        <input type="range" id="min_box_area" name="min_box_area" min="0" max="2000" step="50" value="{{ ai_config.min_box_area }}" 
+               style="width: 100%; accent-color: #3b82f6;"
+               oninput="document.getElementById('area-val').innerText = this.value">
+        <small class="muted" style="display: block; margin-top: 8px; font-size: 12px;">Mặc định: 100. Giảm xuống 0-50 để bắt xe ở góc cực xa.</small>
+      </div>
+
+      <button type="submit" class="btn btn-primary" style="width: 100%; border-radius: 8px; padding: 12px;">Cập nhật Mô hình AI</button>
+    </form>
+  </div>
+
+  <!-- Phần Bảng Cảnh báo & Logs -->
+  <div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+      <h3 style="margin: 0;">Lịch sử Cảnh báo & Tối ưu</h3>
+    </div>
+    
+    {% if logs %}
+    <div class="table-container">
+      <table class="table" style="width: 100%;">
+        <thead>
+          <tr>
+            <th width="150">Thời gian</th>
+            <th width="120">Người dùng</th>
+            <th width="150">Loại Sự kiện</th>
+            <th>Nội dung Chi tiết</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for log in logs %}
+          <tr>
+            <td><span class="muted" style="font-size: 13px;">{{ log.created_at.split('.')[0] }}</span></td>
+            <td>
+              {% if log.username %}
+              <span class="badge" style="background: rgba(59, 130, 246, 0.1); color: #3b82f6; padding: 2px 8px; border-radius: 12px; font-size: 12px;">{{ log.username }}</span>
+              {% else %}
+              <span class="muted">System</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if 'update' in log.action %}
+              <span style="color: #f59e0b; font-weight: 500;">Cấu hình / Config</span>
+              {% elif 'failed' in log.action or 'error' in log.action %}
+              <span style="color: #ef4444; font-weight: 500;">Cảnh báo / Warning</span>
+              {% else %}
+              <span style="color: #10b981; font-weight: 500;">Thông báo / Info</span>
+              {% endif %}
+            </td>
+            <td>{{ log.detail }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state" style="padding: 40px 0;">
+      <div class="empty-state-icon" style="font-size: 24px; color: #9ca3af; margin-bottom: 12px;">—</div>
+      <p style="color: #6b7280;">Chưa có log cảnh báo nào trong hệ thống.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

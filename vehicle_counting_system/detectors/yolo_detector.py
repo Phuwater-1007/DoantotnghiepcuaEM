@@ -100,6 +100,15 @@ class YOLODetector(BaseDetector):
     def _area(self, x1: float, y1: float, x2: float, y2: float) -> float:
         return max(0.0, x2 - x1) * max(0.0, y2 - y1)
 
+    def update_params(self, conf_thres: float | None = None, min_box_area: float | None = None) -> None:
+        """Cập nhật nhanh thông số model (thay đổi ngay ở lần detect tiếp theo)."""
+        if conf_thres is not None:
+            self.conf_thres = float(conf_thres)
+            logger.info(f"YOLO conf_threshold updated to {self.conf_thres}")
+        if min_box_area is not None:
+            self.min_box_area = float(min_box_area)
+            logger.info(f"YOLO min_box_area updated to {self.min_box_area}")
+
     def detect(self, frame) -> List[Detection]:
         if self.model is None:
             raise RuntimeError("YOLO detector has been closed.")

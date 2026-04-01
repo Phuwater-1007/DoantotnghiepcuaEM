@@ -100,6 +100,14 @@ def get_container(request: Request):
 
 def get_current_user(request: Request):
     container = get_container(request)
+    
+    # Require login every time the server is restarted from VS Code
+    # by ensuring the session belongs to the current server instance.
+    session_instance = request.session.get("instance_id")
+    if session_instance != request.app.state.instance_id:
+        request.session.clear()
+        return None
+        
     user_id = request.session.get("user_id")
     if user_id is None:
         return None
@@ -118,7 +126,7 @@ def require_admin(request: Request):
     if isinstance(user, RedirectResponse):
         return user
     if user.role != "admin":
-        return RedirectResponse("/dashboard", status_code=303)
+        return RedirectResponse("/access-denied", status_code=303)
     return user
 
 

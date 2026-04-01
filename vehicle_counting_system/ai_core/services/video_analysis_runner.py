@@ -41,6 +41,21 @@ def _get_shared_yolo_detector() -> YOLODetector:
     return _SHARED_YOLO_DETECTOR
 
 
+def get_ai_config() -> dict:
+    """Read current YOLO config."""
+    det = _get_shared_yolo_detector()
+    return {
+        "conf_threshold": getattr(det, "conf_thres", 0.5),
+        "min_box_area": getattr(det, "min_box_area", 100.0)
+    }
+
+
+def update_ai_config(conf_thres: float | None = None, min_box_area: float | None = None) -> None:
+    """Update active YOLO parameters."""
+    det = _get_shared_yolo_detector()
+    det.update_params(conf_thres=conf_thres, min_box_area=min_box_area)
+
+
 def analyze_video_source(
     source_uri: str,
     *,

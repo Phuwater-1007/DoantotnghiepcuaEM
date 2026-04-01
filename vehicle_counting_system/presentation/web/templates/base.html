@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{ page_title }} | Hệ thống Giám sát Giao thông</title>
-  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+  <link rel="icon" type="image/png" href="/static/favicon.png">
   <link rel="stylesheet" href="/static/app.css">
 </head>
 <body>
@@ -17,10 +17,11 @@
       <nav class="nav-links">
         <a href="/dashboard" class="{% if request.url.path in ['/', '/dashboard'] %}active{% endif %}">Bảng điều khiển</a>
         <a href="/monitoring" class="{% if request.url.path == '/monitoring' %}active{% endif %}">Giám sát</a>
-        <a href="/sources" class="{% if request.url.path == '/sources' %}active{% endif %}">Thư viện video</a>
+        <a href="/ai-config" class="{% if request.url.path == '/ai-config' %}active{% endif %}">Tối ưu & Cảnh báo</a>
         <a href="/reports" class="{% if request.url.path == '/reports' %}active{% endif %}">Báo cáo</a>
         {% if current_user and current_user.role == "admin" %}
         <a href="/users" class="{% if request.url.path == '/users' %}active{% endif %}">Người dùng</a>
+        <a href="/admin" class="{% if request.url.path == '/admin' %}active{% endif %}">Quản trị hệ thống</a>
         {% endif %}
       </nav>
       <div class="sidebar-footer">

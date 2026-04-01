@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="access-denied-container">
+  <div class="access-denied-card">
+    <div class="access-denied-icon">
+      <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+      </svg>
+    </div>
+    <h2 class="access-denied-title">Không có quyền truy cập</h2>
+    <p class="access-denied-message">
+      Tài khoản của bạn không có quyền truy cập trang này.
+      Chức năng này chỉ dành cho quản trị viên (Admin).
+    </p>
+    <div class="access-denied-info">
+      <div class="access-denied-info-row">
+        <span class="access-denied-label">Tài khoản:</span>
+        <span class="access-denied-value">{{ current_user.full_name }} ({{ current_user.username }})</span>
+      </div>
+      <div class="access-denied-info-row">
+        <span class="access-denied-label">Vai trò hiện tại:</span>
+        <span class="pill">{{ current_user.role }}</span>
+      </div>
+      <div class="access-denied-info-row">
+        <span class="access-denied-label">Vai trò yêu cầu:</span>
+        <span class="pill" style="background:#fef2f2;color:#991b1b;">admin</span>
+      </div>
+    </div>
+    <a href="/dashboard" class="access-denied-back-btn">← Quay về Bảng điều khiển</a>
+  </div>
+</section>
+{% endblock %}

@@ -100,6 +100,17 @@ class SQLiteDatabase:
                 );
 
                 CREATE UNIQUE INDEX IF NOT EXISTS idx_sources_uri ON sources(source_uri);
+
+                CREATE TABLE IF NOT EXISTS activity_logs (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER,
+                    username TEXT NOT NULL DEFAULT '',
+                    action TEXT NOT NULL,
+                    detail TEXT NOT NULL DEFAULT '',
+                    ip_address TEXT NOT NULL DEFAULT '',
+                    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY(user_id) REFERENCES users(id)
+                );
                 """
             )
 
@@ -167,3 +178,27 @@ class SQLiteDatabase:
             """
         )
         return len(stale)
+
+    def fix_report_timezone_data(self) -> int:
+        """Recalculate report_date and peak_hour_label using localtime conversion.
+
+        Fixes data that was previously saved using raw UTC timestamps.
+        Safe to run multiple times (idempotent).
+        """
+        with self.connect() as conn:
+            cursor = conn.execute(
+                """
+                UPDATE report_snapshots
+                SET report_date = date(datetime(
+                        (SELECT sess.finished_at FROM analysis_sessions sess WHERE sess.id = report_snapshots.session_id),
+                        'localtime'
+                    )),
+                    peak_hour_label = substr(datetime(
+                        (SELECT sess.finished_at FROM analysis_sessions sess WHERE sess.id = report_snapshots.session_id),
+                        'localtime'
+                    ), 12, 2) || ':00'
+                WHERE EXISTS (SELECT 1 FROM analysis_sessions sess WHERE sess.id = report_snapshots.session_id AND sess.finished_at IS NOT NULL)
+                """
+            )
+            return cursor.rowcount
+

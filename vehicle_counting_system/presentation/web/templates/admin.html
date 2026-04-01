@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% block content %}
+
+<!-- System Stats -->
+<section class="card-grid" style="grid-template-columns: repeat(4, minmax(0, 1fr));">
+  <div class="card stat-card">
+    <div class="stat-label">Dung lượng CSDL</div>
+    <div class="stat-value small">{{ stats.db_size_display }}</div>
+  </div>
+  <div class="card stat-card">
+    <div class="stat-label">Tổng lưu trữ</div>
+    <div class="stat-value small">{{ stats.total_storage }}</div>
+  </div>
+  <div class="card stat-card">
+    <div class="stat-label">Người dùng</div>
+    <div class="stat-value">{{ stats.total_users }}</div>
+  </div>
+  <div class="card stat-card">
+    <div class="stat-label">Nguồn video</div>
+    <div class="stat-value">{{ stats.total_sources }}</div>
+  </div>
+</section>
+
+<section class="two-column">
+  <!-- System Info Detail -->
+  <div class="card">
+    <h2>📊 Thống kê chi tiết</h2>
+    <table class="data-table">
+      <tbody>
+        <tr><td>Tổng phiên phân tích</td><td><strong>{{ stats.total_sessions }}</strong></td></tr>
+        <tr><td style="padding-left:24px;">↳ Hoàn thành</td><td><span class="pill status-completed">{{ stats.completed_sessions }}</span></td></tr>
+        <tr><td style="padding-left:24px;">↳ Thất bại</td><td><span class="pill status-failed">{{ stats.failed_sessions }}</span></td></tr>
+        <tr><td>Tổng báo cáo</td><td><strong>{{ stats.total_reports }}</strong></td></tr>
+        <tr><td>Video input</td><td><strong>{{ stats.input_video_count }}</strong> ({{ stats.input_dir_size_display }})</td></tr>
+        <tr><td>Video output</td><td><strong>{{ stats.output_video_count }}</strong> ({{ stats.output_dir_size_display }})</td></tr>
+        <tr><td>CSV / Logs</td><td>{{ stats.csv_dir_size_display }} / {{ stats.logs_dir_size_display }}</td></tr>
+        <tr><td>Nhật ký hoạt động</td><td><strong>{{ stats.total_logs }}</strong> bản ghi</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Data Management -->
+  <div class="card">
+    <h2>🗑️ Quản lý dữ liệu</h2>
+    <p class="muted" style="margin-bottom:16px;">Xóa dữ liệu cũ để giải phóng dung lượng hoặc reset hệ thống demo.</p>
+
+    <div style="display:grid;gap:12px;">
+      <div class="admin-action-card">
+        <div>
+          <strong>Xóa phiên phân tích &amp; báo cáo</strong>
+          <p class="muted" style="margin:4px 0 0;font-size:13px;">Xóa toàn bộ lịch sử phiên và báo cáo. Không xóa video hoặc nguồn.</p>
+        </div>
+        <form method="post" action="/admin/clear-sessions" onsubmit="return confirm('Bạn chắc chắn muốn xóa toàn bộ phiên phân tích và báo cáo?')">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button type="submit" class="btn-sm btn-delete-user" style="width:auto;margin-top:8px;">Xóa phiên &amp; báo cáo</button>
+        </form>
+      </div>
+
+      <div class="admin-action-card">
+        <div>
+          <strong>Xóa video output đã xử lý</strong>
+          <p class="muted" style="margin:4px 0 0;font-size:13px;">Xóa toàn bộ video kết quả, CSV và log output.</p>
+        </div>
+        <form method="post" action="/admin/clear-output" onsubmit="return confirm('Bạn chắc chắn muốn xóa toàn bộ video output?')">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button type="submit" class="btn-sm btn-delete-user" style="width:auto;margin-top:8px;">Xóa video output</button>
+        </form>
+      </div>
+
+      <div class="admin-action-card">
+        <div>
+          <strong>Xóa nhật ký hoạt động</strong>
+          <p class="muted" style="margin:4px 0 0;font-size:13px;">Xóa toàn bộ log hoạt động cũ.</p>
+        </div>
+        <form method="post" action="/admin/clear-logs" onsubmit="return confirm('Xóa toàn bộ nhật ký hoạt động?')">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button type="submit" class="btn-sm btn-toggle-active" style="width:auto;margin-top:8px;">Xóa nhật ký</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Activity Log -->
+<section class="card">
+  <h2>📝 Nhật ký hoạt động <span class="muted" style="font-weight:400;font-size:13px;">({{ logs|length }} mới nhất)</span></h2>
+  {% if logs %}
+  <div style="max-height:480px;overflow-y:auto;">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Thời gian</th>
+          <th>Người dùng</th>
+          <th>Hành động</th>
+          <th>Chi tiết</th>
+          <th>IP</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in logs %}
+        <tr>
+          <td style="white-space:nowrap;font-size:12px;">{{ log.created_at }}</td>
+          <td>
+            {% if log.username %}
+            <strong>{{ log.username }}</strong>
+            {% else %}
+            <span class="muted">—</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if log.action == 'login' %}
+              <span class="pill status-completed" style="font-size:11px;">Đăng nhập</span>
+            {% elif log.action == 'login_failed' %}
+              <span class="pill status-failed" style="font-size:11px;">Đăng nhập thất bại</span>
+            {% elif log.action == 'logout' %}
+              <span class="pill" style="font-size:11px;">Đăng xuất</span>
+            {% elif log.action == 'create_user' %}
+              <span class="pill status-running" style="font-size:11px;">Tạo user</span>
+            {% elif log.action == 'delete_user' %}
+              <span class="pill status-failed" style="font-size:11px;">Xóa user</span>
+            {% elif log.action == 'toggle_user' %}
+              <span class="pill status-queued" style="font-size:11px;">Toggle user</span>
+            {% elif log.action == 'reset_password' %}
+              <span class="pill status-queued" style="font-size:11px;">Đổi mật khẩu</span>
+            {% elif log.action == 'start_analysis' %}
+              <span class="pill status-running" style="font-size:11px;">Bắt đầu phân tích</span>
+            {% elif log.action == 'stop_analysis' %}
+              <span class="pill status-stopped" style="font-size:11px;">Dừng phân tích</span>
+            {% elif log.action == 'clear_sessions' %}
+              <span class="pill status-failed" style="font-size:11px;">Xóa phiên</span>
+            {% elif log.action == 'clear_output' %}
+              <span class="pill status-failed" style="font-size:11px;">Xóa output</span>
+            {% elif log.action == 'clear_logs' %}
+              <span class="pill" style="font-size:11px;">Xóa nhật ký</span>
+            {% else %}
+              <span class="pill" style="font-size:11px;">{{ log.action }}</span>
+            {% endif %}
+          </td>
+          <td style="font-size:13px;">{{ log.detail }}</td>
+          <td style="font-size:12px;color:#9ca3af;">{{ log.ip_address }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-state-icon">📝</div>
+    <p>Chưa có nhật ký hoạt động nào.</p>
+  </div>
+  {% endif %}
+</section>
+
+{% endblock %}

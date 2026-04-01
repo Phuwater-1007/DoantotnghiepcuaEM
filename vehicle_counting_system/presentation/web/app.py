@@ -14,7 +14,7 @@ from starlette.templating import Jinja2Templates
 from vehicle_counting_system.application.bootstrap import build_container
 from vehicle_counting_system.configs.paths import INPUT_VIDEOS_DIR, OUTPUT_VIDEOS_DIR
 from vehicle_counting_system.utils.file_utils import ensure_dir
-from vehicle_counting_system.presentation.web.routes import api, auth, dashboard, media, monitoring, reports, sources, users
+from vehicle_counting_system.presentation.web.routes import admin, api, auth, dashboard, media, monitoring, reports, ai_config, users
 from vehicle_counting_system.utils.logger import get_logger
 from vehicle_counting_system.presentation.web.client_presence import ClientPresence
 
@@ -23,7 +23,12 @@ logger = get_logger(__name__)
 
 
 def create_app() -> FastAPI:
+    import uuid
     app = FastAPI(title="Traffic Monitoring System", version="1.0.0")
+    
+    # Generate a unique ID for this specific server run
+    # This forces users to log in again every time the server restarts
+    app.state.instance_id = str(uuid.uuid4())
 
     session_secret = os.getenv("TRAFFIC_MONITORING_SESSION_SECRET")
     is_production = os.getenv("TRAFFIC_MONITORING_ENV", "development").lower() == "production"
@@ -40,6 +45,7 @@ def create_app() -> FastAPI:
     app.add_middleware(
         SessionMiddleware, 
         secret_key=session_secret, 
+        max_age=None,  # Session cookie: hết hạn khi đóng trình duyệt
         https_only=is_production, 
         same_site="lax" if not is_production else "strict"
     )
@@ -60,9 +66,10 @@ def create_app() -> FastAPI:
     app.include_router(auth.build_router(templates))
     app.include_router(dashboard.build_router(templates))
     app.include_router(monitoring.build_router(templates))
-    app.include_router(sources.build_router(templates))
     app.include_router(reports.build_router(templates))
+    app.include_router(ai_config.build_router(templates))
     app.include_router(users.build_router(templates))
+    app.include_router(admin.build_router(templates))
     app.include_router(media.build_router())
 
     return app

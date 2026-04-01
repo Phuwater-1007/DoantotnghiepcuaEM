@@ -1,5 +1,12 @@
 {% extends "base.html" %}
 {% block content %}
+
+{% if request.query_params.get('msg') == 'password_reset' %}
+<div class="alert" style="background:#d1fae5;color:#065f46;border:1px solid #a7f3d0;">
+  ✅ Đặt lại mật khẩu thành công!
+</div>
+{% endif %}
+
 <section class="two-column">
   <div class="card">
     <h2>Tạo người dùng</h2>
@@ -8,7 +15,7 @@
       <label>Tên đăng nhập</label>
       <input type="text" name="username" required>
       <label>Mật khẩu</label>
-      <input type="password" name="password" required>
+      <input type="password" name="password" required minlength="8">
       <label>Họ tên</label>
       <input type="text" name="full_name" required>
       <label>Vai trò</label>
@@ -22,10 +29,13 @@
 
   <div class="card">
     <h2>Hướng dẫn vai trò</h2>
-    <ul class="flat-list">
-      <li>Admin: quản lý người dùng, nguồn video và toàn bộ báo cáo.</li>
-      <li>User: xem bảng điều khiển, giám sát và báo cáo.</li>
+    <ul class="flat-list" style="display:grid;gap:10px;">
+      <li><strong>Admin:</strong> quản lý người dùng, nguồn video, quản trị hệ thống và toàn bộ báo cáo.</li>
+      <li><strong>User:</strong> xem bảng điều khiển, giám sát và báo cáo.</li>
     </ul>
+    <div class="hint-box" style="margin-top:16px;">
+      <strong>Lưu ý:</strong> Tài khoản admin chính không thể bị vô hiệu hóa hoặc xóa. Tài khoản bị vô hiệu hóa sẽ không thể đăng nhập.
+    </div>
   </div>
 </section>
 
@@ -39,6 +49,7 @@
         <th>Họ tên</th>
         <th>Vai trò</th>
         <th>Trạng thái</th>
+        <th style="min-width:200px;">Hành động</th>
       </tr>
     </thead>
     <tbody>
@@ -47,11 +58,75 @@
         <td>{{ user.id }}</td>
         <td>{{ user.username }}</td>
         <td>{{ user.full_name }}</td>
-        <td>{{ user.role }}</td>
-        <td>{{ "Hoạt động" if user.is_active else "Không hoạt động" }}</td>
+        <td>
+          {% if user.role == "admin" %}
+          <span class="pill" style="background:#eff6ff;color:#1d4ed8;">Quản trị viên</span>
+          {% else %}
+          <span class="pill">Người dùng</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if user.is_active %}
+          <span class="pill status-completed">Hoạt động</span>
+          {% else %}
+          <span class="pill status-failed">Bị vô hiệu</span>
+          {% endif %}
+        </td>
+        <td class="user-actions-cell">
+          {% if user.username != "admin" %}
+            <div class="user-actions-row">
+              <form method="post" action="/users/{{ user.id }}/toggle-active">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                {% if user.is_active %}
+                <button type="submit" class="btn-sm btn-toggle-active">Vô hiệu hóa</button>
+                {% else %}
+                <button type="submit" class="btn-sm btn-toggle-inactive">Kích hoạt</button>
+                {% endif %}
+              </form>
+              <button type="button" class="btn-sm btn-reset-pw" onclick="toggleResetForm({{ user.id }})">🔑 Mật khẩu</button>
+              <form method="post" action="/users/{{ user.id }}/delete"
+                    onsubmit="return confirm('Bạn chắc chắn muốn xóa tài khoản {{ user.username }}?')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button type="submit" class="btn-sm btn-delete-user">Xóa</button>
+              </form>
+            </div>
+            <!-- Reset password form (hidden by default) -->
+            <div class="reset-pw-panel" id="reset-form-{{ user.id }}" style="display:none;">
+              <form method="post" action="/users/{{ user.id }}/reset-password" class="reset-pw-inline-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <label class="reset-pw-label">Mật khẩu mới cho <strong>{{ user.username }}</strong></label>
+                <div class="reset-pw-input-row">
+                  <input type="password" name="new_password" placeholder="Nhập mật khẩu mới (≥8 ký tự)"
+                         required minlength="8" class="reset-pw-input">
+                  <button type="submit" class="btn-sm reset-pw-save">Lưu</button>
+                  <button type="button" class="btn-sm reset-pw-cancel" onclick="toggleResetForm({{ user.id }})">Hủy</button>
+                </div>
+              </form>
+            </div>
+          {% else %}
+            <span style="color:#9ca3af;font-size:12px;">—</span>
+          {% endif %}
+        </td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
 </section>
+
+<script>
+function toggleResetForm(userId) {
+  var panel = document.getElementById('reset-form-' + userId);
+  if (!panel) return;
+  var isHidden = panel.style.display === 'none';
+  // Close all other open forms first
+  document.querySelectorAll('.reset-pw-panel').forEach(function(el) {
+    el.style.display = 'none';
+  });
+  if (isHidden) {
+    panel.style.display = 'block';
+    var input = panel.querySelector('.reset-pw-input');
+    if (input) { input.value = ''; input.focus(); }
+  }
+}
+</script>
 {% endblock %}

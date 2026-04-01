@@ -124,3 +124,39 @@ class AuthService:
             """,
             (cleaned_username, self.hash_password(password), cleaned_full_name, normalized_role),
         )
+
+    def toggle_user_active(self, user_id: int) -> bool:
+        """Toggle is_active for a user. Returns new is_active value."""
+        user = self.get_user(user_id)
+        if user is None:
+            raise ValueError("Người dùng không tồn tại.")
+        if user.username == "admin":
+            raise ValueError("Không thể vô hiệu hóa tài khoản admin chính.")
+        new_active = 0 if user.is_active else 1
+        self.db.execute(
+            "UPDATE users SET is_active = ? WHERE id = ?",
+            (new_active, user_id),
+        )
+        return bool(new_active)
+
+    def delete_user(self, user_id: int) -> None:
+        """Delete a user account. Cannot delete the primary admin."""
+        user = self.get_user(user_id)
+        if user is None:
+            raise ValueError("Người dùng không tồn tại.")
+        if user.username == "admin":
+            raise ValueError("Không thể xóa tài khoản admin chính.")
+        self.db.execute("DELETE FROM users WHERE id = ?", (user_id,))
+
+    def reset_password(self, user_id: int, new_password: str) -> str:
+        """Reset password for a user. Returns username."""
+        user = self.get_user(user_id)
+        if user is None:
+            raise ValueError("Người dùng không tồn tại.")
+        if len(new_password) < 8:
+            raise ValueError("Mật khẩu mới phải có ít nhất 8 ký tự.")
+        self.db.execute(
+            "UPDATE users SET password_hash = ? WHERE id = ?",
+            (self.hash_password(new_password), user_id),
+        )
+        return user.username

@@ -278,7 +278,9 @@ class MonitoringService:
             # Only save report snapshot for completed sessions (not stopped/failed)
             if finished_status == "completed":
                 session_row = self.db.fetchone(
-                    "SELECT started_at, finished_at FROM analysis_sessions WHERE id = ?",
+                    """SELECT datetime(started_at, 'localtime') AS started_at,
+                              datetime(finished_at, 'localtime') AS finished_at
+                       FROM analysis_sessions WHERE id = ?""",
                     (session_id,),
                 )
                 finished_at = str(session_row["finished_at"]) if session_row and session_row["finished_at"] else ""

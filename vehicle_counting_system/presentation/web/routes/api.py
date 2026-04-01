@@ -380,6 +380,13 @@ def build_router() -> APIRouter:
         except Exception as e:
             logger.error(f"Error starting monitoring session: {e}", exc_info=True)
             return JSONResponse(status_code=500, content={"error": "Lỗi máy chủ khi bắt đầu phân tích"})
+        container.activity_log_service.log(
+            action="start_analysis",
+            detail=f"Bắt đầu phân tích video '{source.name}' (phiên #{session_id})",
+            user_id=user.id,
+            username=user.username,
+            ip_address=request.client.host if request.client else "",
+        )
         return {"ok": True, "session_id": session_id, "source_id": source_id, "source_name": source.name}
 
     @router.post("/monitoring/stop")
@@ -391,7 +398,15 @@ def build_router() -> APIRouter:
         container = get_container(request)
         if container.monitoring_service.get_active_session_id() is None:
             return {"ok": True, "message": "Không có phiên đang chạy"}
+        user = get_current_user(request)
         container.monitoring_service.stop_active_session()
+        container.activity_log_service.log(
+            action="stop_analysis",
+            detail="Dừng phiên phân tích đang chạy",
+            user_id=user.id if user else None,
+            username=user.username if user else "",
+            ip_address=request.client.host if request.client else "",
+        )
         return {"ok": True, "message": "Đã dừng phân tích"}
 
     @router.get("/monitoring/status")
