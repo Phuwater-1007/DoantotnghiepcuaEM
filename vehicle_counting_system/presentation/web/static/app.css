@@ -735,14 +735,82 @@ button:disabled {
   overflow: hidden;
   border-radius: 18px;
   background: #000;
+  position: relative;
 }
 
 .monitor-focus-player {
   width: 100%;
-  aspect-ratio: 16 / 9;
+  aspect-ratio: auto; /* Remove hardcoded 16/9 to avoid black bars */
   display: block;
   background: #000;
+  object-fit: cover; /* Also add cover just in case someone forces height, so it fills always */
+  border-radius: 18px;
 }
+
+/* ========== LIVE STREAM STYLES ========== */
+
+.live-badge {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 10;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: rgba(220, 38, 38, 0.9);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  border-radius: 6px;
+  backdrop-filter: blur(4px);
+}
+
+.live-badge-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #fff;
+  animation: live-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes live-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.btn-live {
+  background: #16a34a !important;
+  color: #fff !important;
+  border: none !important;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-live:hover:not(:disabled) {
+  background: #15803d !important;
+}
+
+.btn-live:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-stop-live {
+  background: #dc2626 !important;
+  color: #fff !important;
+  border: none !important;
+  font-weight: 600;
+  border-radius: 8px;
+}
+
+.btn-stop-live:hover:not(:disabled) {
+  background: #b91c1c !important;
+}
+
 
 .monitor-focus-frame {
   width: 100%;

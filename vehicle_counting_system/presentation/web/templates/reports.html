@@ -1,5 +1,46 @@
 {% extends "base.html" %}
 {% block content %}
+
+<!-- Header với liên kết nhanh -->
+<section class="card" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+  <div>
+    <h2 style="margin: 0 0 4px 0;">Báo cáo phiên phân tích</h2>
+    <p style="margin: 0; font-size: 13px; color: var(--color-muted);">
+      Tất cả kết quả phân tích được lưu lại tại đây. Dữ liệu tự động cập nhật khi có phiên mới hoàn thành.
+    </p>
+  </div>
+  <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+    <a href="/monitoring" class="btn btn-primary" style="font-size: 13px; padding: 8px 16px; text-decoration: none;">
+      🎥 Mở giám sát
+    </a>
+    <a href="/dashboard" class="btn btn-outline" style="font-size: 13px; padding: 8px 16px; text-decoration: none;">
+      📊 Bảng điều khiển
+    </a>
+  </div>
+</section>
+
+<!-- Live analysis banner -->
+<section class="card" id="report-live-banner" style="display: none; background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%); color: #fff; border: none;">
+  <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <span class="live-dot-inline" style="width: 12px; height: 12px;"></span>
+      <div>
+        <div style="font-weight: 600; font-size: 15px;" id="report-live-title">Đang phân tích video...</div>
+        <div style="font-size: 13px; opacity: 0.8;">Kết quả sẽ tự động xuất hiện trong bảng khi hoàn thành</div>
+      </div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 16px;">
+      <div style="text-align: center;">
+        <div style="font-size: 20px; font-weight: 700;" id="report-live-total">0</div>
+        <div style="font-size: 11px; opacity: 0.7;">Tổng xe (đang đếm)</div>
+      </div>
+      <a href="/monitoring" class="btn" style="background: rgba(255,255,255,0.15); color: #fff; border: 1px solid rgba(255,255,255,0.3); padding: 8px 16px; font-size: 13px; text-decoration: none;">
+        Xem trực tiếp →
+      </a>
+    </div>
+  </div>
+</section>
+
 {% if reports %}
 <section class="report-summary">
   <div class="report-summary-item">
@@ -14,7 +55,6 @@
 {% endif %}
 
 <section class="card">
-  <h2>Báo cáo phiên phân tích</h2>
   {% if reports %}
   <table class="data-table">
     <thead>
@@ -58,9 +98,69 @@
   </table>
   {% else %}
   <div class="empty-state">
-    <div class="empty-state-icon">—</div>
-    <p>Chưa có báo cáo. Hoàn thành phiên phân tích từ trang Giám sát để xem báo cáo ở đây.</p>
+    <div class="empty-state-icon">📋</div>
+    <p>Chưa có báo cáo nào.</p>
+    <p style="font-size: 13px; color: var(--color-muted); margin-top: 8px;">
+      Hoàn thành phiên phân tích từ trang 
+      <a href="/monitoring" style="color: var(--color-primary); text-decoration: underline;">Giám sát</a> 
+      để xem báo cáo ở đây.
+    </p>
   </div>
   {% endif %}
 </section>
+
+<style>
+  .live-dot-inline {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #ef4444;
+    animation: live-pulse 1.2s ease-in-out infinite;
+    margin-right: 4px;
+    vertical-align: middle;
+  }
+  @keyframes live-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.8); }
+  }
+</style>
+
+<script>
+(function () {
+  var wasRunning = false;
+
+  function pollLiveState() {
+    fetch("/api/monitoring/live-state", { credentials: "same-origin" })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        var activeId = data.active_session_id;
+        var live = data.live_state;
+        var banner = document.getElementById("report-live-banner");
+        var liveTitle = document.getElementById("report-live-title");
+        var liveTotal = document.getElementById("report-live-total");
+
+        if (activeId && live && (live.status === "running" || live.status === "queued")) {
+          wasRunning = true;
+          if (banner) banner.style.display = "";
+          if (liveTitle) liveTitle.textContent = "Đang phân tích: " + (live.source_name || "video");
+          var summary = live.summary || {};
+          var total = (typeof summary.total === "number") ? summary.total : 0;
+          if (liveTotal) liveTotal.textContent = total;
+        } else {
+          if (banner) banner.style.display = "none";
+          // Auto-reload khi phiên vừa hoàn thành → hiện kết quả mới
+          if (wasRunning) {
+            wasRunning = false;
+            setTimeout(function () { window.location.reload(); }, 1500);
+          }
+        }
+      })
+      .catch(function () {});
+  }
+
+  pollLiveState();
+  setInterval(pollLiveState, 2000);
+})();
+</script>
 {% endblock %}

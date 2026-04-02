@@ -8,28 +8,61 @@
     </p>
   </div>
   <div class="dashboard-hero-side">
-    <div class="dashboard-pill">
+    <div class="dashboard-pill" id="dashboard-status-pill">
       {% if dashboard.running_session %}
-      Đang phân tích phiên #{{ dashboard.running_session.id }}
+      <span class="live-dot-inline"></span> Đang phân tích phiên #{{ dashboard.running_session.id }}
       {% else %}
       Hệ thống đang sẵn sàng
       {% endif %}
     </div>
+    <a href="/monitoring" class="btn btn-primary" style="font-size: 13px; padding: 8px 18px; text-decoration: none; margin-left: 10px;">
+      🎥 Mở giám sát
+    </a>
   </div>
 </section>
 
-<section class="card-grid">
+<!-- Live analysis banner - ẩn khi không có phiên đang chạy -->
+<section class="card" id="live-analysis-banner" style="display: none; background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%); color: #fff; border: none;">
+  <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <span class="live-dot-inline" style="width: 12px; height: 12px;"></span>
+      <div>
+        <div style="font-weight: 600; font-size: 16px;" id="live-banner-title">Đang phân tích video...</div>
+        <div style="font-size: 13px; opacity: 0.8;" id="live-banner-detail">Dữ liệu đang cập nhật real-time</div>
+      </div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 16px;">
+      <div style="text-align: center;">
+        <div style="font-size: 24px; font-weight: 700;" id="live-total">0</div>
+        <div style="font-size: 11px; opacity: 0.7;">Tổng xe</div>
+      </div>
+      <div style="text-align: center;">
+        <div style="font-size: 24px; font-weight: 700;" id="live-car">0</div>
+        <div style="font-size: 11px; opacity: 0.7;">Ô tô</div>
+      </div>
+      <div style="text-align: center;">
+        <div style="font-size: 24px; font-weight: 700;" id="live-moto">0</div>
+        <div style="font-size: 11px; opacity: 0.7;">Xe máy</div>
+      </div>
+      <a href="/monitoring" class="btn" style="background: rgba(255,255,255,0.15); color: #fff; border: 1px solid rgba(255,255,255,0.3); padding: 8px 16px; font-size: 13px; text-decoration: none;">
+        Xem trực tiếp →
+      </a>
+    </div>
+  </div>
+</section>
+
+<section class="card-grid" id="dashboard-stats">
   <div class="card stat-card">
     <div class="stat-label">Tổng số xe hôm nay</div>
-    <div class="stat-value">{{ dashboard.today_total }}</div>
+    <div class="stat-value" id="stat-today-total">{{ dashboard.today_total }}</div>
   </div>
   <div class="card stat-card">
     <div class="stat-label">Ô tô hôm nay</div>
-    <div class="stat-value">{{ dashboard.vehicle_mix.automobile }}</div>
+    <div class="stat-value" id="stat-automobile">{{ dashboard.vehicle_mix.automobile }}</div>
   </div>
   <div class="card stat-card">
     <div class="stat-label">Xe máy hôm nay</div>
-    <div class="stat-value">{{ dashboard.vehicle_mix.motorcycle }}</div>
+    <div class="stat-value" id="stat-motorcycle">{{ dashboard.vehicle_mix.motorcycle }}</div>
   </div>
   <div class="card stat-card">
     <div class="stat-label">Video đã có ROI</div>
@@ -67,7 +100,10 @@
     {% else %}
     <div class="empty-state">
       <div class="empty-state-icon">—</div>
-      <p>Chưa có dữ liệu phân tích. Hãy chạy video từ trang Giám sát để sinh số liệu và video đếm xe.</p>
+      <p>Chưa có dữ liệu phân tích.</p>
+      <a href="/monitoring" style="color: var(--color-primary); text-decoration: underline; font-size: 13px;">
+        → Chạy phân tích từ trang Giám sát
+      </a>
     </div>
     {% endif %}
   </div>
@@ -92,14 +128,22 @@
     {% else %}
     <div class="empty-state">
       <div class="empty-state-icon">—</div>
-      <p>Chưa có dữ liệu theo giờ. Khi có phiên phân tích hoàn thành, biểu đồ sẽ hiện ở đây.</p>
+      <p>Chưa có dữ liệu theo giờ.</p>
+      <a href="/monitoring" style="color: var(--color-primary); text-decoration: underline; font-size: 13px;">
+        → Chạy phân tích để có biểu đồ
+      </a>
     </div>
     {% endif %}
   </div>
 </section>
 
 <section class="card">
-  <h2>Phiên phân tích gần nhất</h2>
+  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+    <h2 style="margin: 0;">Phiên phân tích gần nhất</h2>
+    <a href="/reports" style="color: var(--color-primary); text-decoration: none; font-size: 13px; font-weight: 500;">
+      Xem tất cả báo cáo →
+    </a>
+  </div>
   {% if dashboard.latest_session %}
   <div class="session-summary">
     <div class="session-summary-row">
@@ -151,8 +195,115 @@
   {% else %}
   <div class="empty-state">
     <div class="empty-state-icon">—</div>
-    <p>Chưa có phiên gần nhất. Sau khi chạy phân tích ở trang Giám sát, kết quả sẽ được đổ về đây.</p>
+    <p>Chưa có phiên gần nhất.</p>
+    <a href="/monitoring" style="color: var(--color-primary); text-decoration: underline; font-size: 13px;">
+      → Chạy phân tích ở trang Giám sát
+    </a>
   </div>
   {% endif %}
 </section>
+
+<!-- Quick navigation -->
+<section style="display: flex; gap: 12px; margin-top: 8px; flex-wrap: wrap;">
+  <a href="/monitoring" class="card" style="flex: 1; min-width: 200px; text-decoration: none; display: flex; align-items: center; gap: 12px; transition: transform 0.15s, box-shadow 0.15s; cursor: pointer;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(0,0,0,0.12)'" onmouseout="this.style.transform=''; this.style.boxShadow=''">
+    <span style="font-size: 28px;">🎥</span>
+    <div>
+      <div style="font-weight: 600; font-size: 15px; color: var(--color-heading);">Giám sát</div>
+      <div style="font-size: 12px; color: var(--color-muted);">Chạy phân tích video & xem trực tiếp</div>
+    </div>
+  </a>
+  <a href="/reports" class="card" style="flex: 1; min-width: 200px; text-decoration: none; display: flex; align-items: center; gap: 12px; transition: transform 0.15s, box-shadow 0.15s; cursor: pointer;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(0,0,0,0.12)'" onmouseout="this.style.transform=''; this.style.boxShadow=''">
+    <span style="font-size: 28px;">📋</span>
+    <div>
+      <div style="font-weight: 600; font-size: 15px; color: var(--color-heading);">Báo cáo</div>
+      <div style="font-size: 12px; color: var(--color-muted);">Xem lịch sử tất cả phiên phân tích</div>
+    </div>
+  </a>
+  <a href="/ai-config" class="card" style="flex: 1; min-width: 200px; text-decoration: none; display: flex; align-items: center; gap: 12px; transition: transform 0.15s, box-shadow 0.15s; cursor: pointer;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(0,0,0,0.12)'" onmouseout="this.style.transform=''; this.style.boxShadow=''">
+    <span style="font-size: 28px;">⚙️</span>
+    <div>
+      <div style="font-weight: 600; font-size: 15px; color: var(--color-heading);">Tối ưu AI</div>
+      <div style="font-size: 12px; color: var(--color-muted);">Chỉnh tham số YOLO & xem cảnh báo</div>
+    </div>
+  </a>
+</section>
+
+<style>
+  .live-dot-inline {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #ef4444;
+    animation: live-pulse 1.2s ease-in-out infinite;
+    margin-right: 4px;
+    vertical-align: middle;
+  }
+  @keyframes live-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.8); }
+  }
+</style>
+
+<script>
+(function () {
+  var pollInterval = null;
+  var wasRunning = {{ 'true' if dashboard.running_session else 'false' }};
+
+  function getVehicleSummary(summary) {
+    var perClass = (summary && summary.per_class) || {};
+    var totalFromSummary = (summary && typeof summary.total === "number") ? summary.total : 0;
+    var totalFromPerClass = Object.keys(perClass).reduce(function (acc, key) {
+      return acc + (perClass[key] || 0);
+    }, 0);
+    var total = totalFromSummary || totalFromPerClass;
+    return {
+      total: total,
+      automobile: (perClass.car || 0) + (perClass.truck || 0) + (perClass.bus || 0),
+      motorcycle: perClass.motorcycle || 0
+    };
+  }
+
+  function pollLiveState() {
+    fetch("/api/monitoring/live-state", { credentials: "same-origin" })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        var activeId = data.active_session_id;
+        var live = data.live_state;
+        var banner = document.getElementById("live-analysis-banner");
+        var pill = document.getElementById("dashboard-status-pill");
+
+        if (activeId && live && (live.status === "running" || live.status === "queued")) {
+          wasRunning = true;
+          if (banner) banner.style.display = "";
+          if (pill) pill.innerHTML = '<span class="live-dot-inline"></span> Đang phân tích phiên #' + activeId;
+
+          var counts = getVehicleSummary(live.summary || {});
+          var liveTotal = document.getElementById("live-total");
+          var liveCar = document.getElementById("live-car");
+          var liveMoto = document.getElementById("live-moto");
+          var liveBannerTitle = document.getElementById("live-banner-title");
+          if (liveTotal) liveTotal.textContent = counts.total;
+          if (liveCar) liveCar.textContent = counts.automobile;
+          if (liveMoto) liveMoto.textContent = counts.motorcycle;
+          if (liveBannerTitle) liveBannerTitle.textContent = "Đang phân tích: " + (live.source_name || "video");
+        } else {
+          if (banner) banner.style.display = "none";
+          if (pill) pill.textContent = "Hệ thống đang sẵn sàng";
+
+          // Nếu trước đó đang chạy mà giờ dừng → reload để cập nhật stats
+          if (wasRunning) {
+            wasRunning = false;
+            setTimeout(function () { window.location.reload(); }, 1500);
+          }
+        }
+      })
+      .catch(function () {});
+  }
+
+  // Poll mỗi 1.5 giây
+  pollLiveState();
+  pollInterval = setInterval(pollLiveState, 1500);
+})();
+</script>
 {% endblock %}

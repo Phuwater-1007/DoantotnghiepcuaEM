@@ -14,7 +14,7 @@ from starlette.templating import Jinja2Templates
 from vehicle_counting_system.application.bootstrap import build_container
 from vehicle_counting_system.configs.paths import INPUT_VIDEOS_DIR, OUTPUT_VIDEOS_DIR
 from vehicle_counting_system.utils.file_utils import ensure_dir
-from vehicle_counting_system.presentation.web.routes import admin, api, auth, dashboard, media, monitoring, reports, ai_config, users
+from vehicle_counting_system.presentation.web.routes import admin, api, auth, dashboard, media, monitoring, reports, ai_config, stream, users
 from vehicle_counting_system.utils.logger import get_logger
 from vehicle_counting_system.presentation.web.client_presence import ClientPresence
 
@@ -68,6 +68,7 @@ def create_app() -> FastAPI:
     app.include_router(monitoring.build_router(templates))
     app.include_router(reports.build_router(templates))
     app.include_router(ai_config.build_router(templates))
+    app.include_router(stream.build_router())
     app.include_router(users.build_router(templates))
     app.include_router(admin.build_router(templates))
     app.include_router(media.build_router())

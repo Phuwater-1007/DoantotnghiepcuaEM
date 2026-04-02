@@ -15,10 +15,10 @@
         <div class="brand-subtitle">Đồ án Demo</div>
       </div>
       <nav class="nav-links">
-        <a href="/dashboard" class="{% if request.url.path in ['/', '/dashboard'] %}active{% endif %}">Bảng điều khiển</a>
-        <a href="/monitoring" class="{% if request.url.path == '/monitoring' %}active{% endif %}">Giám sát</a>
-        <a href="/ai-config" class="{% if request.url.path == '/ai-config' %}active{% endif %}">Tối ưu & Cảnh báo</a>
-        <a href="/reports" class="{% if request.url.path == '/reports' %}active{% endif %}">Báo cáo</a>
+        <a href="/dashboard" class="{% if request.url.path in ['/', '/dashboard'] %}active{% endif %}">📊 Bảng điều khiển</a>
+        <a href="/monitoring" id="nav-monitoring" class="{% if request.url.path == '/monitoring' %}active{% endif %}">🎥 Giám sát <span id="nav-live-dot" style="display:none; width:8px; height:8px; border-radius:50%; background:#ef4444; animation: nav-pulse 1.2s ease-in-out infinite; margin-left: 6px;"></span></a>
+        <a href="/ai-config" class="{% if request.url.path == '/ai-config' %}active{% endif %}">⚙️ Tối ưu & Cảnh báo</a>
+        <a href="/reports" class="{% if request.url.path == '/reports' %}active{% endif %}">📋 Báo cáo</a>
         {% if current_user and current_user.role == "admin" %}
         <a href="/users" class="{% if request.url.path == '/users' %}active{% endif %}">Người dùng</a>
         <a href="/admin" class="{% if request.url.path == '/admin' %}active{% endif %}">Quản trị hệ thống</a>
@@ -51,6 +51,13 @@
     </main>
   </div>
 
+  <style>
+    @keyframes nav-pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.8); }
+    }
+    #nav-live-dot { display: inline-block; }
+  </style>
   <script>
   (function () {
     function post(url) {
@@ -73,6 +80,21 @@
       } catch (e) {}
       post(url);
     });
+
+    // Live dot indicator trong sidebar
+    function checkLiveNav() {
+      fetch("/api/monitoring/status", { credentials: "same-origin" })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          var dot = document.getElementById("nav-live-dot");
+          if (dot) {
+            dot.style.display = data.active_session_id ? "inline-block" : "none";
+          }
+        })
+        .catch(function () {});
+    }
+    checkLiveNav();
+    setInterval(checkLiveNav, 3000);
   })();
   </script>
 </body>

@@ -26,7 +26,7 @@
     </p>
     
     <form method="POST" action="/ai-config">
-      {{ csrf_token_html(request) | safe }}
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <div class="form-group" style="margin-bottom: 24px;">
         <label for="conf_threshold" style="display: flex; justify-content: space-between; font-weight: 600; margin-bottom: 8px;">
           Ngưỡng Tự tin (Confidence)

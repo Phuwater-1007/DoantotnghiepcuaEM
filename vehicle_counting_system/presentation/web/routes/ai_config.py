@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request, Depends, Form
+from fastapi import APIRouter, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 from pydantic import BaseModel
 
@@ -9,8 +9,12 @@ def build_router(templates) -> APIRouter:
     router = APIRouter()
 
     @router.get("/ai-config", response_class=HTMLResponse)
-    def ai_config_page(request: Request, user=Depends(require_admin)):
+    def ai_config_page(request: Request):
         # Chỉ Admin mới được vào trang này
+        user = require_admin(request)
+        if isinstance(user, RedirectResponse):
+            return user
+        
         config = get_ai_config()
         container = get_container(request)
         
@@ -28,8 +32,11 @@ def build_router(templates) -> APIRouter:
         request: Request,
         conf_threshold: float = Form(...),
         min_box_area: float = Form(...),
-        user=Depends(require_admin)
     ):
+        user = require_admin(request)
+        if isinstance(user, RedirectResponse):
+            return user
+        
         try:
             update_ai_config(conf_thres=conf_threshold, min_box_area=min_box_area)
             container = get_container(request)
@@ -61,3 +68,4 @@ def build_router(templates) -> APIRouter:
             return templates.TemplateResponse("ai_optimization.html", ctx, status_code=400)
 
     return router
+

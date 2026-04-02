@@ -97,14 +97,35 @@
 
       {% if detected_videos %}
       <div class="monitor-focus-shell">
+        <div class="live-badge" id="live-badge" hidden>
+          <span class="live-badge-dot"></span> LIVE
+        </div>
         <video
           id="focus-player"
           class="monitor-focus-player"
+          style="width: 100% !important; height: auto !important; aspect-ratio: auto !important; object-fit: contain !important; border-radius: 18px !important; display: block !important;"
           controls
           playsinline
           preload="metadata"
           src="{{ first_video.preview_url }}"
         ></video>
+        <style>
+          @keyframes monitor-spin { to { transform: rotate(360deg); } }
+        </style>
+        <div id="live-stream-wrapper" class="monitor-focus-player" style="display: none; position: relative; background: #000; overflow: hidden; width: 100% !important; height: auto !important; border-radius: 18px !important;">
+          <div id="live-stream-loading" style="position: absolute; top:0; left:0; width:100%; height:100%; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1; background: #1a1a2e;">
+            <svg style="animation: monitor-spin 1s linear infinite; width: 40px; height: 40px; margin-bottom: 12px; color: #818cf8;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-opacity="0.25" stroke-width="4"></circle>
+              <path fill="currentColor" fill-opacity="0.75" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span style="font-size: 14px; font-weight: 500; color: #a5b4fc;">Đang kết nối luồng phân tích...</span>
+          </div>
+          <img
+            id="live-stream-img"
+            alt="Live Stream"
+            style="position: absolute; inset: 0; width: 100% !important; height: 100% !important; object-fit: contain !important; border-radius: 18px !important; z-index: 2; opacity: 0; transition: opacity 0.3s;"
+          >
+        </div>
       </div>
       <div class="monitor-live-summary" id="focus-summary">
         <div class="monitor-live-stat">
@@ -155,6 +176,19 @@
             href="/monitoring/edit-roi-for-video?path={{ first_video.path|urlencode }}"
             class="btn btn-outline"
           >Chỉnh ROI</a>
+          <button
+            id="start-live-btn"
+            type="button"
+            class="btn btn-live"
+            title="Stream video trực tiếp với YOLO detect"
+          >▶ Xem trực tiếp</button>
+          <button
+            id="stop-live-btn"
+            type="button"
+            class="btn btn-outline btn-stop-live"
+            title="Dừng stream trực tiếp"
+            hidden
+          >■ Dừng trực tiếp</button>
           <button
             id="run-analysis-btn"
             type="button"
@@ -211,6 +245,14 @@
           <span>Ghi chú</span>
           <strong>Bấm Chạy phân tích để bắt đầu.</strong>
         </div>
+        <div style="display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap;">
+          <a href="/dashboard" class="btn btn-outline" style="flex: 1; text-align: center; font-size: 13px; padding: 8px 10px; text-decoration: none;">
+            📊 Bảng điều khiển
+          </a>
+          <a href="/reports" class="btn btn-outline" style="flex: 1; text-align: center; font-size: 13px; padding: 8px 10px; text-decoration: none;">
+            📋 Xem báo cáo
+          </a>
+        </div>
       </section>
     </aside>
   </section>
@@ -247,6 +289,17 @@
 
 <script>
 (function () {
+  // ========== LIVE STREAM VARIABLES ==========
+  var liveStreamImg = document.getElementById("live-stream-img");
+  var liveBadge = document.getElementById("live-badge");
+  var startLiveBtn = document.getElementById("start-live-btn");
+  var stopLiveBtn = document.getElementById("stop-live-btn");
+  var isLiveStreaming = false;
+  var liveStreamSourceId = null;
+  var liveStatsPollTimer = null;
+  var streamRetryCount = 0;
+  var streamRetryMax = 8;
+  var streamRetryTimer = null;
   var focusPlayer = document.getElementById("focus-player");
   var selectedVideoName = document.getElementById("selected-video-name");
   var selectedRoiStatus = document.getElementById("selected-roi-status");
@@ -317,6 +370,7 @@
     isProcessedView = false;
     if (focusPlayer && currentInputVideoUrl) {
       focusPlayer.hidden = false;
+      focusPlayer.style.display = "";
       focusPlayer.src = currentInputVideoUrl;
       focusPlayer.load();
       focusPlayer.play().catch(function () {});
@@ -383,6 +437,10 @@
   }
 
   function updateSelection(videoPath, videoUrl, videoName, roiReady, sourceId) {
+    // Stop live stream when switching videos
+    if (isLiveStreaming) {
+      stopLiveStream();
+    }
     currentInputVideoUrl = videoUrl;
     currentVideoName = videoName;
     currentSourceId = sourceId ? parseInt(sourceId, 10) : null;
@@ -398,6 +456,8 @@
     if (editRoiLink) editRoiLink.href = "/monitoring/edit-roi-for-video?path=" + encodeURIComponent(videoPath);
     var runAnalysisBtn = document.getElementById("run-analysis-btn");
     if (runAnalysisBtn) runAnalysisBtn.disabled = roiReady !== "yes" || !currentSourceId;
+    // Enable/disable live stream button based on ROI
+    if (startLiveBtn) startLiveBtn.disabled = roiReady !== "yes" || !currentSourceId;
     refreshStopButtonState();
   }
 
@@ -427,6 +487,7 @@
         if (!activeId && liveStatePollTimer && (!live || live.status === "running" || live.status === "queued")) {
           stopLiveStatePoll();
           refreshStopButtonState();
+          resetLiveStreamUI();
           return;
         }
         if (live && (live.status === "running" || live.status === "queued")) {
@@ -434,10 +495,39 @@
           var summary = live.summary || {};
           updateFocusCounts(summary);
           updateResultCounts(summary);
-          setResultMeta("Đang chạy phân tích", live.source_name || currentVideoName, "Đang xử lý video, vui lòng đợi.");
+          setResultMeta("Đang chạy phân tích", live.source_name || currentVideoName, "YOLO đang phân tích video real-time.");
+          
+          if (!isLiveStreaming) {
+            isLiveStreaming = true;
+            liveStreamSourceId = live.source_id;
+            
+            if (focusPlayer) {
+              focusPlayer.hidden = true;
+              focusPlayer.style.display = "none";
+            }
+            if (liveStreamImg) {
+              var wrapper = document.getElementById("live-stream-wrapper");
+              var loading = document.getElementById("live-stream-loading");
+              if (wrapper && loading) {
+                if (focusPlayer && focusPlayer.videoHeight > 0) {
+                  wrapper.style.aspectRatio = (focusPlayer.videoWidth / focusPlayer.videoHeight).toString();
+                } else {
+                  wrapper.style.aspectRatio = "auto";
+                }
+                wrapper.style.display = "block";
+                loading.style.display = "flex";
+              }
+              connectMjpegStream();
+            }
+            if (liveBadge) liveBadge.hidden = false;
+            if (startLiveBtn) startLiveBtn.hidden = true;
+            if (stopLiveBtn) stopLiveBtn.hidden = false;
+          }
+
         } else if (live && live.status === "completed") {
           stopLiveStatePoll();
           refreshStopButtonState();
+          resetLiveStreamUI();
           var summary = live.summary || {};
           updateFocusCounts(summary);
           updateResultCounts(summary);
@@ -452,7 +542,6 @@
           } else if (live.output_video_path) {
             fetchAndPlayOutputForName(live.source_name || currentVideoName, summary);
           } else if ((live.source_name || currentVideoName) && !isEmptySummary(summary)) {
-            // At least keep counts even when output video missing
             updateFocusCounts(summary);
             updateResultCounts(summary);
           }
@@ -461,6 +550,7 @@
         } else if (live && (live.status === "stopped" || live.status === "cancelled")) {
           stopLiveStatePoll();
           refreshStopButtonState();
+          resetLiveStreamUI();
           var summary = live.summary || {};
           updateFocusCounts(summary);
           updateResultCounts(summary);
@@ -468,6 +558,7 @@
         } else if (live && live.status === "failed") {
           stopLiveStatePoll();
           refreshStopButtonState();
+          resetLiveStreamUI();
           var summary = live.summary || {};
           updateFocusCounts(summary);
           updateResultCounts(summary);
@@ -546,7 +637,10 @@
 
   function playOutputVideo(item) {
     isProcessedView = true;
-    focusPlayer.hidden = false;
+    if (focusPlayer) {
+      focusPlayer.hidden = false;
+      focusPlayer.style.display = "";
+    }
     focusPlayer.src = item.url;
     focusPlayer.load();
     focusPlayer.play().catch(function () {});
@@ -559,6 +653,94 @@
   var runAnalysisBtn = document.getElementById("run-analysis-btn");
   if (runAnalysisBtn) runAnalysisBtn.addEventListener("click", function () { startAnalysis(); });
 
+  // ========== LIVE STREAM FUNCTIONS ==========
+  function connectMjpegStream() {
+    if (!liveStreamImg) return;
+    var loading = document.getElementById("live-stream-loading");
+    if (loading) {
+      loading.style.display = "flex";
+      loading.innerHTML = '<svg style="animation: monitor-spin 1s linear infinite; width: 40px; height: 40px; margin-bottom: 12px; color: #818cf8;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-opacity="0.25" stroke-width="4"></circle><path fill="currentColor" fill-opacity="0.75" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><span style="font-size: 14px; font-weight: 500; color: #a5b4fc;">Đang kết nối luồng phân tích...</span>';
+    }
+    liveStreamImg.style.opacity = "0";
+    liveStreamImg.onload = function () {
+      this.style.opacity = "1";
+      if (loading) loading.style.display = "none";
+      streamRetryCount = 0;
+    };
+    liveStreamImg.onerror = function () {
+      if (!isLiveStreaming) return;
+      streamRetryCount++;
+      if (streamRetryCount <= streamRetryMax) {
+        if (loading) {
+          loading.style.display = "flex";
+          loading.innerHTML = '<span style="font-size: 14px; font-weight: 500; color: #fbbf24;">Đang kết nối lại... (lần ' + streamRetryCount + '/' + streamRetryMax + ')</span>';
+        }
+        if (streamRetryTimer) clearTimeout(streamRetryTimer);
+        streamRetryTimer = setTimeout(function () {
+          if (isLiveStreaming) {
+            liveStreamImg.src = "/api/stream/active?t=" + Date.now();
+          }
+        }, 1500);
+      } else {
+        if (loading) {
+          loading.style.display = "flex";
+          loading.innerHTML = '<span style="color:#ef4444; font-weight: 500;">Không thể kết nối luồng trực tiếp</span><button onclick="window.__retryStream && window.__retryStream()" style="margin-top:10px; padding: 6px 18px; border-radius: 6px; border: 1px solid #ef4444; color: #ef4444; background: transparent; cursor: pointer; font-size: 13px;">Thử lại</button>';
+        }
+      }
+    };
+    window.__retryStream = function () {
+      streamRetryCount = 0;
+      connectMjpegStream();
+    };
+    liveStreamImg.src = "/api/stream/active?t=" + Date.now();
+  }
+
+  function startLiveStream() {
+    streamRetryCount = 0;
+    startAnalysis();
+  }
+
+  function stopLiveStream() {
+    var stopBtn = document.getElementById("stop-analysis-btn");
+    if (stopBtn && !stopBtn.disabled) {
+      stopBtn.click();
+    } else {
+      resetLiveStreamUI();
+    }
+  }
+
+  function resetLiveStreamUI() {
+    isLiveStreaming = false;
+    liveStreamSourceId = null;
+    streamRetryCount = 0;
+    if (streamRetryTimer) { clearTimeout(streamRetryTimer); streamRetryTimer = null; }
+
+    if (liveStreamImg) {
+      liveStreamImg.onload = null;
+      liveStreamImg.onerror = null;
+      var wrapper = document.getElementById("live-stream-wrapper");
+      if (wrapper) wrapper.style.display = "none";
+      liveStreamImg.src = "";
+    }
+    if (liveBadge) liveBadge.hidden = true;
+    if (focusPlayer) {
+      focusPlayer.hidden = false;
+      focusPlayer.style.display = "";
+    }
+
+    if (startLiveBtn) startLiveBtn.hidden = false;
+    if (stopLiveBtn) stopLiveBtn.hidden = true;
+
+    setFocusMode("Video gốc", "Chạy phân tích để xem kết quả.");
+  }
+
+  if (startLiveBtn) {
+    startLiveBtn.addEventListener("click", function () { startLiveStream(); });
+  }
+  if (stopLiveBtn) {
+    stopLiveBtn.addEventListener("click", function () { stopLiveStream(); });
+  }
+
   var stopAnalysisBtn = document.getElementById("stop-analysis-btn");
   if (stopAnalysisBtn) {
     stopAnalysisBtn.addEventListener("click", function () {
@@ -567,6 +749,7 @@
         .then(function (r) { return r.json(); })
         .then(function () {
           stopLiveStatePoll();
+          resetLiveStreamUI();
           var runBtn = document.getElementById("run-analysis-btn");
           if (runBtn) { runBtn.disabled = false; runBtn.textContent = "Chạy phân tích"; }
           refreshStopButtonState();

@@ -64,6 +64,7 @@ def analyze_video_source(
     stop_event: Event | None = None,
     vid_stride: int | None = None,
     progress_callback: Callable[[object, object | None, int, int], None] | None = None,
+    realtime_pacing: bool = False,
 ) -> dict:
     """
     Phân tích video: detect -> track -> count -> ghi output.
@@ -109,8 +110,12 @@ def analyze_video_source(
     last_processed = None
     last_stats_snapshot: dict | None = None
 
+    frame_delay = 1.0 / info.fps if info.fps > 0 else 0.033
+
     try:
         while True:
+            t_loop_start = time.perf_counter()
+
             if stop_event is not None and stop_event.is_set():
                 status = "stopped"
                 break
@@ -139,6 +144,12 @@ def analyze_video_source(
                 writer.write(last_processed)
 
             frame_index += 1
+
+            if realtime_pacing:
+                elapsed = time.perf_counter() - t_loop_start
+                sleep_time = frame_delay - elapsed
+                if sleep_time > 0:
+                    time.sleep(sleep_time)
     finally:
         try:
             cap.release()
