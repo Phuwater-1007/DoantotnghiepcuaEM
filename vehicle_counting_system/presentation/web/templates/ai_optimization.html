@@ -32,7 +32,7 @@
           Ngưỡng Tự tin (Confidence)
           <span id="conf-val" style="color: #3b82f6;">{{ ai_config.conf_threshold }}</span>
         </label>
-        <input type="range" id="conf_threshold" name="conf_threshold" min="0.1" max="1.0" step="0.05" value="{{ ai_config.conf_threshold }}" 
+        <input type="range" id="conf_threshold" name="conf_threshold" min="0.1" max="1.0" step="0.01" value="{{ ai_config.conf_threshold }}" 
                style="width: 100%; accent-color: #3b82f6;"
                oninput="document.getElementById('conf-val').innerText = this.value">
         <small class="muted" style="display: block; margin-top: 8px; font-size: 12px;">Mặc định: 0.5. Thử để <b>0.25</b> cho các video mờ.</small>

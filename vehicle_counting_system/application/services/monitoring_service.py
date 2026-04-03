@@ -22,13 +22,11 @@ class MonitoringService:
         self.db = db
         self.source_service = source_service
         self.report_service = report_service
-        import collections
         self._lock = threading.Lock()
         self._active_session_id: int | None = None
         self._stop_event: threading.Event | None = None
         self._worker: threading.Thread | None = None
         self._live_state: dict[str, Any] | None = None
-        self._latest_mjpeg_frame: bytes | None = None
 
     def list_sessions(self, limit: int = 10) -> list[dict[str, Any]]:
         rows = self.db.fetchall(
@@ -78,10 +76,6 @@ class MonitoringService:
             if self._live_state is None:
                 return None
             return copy.deepcopy(self._live_state)
-
-    def get_latest_mjpeg_frame(self) -> bytes | None:
-        with self._lock:
-            return self._latest_mjpeg_frame
 
     def start_session(self, source_id: int, user_id: int) -> int:
         source = self.source_service.get_source(source_id)
@@ -235,9 +229,6 @@ class MonitoringService:
             last_frame_emit = 0.0
 
             def _progress_callback(frame, stats, frame_index: int, frames_processed: int) -> None:
-                # Always emit every frame accurately for MJPEG stream
-                self._update_mjpeg_frame_only(frame)
-
                 nonlocal last_frame_emit
                 now = time.perf_counter()
                 if now - last_frame_emit < 0.35:
@@ -265,7 +256,6 @@ class MonitoringService:
                 counting_lines_path=config_path,
                 stop_event=stop_event,
                 progress_callback=_progress_callback,
-                realtime_pacing=True,
             )
             finished_status = result["status"]
             summary = {
@@ -345,15 +335,6 @@ class MonitoringService:
             if self._live_state and self._live_state.get("session_id") == session_id:
                 self._live_state["status"] = "failed"
                 self._live_state["error_message"] = message
-
-    def _update_mjpeg_frame_only(self, frame) -> None:
-        try:
-            ok, buf = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), 75])
-            if ok:
-                with self._lock:
-                    self._latest_mjpeg_frame = buf.tobytes()
-        except Exception:
-            pass
 
     def _set_live_state(
         self,

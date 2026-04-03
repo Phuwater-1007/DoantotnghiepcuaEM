@@ -189,19 +189,6 @@
             title="Dừng stream trực tiếp"
             hidden
           >■ Dừng trực tiếp</button>
-          <button
-            id="run-analysis-btn"
-            type="button"
-            class="btn btn-primary"
-            title="Chạy phân tích headless (không hiện video)"
-          >Chạy phân tích</button>
-          <button
-            id="stop-analysis-btn"
-            type="button"
-            class="btn btn-outline"
-            title="Dừng phiên phân tích đang chạy"
-            disabled
-          >Dừng phân tích</button>
         </div>
         {% else %}
         <div class="monitor-empty-block">
@@ -487,7 +474,6 @@
         if (!activeId && liveStatePollTimer && (!live || live.status === "running" || live.status === "queued")) {
           stopLiveStatePoll();
           refreshStopButtonState();
-          resetLiveStreamUI();
           return;
         }
         if (live && (live.status === "running" || live.status === "queued")) {
@@ -495,39 +481,10 @@
           var summary = live.summary || {};
           updateFocusCounts(summary);
           updateResultCounts(summary);
-          setResultMeta("Đang chạy phân tích", live.source_name || currentVideoName, "YOLO đang phân tích video real-time.");
-          
-          if (!isLiveStreaming) {
-            isLiveStreaming = true;
-            liveStreamSourceId = live.source_id;
-            
-            if (focusPlayer) {
-              focusPlayer.hidden = true;
-              focusPlayer.style.display = "none";
-            }
-            if (liveStreamImg) {
-              var wrapper = document.getElementById("live-stream-wrapper");
-              var loading = document.getElementById("live-stream-loading");
-              if (wrapper && loading) {
-                if (focusPlayer && focusPlayer.videoHeight > 0) {
-                  wrapper.style.aspectRatio = (focusPlayer.videoWidth / focusPlayer.videoHeight).toString();
-                } else {
-                  wrapper.style.aspectRatio = "auto";
-                }
-                wrapper.style.display = "block";
-                loading.style.display = "flex";
-              }
-              connectMjpegStream();
-            }
-            if (liveBadge) liveBadge.hidden = false;
-            if (startLiveBtn) startLiveBtn.hidden = true;
-            if (stopLiveBtn) stopLiveBtn.hidden = false;
-          }
-
+          setResultMeta("Đang chạy phân tích", live.source_name || currentVideoName, "Đang xử lý video, vui lòng đợi.");
         } else if (live && live.status === "completed") {
           stopLiveStatePoll();
           refreshStopButtonState();
-          resetLiveStreamUI();
           var summary = live.summary || {};
           updateFocusCounts(summary);
           updateResultCounts(summary);
@@ -542,6 +499,7 @@
           } else if (live.output_video_path) {
             fetchAndPlayOutputForName(live.source_name || currentVideoName, summary);
           } else if ((live.source_name || currentVideoName) && !isEmptySummary(summary)) {
+            // At least keep counts even when output video missing
             updateFocusCounts(summary);
             updateResultCounts(summary);
           }
@@ -550,7 +508,6 @@
         } else if (live && (live.status === "stopped" || live.status === "cancelled")) {
           stopLiveStatePoll();
           refreshStopButtonState();
-          resetLiveStreamUI();
           var summary = live.summary || {};
           updateFocusCounts(summary);
           updateResultCounts(summary);
@@ -558,7 +515,6 @@
         } else if (live && live.status === "failed") {
           stopLiveStatePoll();
           refreshStopButtonState();
-          resetLiveStreamUI();
           var summary = live.summary || {};
           updateFocusCounts(summary);
           updateResultCounts(summary);
@@ -654,70 +610,92 @@
   if (runAnalysisBtn) runAnalysisBtn.addEventListener("click", function () { startAnalysis(); });
 
   // ========== LIVE STREAM FUNCTIONS ==========
-  function connectMjpegStream() {
-    if (!liveStreamImg) return;
-    var loading = document.getElementById("live-stream-loading");
-    if (loading) {
-      loading.style.display = "flex";
-      loading.innerHTML = '<svg style="animation: monitor-spin 1s linear infinite; width: 40px; height: 40px; margin-bottom: 12px; color: #818cf8;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-opacity="0.25" stroke-width="4"></circle><path fill="currentColor" fill-opacity="0.75" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><span style="font-size: 14px; font-weight: 500; color: #a5b4fc;">Đang kết nối luồng phân tích...</span>';
-    }
-    liveStreamImg.style.opacity = "0";
-    liveStreamImg.onload = function () {
-      this.style.opacity = "1";
-      if (loading) loading.style.display = "none";
-      streamRetryCount = 0;
-    };
-    liveStreamImg.onerror = function () {
-      if (!isLiveStreaming) return;
-      streamRetryCount++;
-      if (streamRetryCount <= streamRetryMax) {
-        if (loading) {
-          loading.style.display = "flex";
-          loading.innerHTML = '<span style="font-size: 14px; font-weight: 500; color: #fbbf24;">Đang kết nối lại... (lần ' + streamRetryCount + '/' + streamRetryMax + ')</span>';
-        }
-        if (streamRetryTimer) clearTimeout(streamRetryTimer);
-        streamRetryTimer = setTimeout(function () {
-          if (isLiveStreaming) {
-            liveStreamImg.src = "/api/stream/active?t=" + Date.now();
-          }
-        }, 1500);
-      } else {
-        if (loading) {
-          loading.style.display = "flex";
-          loading.innerHTML = '<span style="color:#ef4444; font-weight: 500;">Không thể kết nối luồng trực tiếp</span><button onclick="window.__retryStream && window.__retryStream()" style="margin-top:10px; padding: 6px 18px; border-radius: 6px; border: 1px solid #ef4444; color: #ef4444; background: transparent; cursor: pointer; font-size: 13px;">Thử lại</button>';
-        }
-      }
-    };
-    window.__retryStream = function () {
-      streamRetryCount = 0;
-      connectMjpegStream();
-    };
-    liveStreamImg.src = "/api/stream/active?t=" + Date.now();
-  }
-
   function startLiveStream() {
-    streamRetryCount = 0;
-    startAnalysis();
+    if (!currentSourceId) {
+      alert("Chưa chọn video hoặc video chưa có trong nguồn.");
+      return;
+    }
+    // Stop any running analysis first
+    stopLiveStatePoll();
+
+    liveStreamSourceId = currentSourceId;
+    isLiveStreaming = true;
+
+    // Hide video player, show live stream img
+    if (focusPlayer) {
+      focusPlayer.hidden = true;
+      focusPlayer.style.display = "none";
+    }
+    if (liveStreamImg) {
+      var wrapper = document.getElementById("live-stream-wrapper");
+      var loading = document.getElementById("live-stream-loading");
+      if (wrapper && loading) {
+        if (focusPlayer && focusPlayer.videoHeight > 0) {
+          wrapper.style.aspectRatio = (focusPlayer.videoWidth / focusPlayer.videoHeight).toString();
+        } else {
+          wrapper.style.aspectRatio = "16/9";
+        }
+        wrapper.style.display = "block";
+        loading.style.display = "flex";
+      }
+      liveStreamImg.style.opacity = "0";
+      liveStreamImg.onload = function() {
+        this.style.opacity = "1";
+        if (loading) loading.style.display = "none";
+      };
+      
+      // Also add fallback in case of stream errors
+      liveStreamImg.onerror = function() {
+        if (loading) {
+            loading.innerHTML = '<span style="color:#ef4444; font-weight: 500;">Không thể kết nối. Vui lòng thử lại.</span>';
+        }
+      };
+
+      liveStreamImg.src = "/api/stream/" + currentSourceId + "?t=" + Date.now();
+    }
+    if (liveBadge) liveBadge.hidden = false;
+
+    // Update buttons
+    if (startLiveBtn) startLiveBtn.hidden = true;
+    if (stopLiveBtn) stopLiveBtn.hidden = false;
+
+    setFocusMode("Trực tiếp (LIVE)", "Đang stream video với YOLO detect real-time.");
+    updateFocusCounts({total: 0, per_class: {}});
+
+    // Poll stats
+    liveStatsPollTimer = setInterval(function () {
+      if (!isLiveStreaming || !liveStreamSourceId) return;
+      fetch("/api/stream/" + liveStreamSourceId + "/stats", { credentials: "same-origin" })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (data.streaming) {
+            updateFocusCounts(data);
+            updateResultCounts(data);
+            setResultMeta("Đang stream trực tiếp", currentVideoName, "YOLO đang phân tích video real-time.");
+          }
+        })
+        .catch(function () {});
+    }, 1000);
   }
 
   function stopLiveStream() {
-    var stopBtn = document.getElementById("stop-analysis-btn");
-    if (stopBtn && !stopBtn.disabled) {
-      stopBtn.click();
-    } else {
-      resetLiveStreamUI();
+    if (liveStatsPollTimer) {
+      clearInterval(liveStatsPollTimer);
+      liveStatsPollTimer = null;
     }
-  }
 
-  function resetLiveStreamUI() {
+    if (liveStreamSourceId) {
+      fetch("/api/stream/" + liveStreamSourceId + "/stop", {
+        method: "POST",
+        credentials: "same-origin"
+      }).catch(function () {});
+    }
+
     isLiveStreaming = false;
     liveStreamSourceId = null;
-    streamRetryCount = 0;
-    if (streamRetryTimer) { clearTimeout(streamRetryTimer); streamRetryTimer = null; }
 
+    // Show video player, hide live stream
     if (liveStreamImg) {
-      liveStreamImg.onload = null;
-      liveStreamImg.onerror = null;
       var wrapper = document.getElementById("live-stream-wrapper");
       if (wrapper) wrapper.style.display = "none";
       liveStreamImg.src = "";
@@ -728,6 +706,7 @@
       focusPlayer.style.display = "";
     }
 
+    // Update buttons
     if (startLiveBtn) startLiveBtn.hidden = false;
     if (stopLiveBtn) stopLiveBtn.hidden = true;
 
@@ -749,7 +728,6 @@
         .then(function (r) { return r.json(); })
         .then(function () {
           stopLiveStatePoll();
-          resetLiveStreamUI();
           var runBtn = document.getElementById("run-analysis-btn");
           if (runBtn) { runBtn.disabled = false; runBtn.textContent = "Chạy phân tích"; }
           refreshStopButtonState();

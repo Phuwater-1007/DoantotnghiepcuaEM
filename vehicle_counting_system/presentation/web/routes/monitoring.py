@@ -102,6 +102,24 @@ def build_router(templates) -> APIRouter:
                 status_code=400,
             )
 
+    @router.get("/sources/{source_id}/edit-roi")
+    def edit_roi_page(request: Request, source_id: int):
+        user = require_login(request)
+        if hasattr(user, "status_code"):
+            return user
+        container = get_container(request)
+        source = container.source_service.get_source(source_id)
+        if not source:
+            return RedirectResponse("/monitoring", status_code=303)
+        return templates.TemplateResponse(
+            "edit_roi.html",
+            base_context(
+                request,
+                page_title=f"Chỉnh ROI - {source.name}",
+                source=source,
+            ),
+        )
+
     @router.post("/monitoring/stop")
     def stop_monitoring(request: Request):
         user = require_login(request)

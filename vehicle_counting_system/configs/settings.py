@@ -50,7 +50,7 @@ class Settings:
     # === Detection performance ===
 
     # Confidence threshold: cao hơn => ít box chất lượng thấp, nhận diện chặt hơn.
-    conf_threshold: float = float(os.getenv("CONF_THRESHOLD", "0.55"))
+    conf_threshold: float = float(os.getenv("CONF_THRESHOLD", "0.49"))
 
     # Input size for YOLO (imgsz). Smaller => faster but less accurate.
     image_size: int = int(os.getenv("IMAGE_SIZE", "640"))
@@ -134,8 +134,8 @@ class Settings:
     # === Tracking (ByteTrack) ===
     # These defaults are chosen for crowded traffic scenes (stable IDs > aggressive new tracks).
     bytetrack_activation_threshold: float = float(os.getenv("BYTETRACK_ACTIVATION_TH", "0.35"))
-    bytetrack_matching_threshold: float = float(os.getenv("BYTETRACK_MATCHING_TH", "0.75"))
-    bytetrack_lost_buffer: int = int(os.getenv("BYTETRACK_LOST_BUFFER", "30"))
+    bytetrack_matching_threshold: float = float(os.getenv("BYTETRACK_MATCHING_TH", "0.80"))
+    bytetrack_lost_buffer: int = int(os.getenv("BYTETRACK_LOST_BUFFER", "80"))
     # NOTE: supervision ByteTrack currently does not emit tracks reliably with >1 here,
     # so keep it at 1 for stable demo output.
     bytetrack_min_consecutive: int = int(os.getenv("BYTETRACK_MIN_CONSEC_FRAMES", "1"))

@@ -11,6 +11,7 @@ import gc
 import os
 from pathlib import Path
 from typing import List
+import threading
 
 import torch
 from ultralytics import YOLO
@@ -45,6 +46,7 @@ class YOLODetector(BaseDetector):
         self.min_box_area = settings.min_box_area
         self.max_det = settings.max_detections
         self.allowed_names = set(settings.allowed_class_names)
+        self._inference_lock = threading.Lock()
 
         logger.info(
             f"Loading YOLO model from {self.weights} on {self.device} "
@@ -116,26 +118,28 @@ class YOLODetector(BaseDetector):
         # Ultralytics dùng BGR (mặc định của OpenCV).
         # TensorRT .engine: không truyền half — precision đã cố định trong engine.
         use_half = (not self.is_tensorrt_engine) and (settings.yolo_precision == "fp16")
-        if settings.use_gpu and self.device.startswith("cuda"):
-            results = self.model(
-                frame,
-                imgsz=self.img_size,
-                conf=self.conf_thres,
-                max_det=self.max_det,
-                verbose=False,
-                device=self.device,
-                half=use_half,
-            )
-        else:
-            results = self.model(
-                frame,
-                imgsz=self.img_size,
-                conf=self.conf_thres,
-                max_det=self.max_det,
-                verbose=False,
-                device="cpu",
-                half=False,
-            )
+        
+        with self._inference_lock:
+            if settings.use_gpu and self.device.startswith("cuda"):
+                results = self.model(
+                    frame,
+                    imgsz=self.img_size,
+                    conf=self.conf_thres,
+                    max_det=self.max_det,
+                    verbose=False,
+                    device=self.device,
+                    half=use_half,
+                )
+            else:
+                results = self.model(
+                    frame,
+                    imgsz=self.img_size,
+                    conf=self.conf_thres,
+                    max_det=self.max_det,
+                    verbose=False,
+                    device="cpu",
+                    half=False,
+                )
 
         detections: List[Detection] = []
         for r in results:
