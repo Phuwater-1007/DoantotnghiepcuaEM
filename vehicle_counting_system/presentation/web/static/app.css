@@ -692,8 +692,23 @@ button:disabled {
 
 .monitor-video-info {
   display: grid;
-  gap: 8px;
+  gap: 4px;
   padding: 12px;
+}
+
+.monitor-video-cam-label {
+  font-size: 11px;
+  font-weight: 800;
+  color: #2563eb;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.monitor-library-cam {
+  font-size: 12px;
+  font-weight: 700;
+  color: #2563eb;
+  min-width: 52px;
 }
 
 .monitor-video-name {
@@ -863,6 +878,88 @@ button:disabled {
 
 .monitor-result-note {
   margin-top: 16px;
+}
+
+/* ========== TRAFFIC DENSITY INDICATOR ========== */
+
+.traffic-density {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  margin-top: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  transition: background 0.3s, color 0.3s;
+}
+
+.traffic-density-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: background 0.3s, box-shadow 0.3s;
+}
+
+.traffic-density.idle {
+  background: #f3f4f6;
+  color: #9ca3af;
+}
+
+.traffic-density.idle .traffic-density-dot {
+  background: #d1d5db;
+}
+
+.traffic-density.analyzing {
+  background: #eff6ff;
+  color: #3b82f6;
+}
+
+.traffic-density.analyzing .traffic-density-dot {
+  background: #3b82f6;
+  animation: density-pulse 1.2s ease-in-out infinite;
+}
+
+.traffic-density.light {
+  background: #ecfdf5;
+  color: #059669;
+}
+
+.traffic-density.light .traffic-density-dot {
+  background: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+}
+
+.traffic-density.normal {
+  background: #fffbeb;
+  color: #d97706;
+}
+
+.traffic-density.normal .traffic-density-dot {
+  background: #f59e0b;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
+}
+
+.traffic-density.heavy {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.traffic-density.heavy .traffic-density-dot {
+  background: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2);
+  animation: density-pulse-red 1s ease-in-out infinite;
+}
+
+@keyframes density-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+@keyframes density-pulse-red {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.2); }
 }
 
 .monitor-selected-panel {

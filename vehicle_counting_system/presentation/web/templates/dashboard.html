@@ -4,7 +4,7 @@
   <div>
     <h2>Toàn cảnh phân tích giao thông</h2>
     <p class="dashboard-hero-text">
-      Theo dõi số lượng xe hôm nay, mức độ sẵn sàng của video đã cấu hình ROI và kết quả phiên gần nhất.
+      Theo dõi số lượng xe hôm nay, cơ cấu phương tiện theo loại và kết quả phiên phân tích gần nhất.
     </p>
   </div>
   <div class="dashboard-hero-side">
@@ -21,7 +21,7 @@
   </div>
 </section>
 
-<!-- Live analysis banner - ẩn khi không có phiên đang chạy -->
+<!-- Live analysis banner -->
 <section class="card" id="live-analysis-banner" style="display: none; background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%); color: #fff; border: none;">
   <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
     <div style="display: flex; align-items: center; gap: 12px;">
@@ -65,144 +65,153 @@
     <div class="stat-value" id="stat-motorcycle">{{ dashboard.vehicle_mix.motorcycle }}</div>
   </div>
   <div class="card stat-card">
-    <div class="stat-label">Video đã có ROI</div>
-    <div class="stat-value small">{{ dashboard.configured_sources }} / {{ dashboard.sources_total }}</div>
+    <div class="stat-label">Phiên hoàn thành hôm nay</div>
+    <div class="stat-value" id="stat-sessions-today">{{ dashboard.completed_sessions_today }}</div>
   </div>
 </section>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 
 <section class="two-column">
-  <div class="card">
+  <div class="card" id="vehicle-mix-card">
     <h2>Cơ cấu phương tiện</h2>
-    {% if dashboard.per_class %}
-    <div class="dashboard-mix-grid">
-      <div class="dashboard-mix-item">
-        <span class="muted">Ô tô</span>
-        <strong>{{ dashboard.vehicle_mix.automobile }}</strong>
+    <div id="vehicle-mix-content">
+      {% if dashboard.per_class %}
+      <div style="display: flex; align-items: center; gap: 24px; flex-wrap: wrap;">
+        <div style="position: relative; width: 200px; height: 200px; flex-shrink: 0;">
+          <canvas id="donut-chart"></canvas>
+          <div id="donut-center" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; pointer-events: none;">
+            <div style="font-size: 28px; font-weight: 700; color: var(--color-text);">{{ dashboard.today_total }}</div>
+            <div style="font-size: 11px; color: var(--color-muted); text-transform: uppercase; letter-spacing: 0.5px;">Tổng xe</div>
+          </div>
+        </div>
+        <div style="flex: 1; min-width: 140px;">
+          <div class="chart-legend-list">
+            <div class="chart-legend-item">
+              <span class="chart-legend-dot" style="background: #6366f1;"></span>
+              <span class="chart-legend-label">Ô tô</span>
+              <strong id="mix-automobile">{{ dashboard.vehicle_mix.automobile }}</strong>
+            </div>
+            <div class="chart-legend-item">
+              <span class="chart-legend-dot" style="background: #f59e0b;"></span>
+              <span class="chart-legend-label">Xe máy</span>
+              <strong id="mix-motorcycle">{{ dashboard.vehicle_mix.motorcycle }}</strong>
+            </div>
+            <div class="chart-legend-item">
+              <span class="chart-legend-dot" style="background: #10b981;"></span>
+              <span class="chart-legend-label">Xe buýt</span>
+              <strong id="mix-bus">{{ dashboard.vehicle_mix.bus }}</strong>
+            </div>
+            <div class="chart-legend-item">
+              <span class="chart-legend-dot" style="background: #ef4444;"></span>
+              <span class="chart-legend-label">Xe tải</span>
+              <strong id="mix-truck">{{ dashboard.vehicle_mix.truck }}</strong>
+            </div>
+          </div>
+        </div>
       </div>
-      <div class="dashboard-mix-item">
-        <span class="muted">Xe máy</span>
-        <strong>{{ dashboard.vehicle_mix.motorcycle }}</strong>
+      {% else %}
+      <div class="empty-state" id="mix-empty-state">
+        <div class="empty-state-icon">—</div>
+        <p>Chưa có dữ liệu phân tích.</p>
+        <a href="/monitoring" style="color: var(--color-primary); text-decoration: underline; font-size: 13px;">
+          → Chạy phân tích từ trang Giám sát
+        </a>
       </div>
-      <div class="dashboard-mix-item">
-        <span class="muted">Xe buýt</span>
-        <strong>{{ dashboard.vehicle_mix.bus }}</strong>
-      </div>
-      <div class="dashboard-mix-item">
-        <span class="muted">Xe tải</span>
-        <strong>{{ dashboard.vehicle_mix.truck }}</strong>
-      </div>
+      {% endif %}
     </div>
-    <div class="pill-list" style="margin-top: 14px;">
-      {% for key, value in dashboard.per_class.items() %}
-      <span class="pill">{{ key }}: {{ value }}</span>
-      {% endfor %}
-    </div>
-    {% else %}
-    <div class="empty-state">
-      <div class="empty-state-icon">—</div>
-      <p>Chưa có dữ liệu phân tích.</p>
-      <a href="/monitoring" style="color: var(--color-primary); text-decoration: underline; font-size: 13px;">
-        → Chạy phân tích từ trang Giám sát
-      </a>
-    </div>
-    {% endif %}
   </div>
 
-  <div class="card">
+  <div class="card" id="hourly-card">
     <h2>Hoạt động theo giờ</h2>
-    {% if dashboard.hourly_activity %}
-    <div class="bar-list">
-      {% for item in dashboard.hourly_activity %}
-      <div class="bar-row">
-        <span>{{ item.hour }}:00</span>
-        <div class="bar-track">
-          <div class="bar-fill" style="width: {{ (item.count / dashboard.max_hourly_count * 100) if dashboard.max_hourly_count > 0 else 0 }}%;"></div>
-        </div>
-        <strong>{{ item.count }}</strong>
+    <div id="hourly-content">
+      {% if dashboard.hourly_activity %}
+      <div style="position: relative; width: 100%; height: 220px;">
+        <canvas id="hourly-chart"></canvas>
       </div>
-      {% endfor %}
+      {% if dashboard.peak_hour %}
+      <p class="muted" style="margin-top: 12px; font-size: 13px;" id="peak-hour-text">Khung giờ cao điểm hôm nay: {{ dashboard.peak_hour }}</p>
+      {% endif %}
+      {% else %}
+      <div class="empty-state" id="hourly-empty-state">
+        <div class="empty-state-icon">—</div>
+        <p>Chưa có dữ liệu theo giờ.</p>
+        <a href="/monitoring" style="color: var(--color-primary); text-decoration: underline; font-size: 13px;">
+          → Chạy phân tích để có biểu đồ
+        </a>
+      </div>
+      {% endif %}
     </div>
-    {% if dashboard.peak_hour %}
-    <p class="muted" style="margin-top: 12px; font-size: 13px;">Khung giờ cao điểm hôm nay: {{ dashboard.peak_hour }}</p>
-    {% endif %}
-    {% else %}
-    <div class="empty-state">
-      <div class="empty-state-icon">—</div>
-      <p>Chưa có dữ liệu theo giờ.</p>
-      <a href="/monitoring" style="color: var(--color-primary); text-decoration: underline; font-size: 13px;">
-        → Chạy phân tích để có biểu đồ
-      </a>
-    </div>
-    {% endif %}
   </div>
 </section>
 
-<section class="card">
+<section class="card" id="latest-session-card">
   <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
     <h2 style="margin: 0;">Phiên phân tích gần nhất</h2>
     <a href="/reports" style="color: var(--color-primary); text-decoration: none; font-size: 13px; font-weight: 500;">
       Xem tất cả báo cáo →
     </a>
   </div>
-  {% if dashboard.latest_session %}
-  <div class="session-summary">
-    <div class="session-summary-row">
-      <span class="muted">Phiên #{{ dashboard.latest_session.id }}</span>
-      <span class="pill status-{{ dashboard.latest_session.status }}">
-        {% if dashboard.latest_session.status == 'completed' %}Hoàn thành{% elif dashboard.latest_session.status == 'running' %}Đang chạy{% elif dashboard.latest_session.status == 'queued' %}Đang chờ{% elif dashboard.latest_session.status == 'failed' %}Thất bại{% elif dashboard.latest_session.status == 'stopped' %}Đã dừng{% else %}{{ dashboard.latest_session.status }}{% endif %}
-      </span>
+  <div id="latest-session-content">
+    {% if dashboard.latest_session %}
+    <div class="session-summary">
+      <div class="session-summary-row">
+        <span class="muted">Phiên #{{ dashboard.latest_session.id }}</span>
+        <span class="pill status-{{ dashboard.latest_session.status }}">
+          {% if dashboard.latest_session.status == 'completed' %}Hoàn thành{% elif dashboard.latest_session.status == 'running' %}Đang chạy{% elif dashboard.latest_session.status == 'queued' %}Đang chờ{% elif dashboard.latest_session.status == 'failed' %}Thất bại{% elif dashboard.latest_session.status == 'stopped' %}Đã dừng{% else %}{{ dashboard.latest_session.status }}{% endif %}
+        </span>
+      </div>
+      <div class="session-summary-row">
+        <span class="muted">Video</span>
+        <span>{{ dashboard.latest_session.source_name }}</span>
+      </div>
+      <div class="session-summary-row">
+        <span class="muted">Tổng số xe</span>
+        <span><strong>{{ dashboard.latest_session.summary.total if dashboard.latest_session.summary and dashboard.latest_session.summary.total is defined else 0 }}</strong></span>
+      </div>
+      <div class="session-summary-row">
+        <span class="muted">Ô tô</span>
+        <span>{{ dashboard.latest_session.vehicle_mix.automobile }}</span>
+      </div>
+      <div class="session-summary-row">
+        <span class="muted">Xe máy</span>
+        <span>{{ dashboard.latest_session.vehicle_mix.motorcycle }}</span>
+      </div>
+      <div class="session-summary-row">
+        <span class="muted">Bắt đầu</span>
+        <span>{{ dashboard.latest_session.started_at }}</span>
+      </div>
+      {% if dashboard.latest_session.finished_at %}
+      <div class="session-summary-row">
+        <span class="muted">Kết thúc</span>
+        <span>{{ dashboard.latest_session.finished_at }}</span>
+      </div>
+      {% endif %}
+      {% if dashboard.latest_session.summary.per_class %}
+      <div class="session-summary-row">
+        <span class="muted">Chi tiết</span>
+        <span>
+          {% for k, v in dashboard.latest_session.summary.per_class.items() %}
+          <span class="pill">{{ k }}: {{ v }}</span>
+          {% endfor %}
+        </span>
+      </div>
+      {% endif %}
+      {% if dashboard.latest_session.error_message %}
+      <div class="alert alert-error">{{ dashboard.latest_session.error_message }}</div>
+      {% endif %}
     </div>
-    <div class="session-summary-row">
-      <span class="muted">Video</span>
-      <span>{{ dashboard.latest_session.source_name }}</span>
+    {% else %}
+    <div class="empty-state">
+      <div class="empty-state-icon">—</div>
+      <p>Chưa có phiên gần nhất.</p>
+      <a href="/monitoring" style="color: var(--color-primary); text-decoration: underline; font-size: 13px;">
+        → Chạy phân tích ở trang Giám sát
+      </a>
     </div>
-    <div class="session-summary-row">
-      <span class="muted">Tổng số xe</span>
-      <span><strong>{{ dashboard.latest_session.summary.total if dashboard.latest_session.summary and dashboard.latest_session.summary.total is defined else 0 }}</strong></span>
-    </div>
-    <div class="session-summary-row">
-      <span class="muted">Ô tô</span>
-      <span>{{ dashboard.latest_session.vehicle_mix.automobile }}</span>
-    </div>
-    <div class="session-summary-row">
-      <span class="muted">Xe máy</span>
-      <span>{{ dashboard.latest_session.vehicle_mix.motorcycle }}</span>
-    </div>
-    <div class="session-summary-row">
-      <span class="muted">Bắt đầu</span>
-      <span>{{ dashboard.latest_session.started_at }}</span>
-    </div>
-    {% if dashboard.latest_session.finished_at %}
-    <div class="session-summary-row">
-      <span class="muted">Kết thúc</span>
-      <span>{{ dashboard.latest_session.finished_at }}</span>
-    </div>
-    {% endif %}
-    {% if dashboard.latest_session.summary.per_class %}
-    <div class="session-summary-row">
-      <span class="muted">Chi tiết</span>
-      <span>
-        {% for k, v in dashboard.latest_session.summary.per_class.items() %}
-        <span class="pill">{{ k }}: {{ v }}</span>
-        {% endfor %}
-      </span>
-    </div>
-    {% endif %}
-    {% if dashboard.latest_session.error_message %}
-    <div class="alert alert-error">{{ dashboard.latest_session.error_message }}</div>
     {% endif %}
   </div>
-  {% else %}
-  <div class="empty-state">
-    <div class="empty-state-icon">—</div>
-    <p>Chưa có phiên gần nhất.</p>
-    <a href="/monitoring" style="color: var(--color-primary); text-decoration: underline; font-size: 13px;">
-      → Chạy phân tích ở trang Giám sát
-    </a>
-  </div>
-  {% endif %}
 </section>
-
 
 
 <style>
@@ -220,67 +229,573 @@
     0%, 100% { opacity: 1; transform: scale(1); }
     50% { opacity: 0.4; transform: scale(0.8); }
   }
+  /* Smooth number transitions */
+  .stat-value {
+    transition: color 0.3s;
+  }
+  .stat-value.is-live {
+    color: #7c3aed;
+  }
+  /* Chart legend */
+  .chart-legend-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .chart-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+  }
+  .chart-legend-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .chart-legend-label {
+    flex: 1;
+    color: var(--color-muted, #6b7280);
+  }
+  .chart-legend-item strong {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--color-text, #1e293b);
+    min-width: 30px;
+    text-align: right;
+  }
 </style>
 
 <script>
 (function () {
-  var pollInterval = null;
-  var wasRunning = {{ 'true' if dashboard.running_session else 'false' }};
+  // ====================================================================
+  // Dashboard Real-time Sync Engine
+  // Polls both headless analysis AND live MJPEG stream, merges the data,
+  // and updates every widget on the page without full reload.
+  // ====================================================================
 
-  function getVehicleSummary(summary) {
-    var perClass = (summary && summary.per_class) || {};
-    var totalFromSummary = (summary && typeof summary.total === "number") ? summary.total : 0;
-    var totalFromPerClass = Object.keys(perClass).reduce(function (acc, key) {
-      return acc + (perClass[key] || 0);
-    }, 0);
-    var total = totalFromSummary || totalFromPerClass;
+  var POLL_MS = 1500;
+
+  // Baseline DB values (from Jinja server-side render)
+  var dbTodayTotal = {{ dashboard.today_total }};
+  var dbAutomobile = {{ dashboard.vehicle_mix.automobile }};
+  var dbMotorcycle = {{ dashboard.vehicle_mix.motorcycle }};
+  var dbBus = {{ dashboard.vehicle_mix.bus }};
+  var dbTruck = {{ dashboard.vehicle_mix.truck }};
+  var dbPerClass = {{ dashboard.per_class | tojson }};
+
+  // Track previous state for "was running" detection
+  var wasHeadlessRunning = {{ 'true' if dashboard.running_session else 'false' }};
+  var wasStreamActive = false;
+
+  // ====================================================================
+  // Helper: merge per_class dicts
+  // ====================================================================
+  function mergePerClass(base, live) {
+    var result = {};
+    var keys = Object.keys(base);
+    Object.keys(live).forEach(function (k) {
+      if (keys.indexOf(k) === -1) keys.push(k);
+    });
+    keys.forEach(function (k) {
+      result[k] = (base[k] || 0) + (live[k] || 0);
+    });
+    return result;
+  }
+
+  function getVehicleMix(perClass) {
     return {
-      total: total,
       automobile: (perClass.car || 0) + (perClass.truck || 0) + (perClass.bus || 0),
-      motorcycle: perClass.motorcycle || 0
+      motorcycle: perClass.motorcycle || 0,
+      car: perClass.car || 0,
+      truck: perClass.truck || 0,
+      bus: perClass.bus || 0,
     };
   }
 
-  function pollLiveState() {
-    fetch("/api/monitoring/live-state", { credentials: "same-origin" })
+  // ====================================================================
+  // DOM updaters
+  // ====================================================================
+  function updateStatCards(total, mix) {
+    var el;
+    el = document.getElementById("stat-today-total");
+    if (el) el.textContent = total;
+    el = document.getElementById("stat-automobile");
+    if (el) el.textContent = mix.automobile;
+    el = document.getElementById("stat-motorcycle");
+    if (el) el.textContent = mix.motorcycle;
+  }
+
+  function setStatCardLive(isLive) {
+    var ids = ["stat-today-total", "stat-automobile", "stat-motorcycle"];
+    ids.forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) {
+        if (isLive) el.classList.add("is-live");
+        else el.classList.remove("is-live");
+      }
+    });
+  }
+
+  // ====================================================================
+  // Chart.js – Donut (vehicle mix) & Bar (hourly activity)
+  // ====================================================================
+  var CHART_COLORS = ['#6366f1', '#f59e0b', '#10b981', '#ef4444'];
+  var donutChart = null;
+  var hourlyChart = null;
+
+  function initDonutChart() {
+    var canvas = document.getElementById('donut-chart');
+    if (!canvas) return;
+    var ctx = canvas.getContext('2d');
+    donutChart = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Ô tô', 'Xe máy', 'Xe buýt', 'Xe tải'],
+        datasets: [{
+          data: [dbAutomobile, dbMotorcycle, dbBus, dbTruck],
+          backgroundColor: CHART_COLORS,
+          borderWidth: 0,
+          hoverOffset: 6,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        cutout: '68%',
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: 'rgba(30, 27, 75, 0.92)',
+            titleFont: { size: 13, weight: '600' },
+            bodyFont: { size: 12 },
+            padding: 10,
+            cornerRadius: 8,
+            callbacks: {
+              label: function (ctx) {
+                var total = ctx.dataset.data.reduce(function (a, b) { return a + b; }, 0);
+                var pct = total > 0 ? Math.round(ctx.raw / total * 100) : 0;
+                return ctx.label + ': ' + ctx.raw + ' (' + pct + '%)';
+              }
+            }
+          }
+        },
+        animation: { animateRotate: true, duration: 800 }
+      }
+    });
+  }
+
+  function initHourlyChart() {
+    var canvas = document.getElementById('hourly-chart');
+    if (!canvas) return;
+    var ctx = canvas.getContext('2d');
+
+    // Build a map from server data: { "15": 9, "14": 3, ... }
+    var serverData = {};
+    {% if dashboard.hourly_activity %}
+    {% for item in dashboard.hourly_activity %}
+    serverData['{{ item.hour }}'] = {{ item.count }};
+    {% endfor %}
+    {% endif %}
+
+    // Generate full hour range 06:00 → 23:00
+    var allLabels = [];
+    var allValues = [];
+    for (var h = 6; h <= 23; h++) {
+      var key = h.toString().padStart(2, '0');
+      allLabels.push(key + ':00');
+      allValues.push(serverData[key] || 0);
+    }
+
+    // Gradient fill
+    var gradient = ctx.createLinearGradient(0, 0, 0, 220);
+    gradient.addColorStop(0, 'rgba(99, 102, 241, 0.3)');
+    gradient.addColorStop(0.6, 'rgba(99, 102, 241, 0.08)');
+    gradient.addColorStop(1, 'rgba(99, 102, 241, 0)');
+
+    hourlyChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: allLabels,
+        datasets: [{
+          label: 'Phương tiện',
+          data: allValues,
+          borderColor: '#6366f1',
+          backgroundColor: gradient,
+          borderWidth: 2.5,
+          fill: true,
+          tension: 0.35,
+          pointBackgroundColor: function (context) {
+            return context.raw > 0 ? '#6366f1' : 'transparent';
+          },
+          pointBorderColor: function (context) {
+            return context.raw > 0 ? '#fff' : 'transparent';
+          },
+          pointBorderWidth: 2,
+          pointRadius: function (context) {
+            return context.raw > 0 ? 4 : 0;
+          },
+          pointHoverRadius: 7,
+          pointHoverBackgroundColor: '#4f46e5',
+          pointHoverBorderColor: '#fff',
+          pointHoverBorderWidth: 2,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { intersect: false, mode: 'index' },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: 'rgba(30, 27, 75, 0.92)',
+            titleFont: { size: 13, weight: '600' },
+            bodyFont: { size: 12 },
+            padding: { top: 8, bottom: 8, left: 12, right: 12 },
+            cornerRadius: 8,
+            displayColors: false,
+            filter: function (item) { return item.raw > 0; },
+            callbacks: {
+              title: function (items) { return '🕐 ' + items[0].label; },
+              label: function (ctx) { return ctx.raw + ' phương tiện qua lại'; }
+            }
+          }
+        },
+        scales: {
+          x: {
+            grid: { display: false },
+            ticks: {
+              font: { size: 10 },
+              color: '#9ca3af',
+              maxRotation: 0,
+              autoSkip: true,
+              maxTicksLimit: 9,
+            }
+          },
+          y: {
+            beginAtZero: true,
+            grid: { color: 'rgba(0,0,0,0.04)', drawBorder: false },
+            border: { display: false },
+            ticks: {
+              font: { size: 11 },
+              color: '#9ca3af',
+              stepSize: 1,
+              padding: 8,
+              callback: function (val) { return Number.isInteger(val) ? val : ''; }
+            }
+          }
+        },
+        animation: { duration: 800, easing: 'easeOutQuart' }
+      }
+    });
+  }
+
+  // Initialize charts on page load
+  initDonutChart();
+  initHourlyChart();
+
+  function updateVehicleMixPanel(perClass, mix) {
+    // Update legend numbers
+    var el;
+    el = document.getElementById('mix-automobile'); if (el) el.textContent = mix.automobile;
+    el = document.getElementById('mix-motorcycle'); if (el) el.textContent = mix.motorcycle;
+    el = document.getElementById('mix-bus'); if (el) el.textContent = mix.bus;
+    el = document.getElementById('mix-truck'); if (el) el.textContent = mix.truck;
+
+    // Update donut chart data
+    if (donutChart) {
+      donutChart.data.datasets[0].data = [
+        mix.automobile || 0,
+        mix.motorcycle || 0,
+        mix.bus || 0,
+        mix.truck || 0,
+      ];
+      donutChart.update('none'); // no animation for live updates
+    }
+
+    // Update center total
+    var center = document.getElementById('donut-center');
+    if (center) {
+      var totalEl = center.querySelector('div');
+      if (totalEl) {
+        var total = (mix.automobile || 0) + (mix.motorcycle || 0) + (mix.bus || 0) + (mix.truck || 0);
+        totalEl.textContent = total;
+      }
+    }
+  }
+
+  function updateHourlyActivity(hourlyData, maxCount) {
+    if (!hourlyData || hourlyData.length === 0) return;
+
+    if (hourlyChart) {
+      // Update existing chart
+      hourlyChart.data.labels = hourlyData.map(function (item) { return item.hour + ':00'; });
+      hourlyChart.data.datasets[0].data = hourlyData.map(function (item) { return item.count; });
+      hourlyChart.update('none');
+    } else {
+      // Chart not initialized (was in empty state) — build canvas and init
+      var content = document.getElementById('hourly-content');
+      if (!content) return;
+      content.innerHTML = '<div style="position: relative; width: 100%; height: 220px;"><canvas id="hourly-chart"></canvas></div>';
+      initHourlyChart();
+      // Update with new data
+      if (hourlyChart) {
+        hourlyChart.data.labels = hourlyData.map(function (item) { return item.hour + ':00'; });
+        hourlyChart.data.datasets[0].data = hourlyData.map(function (item) { return item.count; });
+        hourlyChart.update();
+      }
+    }
+
+    // Update peak hour text
+    var peakHour = '';
+    var peakCount = 0;
+    hourlyData.forEach(function (item) {
+      if (item.count > peakCount) { peakCount = item.count; peakHour = item.hour + ':00'; }
+    });
+    var peakEl = document.getElementById('peak-hour-text');
+    if (peakEl && peakHour) {
+      peakEl.textContent = 'Khung giờ cao điểm hôm nay: ' + peakHour;
+    }
+  }
+
+  function updateLatestSession(session) {
+    if (!session) return;
+    var content = document.getElementById("latest-session-content");
+    if (!content) return;
+
+    var statusLabels = {
+      completed: "Hoàn thành",
+      running: "Đang chạy",
+      queued: "Đang chờ",
+      failed: "Thất bại",
+      stopped: "Đã dừng",
+    };
+    var statusLabel = statusLabels[session.status] || session.status;
+    var summary = session.summary || {};
+    var perClass = summary.per_class || {};
+    var mix = session.vehicle_mix || getVehicleMix(perClass);
+    var total = (typeof summary.total === "number") ? summary.total : 0;
+
+    var html = '<div class="session-summary">';
+    html += '<div class="session-summary-row"><span class="muted">Phiên #' + session.id + '</span><span class="pill status-' + session.status + '">' + statusLabel + '</span></div>';
+    html += '<div class="session-summary-row"><span class="muted">Video</span><span>' + (session.source_name || "—") + '</span></div>';
+    html += '<div class="session-summary-row"><span class="muted">Tổng số xe</span><span><strong>' + total + '</strong></span></div>';
+    html += '<div class="session-summary-row"><span class="muted">Ô tô</span><span>' + mix.automobile + '</span></div>';
+    html += '<div class="session-summary-row"><span class="muted">Xe máy</span><span>' + mix.motorcycle + '</span></div>';
+    html += '<div class="session-summary-row"><span class="muted">Bắt đầu</span><span>' + (session.started_at || "—") + '</span></div>';
+    if (session.finished_at) {
+      html += '<div class="session-summary-row"><span class="muted">Kết thúc</span><span>' + session.finished_at + '</span></div>';
+    }
+    if (perClass && Object.keys(perClass).length > 0) {
+      html += '<div class="session-summary-row"><span class="muted">Chi tiết</span><span>';
+      Object.keys(perClass).forEach(function (k) {
+        html += '<span class="pill">' + k + ': ' + perClass[k] + '</span>';
+      });
+      html += '</span></div>';
+    }
+    if (session.error_message) {
+      html += '<div class="alert alert-error">' + session.error_message + '</div>';
+    }
+    html += '</div>';
+
+    content.innerHTML = html;
+  }
+
+  function showLiveBanner(title, detail, total, car, moto) {
+    var banner = document.getElementById("live-analysis-banner");
+    if (banner) banner.style.display = "";
+    var el;
+    el = document.getElementById("live-banner-title"); if (el) el.textContent = title;
+    el = document.getElementById("live-banner-detail"); if (el) el.textContent = detail;
+    el = document.getElementById("live-total"); if (el) el.textContent = total;
+    el = document.getElementById("live-car"); if (el) el.textContent = car;
+    el = document.getElementById("live-moto"); if (el) el.textContent = moto;
+  }
+
+  function hideLiveBanner() {
+    var banner = document.getElementById("live-analysis-banner");
+    if (banner) banner.style.display = "none";
+    var pill = document.getElementById("dashboard-status-pill");
+    if (pill) pill.textContent = "Hệ thống đang sẵn sàng";
+  }
+
+  // ====================================================================
+  // Fetch fresh dashboard DB data (when a session ends)
+  // ====================================================================
+  function refreshDashboardFromDB() {
+    fetch("/api/dashboard", { credentials: "same-origin" })
       .then(function (r) { return r.json(); })
       .then(function (data) {
-        var activeId = data.active_session_id;
-        var live = data.live_state;
-        var banner = document.getElementById("live-analysis-banner");
-        var pill = document.getElementById("dashboard-status-pill");
+        // Update baseline values
+        dbTodayTotal = data.today_total || 0;
+        var mix = data.vehicle_mix || {};
+        dbAutomobile = mix.automobile || 0;
+        dbMotorcycle = mix.motorcycle || 0;
+        dbBus = mix.bus || 0;
+        dbTruck = mix.truck || 0;
+        dbPerClass = data.per_class || {};
 
-        if (activeId && live && (live.status === "running" || live.status === "queued")) {
-          wasRunning = true;
-          if (banner) banner.style.display = "";
-          if (pill) pill.innerHTML = '<span class="live-dot-inline"></span> Đang phân tích phiên #' + activeId;
+        // Update stat cards
+        updateStatCards(dbTodayTotal, {automobile: dbAutomobile, motorcycle: dbMotorcycle });
+        setStatCardLive(false);
 
-          var counts = getVehicleSummary(live.summary || {});
-          var liveTotal = document.getElementById("live-total");
-          var liveCar = document.getElementById("live-car");
-          var liveMoto = document.getElementById("live-moto");
-          var liveBannerTitle = document.getElementById("live-banner-title");
-          if (liveTotal) liveTotal.textContent = counts.total;
-          if (liveCar) liveCar.textContent = counts.automobile;
-          if (liveMoto) liveMoto.textContent = counts.motorcycle;
-          if (liveBannerTitle) liveBannerTitle.textContent = "Đang phân tích: " + (live.source_name || "video");
-        } else {
-          if (banner) banner.style.display = "none";
-          if (pill) pill.textContent = "Hệ thống đang sẵn sàng";
+        // Update vehicle mix
+        updateVehicleMixPanel(dbPerClass, mix);
 
-          // Nếu trước đó đang chạy mà giờ dừng → reload để cập nhật stats
-          if (wasRunning) {
-            wasRunning = false;
-            setTimeout(function () { window.location.reload(); }, 1500);
-          }
+        // Update hourly activity
+        if (data.hourly_activity && data.hourly_activity.length > 0) {
+          updateHourlyActivity(data.hourly_activity, data.max_hourly_count || 1);
         }
+
+        // Update latest session
+        if (data.latest_session) {
+          updateLatestSession(data.latest_session);
+        }
+
+        // Update sessions count
+        var sessEl = document.getElementById("stat-sessions-today");
+        if (sessEl) sessEl.textContent = data.completed_sessions_today || 0;
       })
       .catch(function () {});
   }
 
-  // Poll mỗi 1.5 giây
-  pollLiveState();
-  pollInterval = setInterval(pollLiveState, 1500);
+  // ====================================================================
+  // Main polling loop
+  // ====================================================================
+  function pollAll() {
+    // Fetch both endpoints in parallel
+    var pHeadless = fetch("/api/monitoring/live-state", { credentials: "same-origin" }).then(function (r) { return r.json(); }).catch(function () { return null; });
+    var pStream = fetch("/api/stream/active-stats", { credentials: "same-origin" }).then(function (r) { return r.json(); }).catch(function () { return null; });
+
+    Promise.all([pHeadless, pStream]).then(function (results) {
+      var headless = results[0];
+      var stream = results[1];
+
+      var headlessActive = false;
+      var streamActive = false;
+      var livePerClass = {};
+      var liveTotal = 0;
+      var bannerTitle = "";
+      var bannerDetail = "";
+
+      // --- Headless analysis data ---
+      if (headless && headless.active_session_id && headless.live_state) {
+        var ls = headless.live_state;
+        if (ls.status === "running" || ls.status === "queued") {
+          headlessActive = true;
+          var summary = ls.summary || {};
+          livePerClass = summary.per_class || {};
+          liveTotal = (typeof summary.total === "number") ? summary.total : 0;
+          bannerTitle = "Đang phân tích: " + (ls.source_name || "video");
+          bannerDetail = "Phiên phân tích headless — dữ liệu cập nhật real-time";
+
+          var pill = document.getElementById("dashboard-status-pill");
+          if (pill) pill.innerHTML = '<span class="live-dot-inline"></span> Đang phân tích phiên #' + headless.active_session_id;
+        }
+      }
+
+      // --- Live MJPEG stream data ---
+      if (stream && stream.has_active_stream) {
+        streamActive = true;
+        // Merge stream data with headless data (if both active)
+        if (headlessActive) {
+          // Both running — sum them up
+          liveTotal += stream.total || 0;
+          livePerClass = mergePerClass(livePerClass, stream.per_class || {});
+          bannerDetail = "Đang chạy phân tích + stream trực tiếp";
+        } else {
+          // Only stream is active
+          livePerClass = stream.per_class || {};
+          liveTotal = stream.total || 0;
+          bannerTitle = "🎥 Stream trực tiếp đang chạy";
+          bannerDetail = stream.stream_count + " luồng camera — dữ liệu cập nhật real-time";
+
+          var pill = document.getElementById("dashboard-status-pill");
+          if (pill) pill.innerHTML = '<span class="live-dot-inline"></span> Stream trực tiếp đang hoạt động';
+        }
+      }
+
+      var isAnyActive = headlessActive || streamActive;
+
+      if (isAnyActive) {
+        // Merge DB baseline + live counts
+        var mergedPerClass = mergePerClass(dbPerClass, livePerClass);
+        var mergedMix = getVehicleMix(mergedPerClass);
+        var mergedTotal = dbTodayTotal + liveTotal;
+
+        // Update stat cards with merged data
+        updateStatCards(mergedTotal, mergedMix);
+        setStatCardLive(true);
+
+        // Update vehicle mix panel
+        updateVehicleMixPanel(mergedPerClass, mergedMix);
+
+        // Update hourly chart: add/update current hour with live counts
+        var currentHour = new Date().getHours().toString().padStart(2, "0");
+        if (hourlyChart) {
+          var labels = hourlyChart.data.labels;
+          var dset = hourlyChart.data.datasets[0].data;
+          var hourLabel = currentHour + ":00";
+          var idx = labels.indexOf(hourLabel);
+          if (idx >= 0) {
+            // Update existing hour bar
+            if (typeof dset[idx + '_base'] === 'undefined') {
+              hourlyChart.data.datasets[0]['_bases'] = hourlyChart.data.datasets[0]['_bases'] || {};
+              if (typeof hourlyChart.data.datasets[0]['_bases'][idx] === 'undefined') {
+                hourlyChart.data.datasets[0]['_bases'][idx] = dset[idx];
+              }
+            }
+            var baseVal = (hourlyChart.data.datasets[0]['_bases'] && hourlyChart.data.datasets[0]['_bases'][idx]) || 0;
+            dset[idx] = baseVal + liveTotal;
+          } else if (liveTotal > 0) {
+            // Add new hour bar
+            labels.push(hourLabel);
+            dset.push(liveTotal);
+            hourlyChart.data.datasets[0]['_bases'] = hourlyChart.data.datasets[0]['_bases'] || {};
+            hourlyChart.data.datasets[0]['_bases'][labels.length - 1] = 0;
+          }
+          hourlyChart.update('none');
+        } else if (liveTotal > 0) {
+          // Chart wasn't created (empty state), initialize it now
+          var emptyState = document.getElementById("hourly-empty-state");
+          if (emptyState) emptyState.remove();
+          var content = document.getElementById('hourly-content');
+          if (content) {
+            content.innerHTML = '<div style="position: relative; width: 100%; height: 220px;"><canvas id="hourly-chart"></canvas></div>';
+            initHourlyChart();
+            if (hourlyChart) {
+              hourlyChart.data.labels = [currentHour + ':00'];
+              hourlyChart.data.datasets[0].data = [liveTotal];
+              hourlyChart.update();
+            }
+          }
+        }
+
+        // Show banner with live counts
+        var liveMix = getVehicleMix(livePerClass);
+        showLiveBanner(bannerTitle, bannerDetail, mergedTotal, mergedMix.automobile, mergedMix.motorcycle);
+
+      } else {
+        // Nothing active
+        hideLiveBanner();
+        setStatCardLive(false);
+
+        // If previously running → refresh everything from DB
+        // Delay 2s to give background thread time to save results to DB
+        if (wasHeadlessRunning || wasStreamActive) {
+          setTimeout(refreshDashboardFromDB, 2000);
+        }
+      }
+
+      wasHeadlessRunning = headlessActive;
+      wasStreamActive = streamActive;
+    });
+  }
+
+  // Start polling
+  pollAll();
+  setInterval(pollAll, POLL_MS);
 })();
 </script>
 {% endblock %}

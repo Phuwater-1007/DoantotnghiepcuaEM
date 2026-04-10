@@ -8,9 +8,6 @@
   <section class="monitor-topbar card">
     <div>
       <h2>Màn hình giám sát</h2>
-      <p class="monitor-topbar-text">
-        Chọn video, chỉnh ROI trên web, bấm <strong>Chạy phân tích</strong> để xử lý headless (không hiện video). Hoặc copy lệnh chạy trong VS Code rồi bấm "Xem video đã xử lý".
-      </p>
     </div>
     <div class="monitor-topbar-actions">
       <span class="monitor-state">
@@ -22,12 +19,12 @@
 
   <section class="monitor-uploadbar card">
     <div class="monitor-uploadbar-copy">
-      <h3>Thêm video mới</h3>
-      <p>Kéo thả hoặc bấm để tải video lên. Video mới sẽ xuất hiện ngay trong dải preview phía dưới.</p>
+      <h3>Nguồn dữ liệu</h3>
+      <p>Tải lên video hoặc kết nối nguồn camera để thêm luồng giám sát mới.</p>
     </div>
     <div class="monitor-uploadbox" id="drop-zone">
-      <div class="monitor-uploadbox-title">Chọn hoặc kéo thả video</div>
-      <div class="monitor-uploadbox-subtitle">Hỗ trợ mp4, avi, mov, mkv</div>
+      <div class="monitor-uploadbox-title">＋ Thêm nguồn mới</div>
+      <div class="monitor-uploadbox-subtitle">Kéo thả hoặc bấm — hỗ trợ mp4, avi, mov, mkv</div>
       <input type="file" id="file-input" accept=".mp4,.avi,.mov,.mkv" hidden>
       <div class="monitor-progress" id="upload-progress" hidden>
         <div class="monitor-progress-bar" id="upload-progress-bar"></div>
@@ -39,10 +36,10 @@
   <section class="monitor-preview-strip card">
     <div class="monitor-header-row">
       <div>
-        <h3>Dải video xem nhanh</h3>
-        <p>Mỗi ô tự chạy preview. Bấm vào một ô để đưa lên khung chính và thao tác ROI hoặc xem kết quả.</p>
+        <h3>Luồng Camera</h3>
+        <p>Chọn một luồng để đưa lên khung chính, chỉnh ROI hoặc xem trực tiếp.</p>
       </div>
-      <span class="monitor-counter">{{ detected_videos|length }} video</span>
+      <span class="monitor-counter">{{ detected_videos|length }} luồng</span>
     </div>
 
     {% if detected_videos %}
@@ -56,6 +53,7 @@
         data-video-name="{{ v.name }}"
         data-video-roi="{{ 'yes' if v.roi_ready else 'no' }}"
         data-source-id="{{ v.source_id if v.source_id else '' }}"
+        data-cam-index="{{ loop.index }}"
       >
         <div class="monitor-video-frame">
           <video muted autoplay loop playsinline preload="metadata">
@@ -63,6 +61,7 @@
           </video>
         </div>
         <div class="monitor-video-info">
+          <span class="monitor-video-cam-label">CAM {{ loop.index }}</span>
           <span class="monitor-video-name">{{ v.name }}</span>
           <span class="monitor-video-roi {% if v.roi_ready %}is-ready{% else %}is-missing{% endif %}">
             {% if v.roi_ready %}ROI sẵn sàng{% else %}Chưa có ROI{% endif %}
@@ -153,14 +152,13 @@
         <div class="monitor-header-row">
           <div>
             <h3>Điều khiển</h3>
-            <p>Chọn video, chỉnh ROI, bấm Chạy phân tích hoặc Dừng phân tích.</p>
           </div>
         </div>
 
         {% if detected_videos %}
         {% set first_video = detected_videos[0] %}
         <div class="monitor-selected-panel">
-          <div class="monitor-selected-label">Video đã chọn</div>
+          <div class="monitor-selected-label" id="selected-cam-label">CAM 1</div>
           <div class="monitor-selected-title" id="selected-video-name">{{ first_video.name }}</div>
           <div class="monitor-selected-status">
             <span class="monitor-inline-label">ROI</span>
@@ -229,16 +227,11 @@
           </div>
         </div>
         <div class="monitor-note-row monitor-result-note" id="latest-result-note">
-          <span>Ghi chú</span>
-          <strong>Bấm Chạy phân tích để bắt đầu.</strong>
-        </div>
-        <div style="display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap;">
-          <a href="/dashboard" class="btn btn-outline" style="flex: 1; text-align: center; font-size: 13px; padding: 8px 10px; text-decoration: none;">
-            📊 Bảng điều khiển
-          </a>
-          <a href="/reports" class="btn btn-outline" style="flex: 1; text-align: center; font-size: 13px; padding: 8px 10px; text-decoration: none;">
-            📋 Xem báo cáo
-          </a>
+          <span>Mật độ giao thông</span>
+          <div id="traffic-density-indicator" class="traffic-density idle">
+            <span class="traffic-density-dot"></span>
+            <strong id="traffic-density-text">...</strong>
+          </div>
         </div>
       </section>
     </aside>
@@ -262,7 +255,9 @@
         data-video-name="{{ v.name }}"
         data-video-roi="{{ 'yes' if v.roi_ready else 'no' }}"
         data-source-id="{{ v.source_id if v.source_id else '' }}"
+        data-cam-index="{{ loop.index }}"
       >
+        <span class="monitor-library-cam">CAM {{ loop.index }}</span>
         <span>{{ v.name }}</span>
         <span class="monitor-video-roi {% if v.roi_ready %}is-ready{% else %}is-missing{% endif %}">
           {% if v.roi_ready %}ROI sẵn sàng{% else %}Chưa có ROI{% endif %}
@@ -308,6 +303,59 @@
   var currentSourceId = null;
   var liveStatePollTimer = null;
   var lastCompleted = null;
+
+  // ========== TRAFFIC DENSITY TRACKER ==========
+  var densityHistory = [];        // array of {timestamp, total}
+  var DENSITY_WINDOW_MS = 5000;   // 5-second sliding window
+  var DENSITY_THRESH_LOW = 2;     // < 2 vehicles/5s = Thưa thớt
+  var DENSITY_THRESH_HIGH = 5;    // > 5 vehicles/5s = Đông phương tiện
+
+  function updateTrafficDensity(currentTotal) {
+    var now = Date.now();
+    densityHistory.push({ timestamp: now, total: currentTotal });
+    // Purge old entries outside the sliding window
+    while (densityHistory.length > 0 && densityHistory[0].timestamp < now - DENSITY_WINDOW_MS) {
+      densityHistory.shift();
+    }
+    var indicator = document.getElementById("traffic-density-indicator");
+    var textEl = document.getElementById("traffic-density-text");
+    if (!indicator || !textEl) return;
+
+    if (densityHistory.length < 2) {
+      // Not enough data yet
+      indicator.className = "traffic-density analyzing";
+      textEl.textContent = "Đang phân tích...";
+      return;
+    }
+
+    // Calculate rate: vehicles added in the window
+    var oldest = densityHistory[0];
+    var newest = densityHistory[densityHistory.length - 1];
+    var vehiclesInWindow = newest.total - oldest.total;
+    if (vehiclesInWindow < 0) vehiclesInWindow = 0;
+
+    var level, label;
+    if (vehiclesInWindow > DENSITY_THRESH_HIGH) {
+      level = "heavy";
+      label = "🔴 Đông phương tiện";
+    } else if (vehiclesInWindow >= DENSITY_THRESH_LOW) {
+      level = "normal";
+      label = "🟡 Bình thường";
+    } else {
+      level = "light";
+      label = "🟢 Thưa thớt";
+    }
+    indicator.className = "traffic-density " + level;
+    textEl.textContent = label;
+  }
+
+  function resetTrafficDensity() {
+    densityHistory = [];
+    var indicator = document.getElementById("traffic-density-indicator");
+    var textEl = document.getElementById("traffic-density-text");
+    if (indicator) indicator.className = "traffic-density idle";
+    if (textEl) textEl.textContent = "...";
+  }
 
   function getVehicleSummary(summary) {
     var perClass = (summary && summary.per_class) || {};
@@ -363,8 +411,9 @@
       focusPlayer.play().catch(function () {});
     }
     setFocusMode("Video gốc", "Chạy phân tích để xem kết quả.");
-    setResultMeta("Chưa xem kết quả", "—", "Bấm Chạy phân tích để bắt đầu.");
+    setResultMeta("Chưa xem kết quả", "—", "");
     updateResultCounts({});
+    resetTrafficDensity();
   }
 
   function fetchAndPlayOutputForName(sourceName, fallbackSummary) {
@@ -423,7 +472,7 @@
       });
   }
 
-  function updateSelection(videoPath, videoUrl, videoName, roiReady, sourceId) {
+  function updateSelection(videoPath, videoUrl, videoName, roiReady, sourceId, camIndex) {
     // Stop live stream when switching videos
     if (isLiveStreaming) {
       stopLiveStream();
@@ -436,6 +485,9 @@
     } else {
       resetToInputView();
     }
+    // Update CAM label
+    var camLabel = document.getElementById("selected-cam-label");
+    if (camLabel) camLabel.textContent = "CAM " + (camIndex || "1");
     if (selectedVideoName) selectedVideoName.textContent = videoName;
     if (selectedRoiStatus) {
       selectedRoiStatus.textContent = roiReady === "yes" ? "Đã cấu hình" : "Chưa cấu hình";
@@ -481,14 +533,18 @@
           var summary = live.summary || {};
           updateFocusCounts(summary);
           updateResultCounts(summary);
-          setResultMeta("Đang chạy phân tích", live.source_name || currentVideoName, "Đang xử lý video, vui lòng đợi.");
+          setResultMeta("Đang chạy phân tích", live.source_name || currentVideoName, "");
+          var counts = getVehicleSummary(summary);
+          updateTrafficDensity(counts.total);
         } else if (live && live.status === "completed") {
           stopLiveStatePoll();
           refreshStopButtonState();
           var summary = live.summary || {};
           updateFocusCounts(summary);
           updateResultCounts(summary);
-          setResultMeta("Phân tích hoàn thành", live.source_name || currentVideoName, "Phân tích xong. Kết quả hiển thị bên dưới.");
+          setResultMeta("Phân tích hoàn thành", live.source_name || currentVideoName, "");
+          var completedCounts = getVehicleSummary(summary);
+          updateTrafficDensity(completedCounts.total);
           lastCompleted = {
             source_id: live.source_id,
             source_name: live.source_name || currentVideoName,
@@ -568,7 +624,8 @@
     var videoPath = tile.getAttribute("data-video-path");
     var roiReady = tile.getAttribute("data-video-roi");
     var sourceId = tile.getAttribute("data-source-id");
-    updateSelection(videoPath, videoUrl, videoName, roiReady, sourceId);
+    var camIndex = tile.getAttribute("data-cam-index") || "1";
+    updateSelection(videoPath, videoUrl, videoName, roiReady, sourceId, camIndex);
   }
 
   tiles.forEach(function (tile) {
@@ -582,7 +639,8 @@
       var videoName = item.getAttribute("data-video-name");
       var roiReady = item.getAttribute("data-video-roi");
       var sourceId = item.getAttribute("data-source-id");
-      updateSelection(videoPath, videoUrl, videoName, roiReady, sourceId);
+      var camIndex = item.getAttribute("data-cam-index") || "1";
+      updateSelection(videoPath, videoUrl, videoName, roiReady, sourceId, camIndex);
       var matchingTile = tiles.find(function (t) { return t.getAttribute("data-video-path") === videoPath; });
       if (matchingTile) {
         tiles.forEach(function (t) { t.classList.remove("is-selected"); });
@@ -671,7 +729,10 @@
           if (data.streaming) {
             updateFocusCounts(data);
             updateResultCounts(data);
-            setResultMeta("Đang stream trực tiếp", currentVideoName, "YOLO đang phân tích video real-time.");
+            setResultMeta("Đang stream trực tiếp", currentVideoName, "");
+            // Update traffic density based on total vehicle count
+            var counts = getVehicleSummary(data);
+            updateTrafficDensity(counts.total);
           }
         })
         .catch(function () {});
@@ -711,6 +772,7 @@
     if (stopLiveBtn) stopLiveBtn.hidden = true;
 
     setFocusMode("Video gốc", "Chạy phân tích để xem kết quả.");
+    resetTrafficDensity();
   }
 
   if (startLiveBtn) {
@@ -740,19 +802,23 @@
   refreshStopButtonState();
 
   function hydrateFromLiveState() {
-    fetch("/api/monitoring/live-state", { credentials: "same-origin" })
+    // Fetch BOTH headless analysis state AND active MJPEG streams in parallel
+    var pLiveState = fetch("/api/monitoring/live-state", { credentials: "same-origin" })
       .then(function (r) { return r.json(); })
-      .then(function (data) {
-        var live = data.live_state || null;
-        var activeId = data.active_session_id;
+      .catch(function () { return {}; });
+    var pActiveStreams = fetch("/api/stream/active-stats", { credentials: "same-origin" })
+      .then(function (r) { return r.json(); })
+      .catch(function () { return {}; });
 
-        if (!live) {
-          if (!currentVideoName && tiles.length) {
-            setSelectedTile(tiles[0]);
-          }
-          return;
-        }
+    Promise.all([pLiveState, pActiveStreams]).then(function (results) {
+      var data = results[0] || {};
+      var streamData = results[1] || {};
+      var live = data.live_state || null;
+      var activeId = data.active_session_id;
+      var headlessActive = false;
 
+      // ---- 1. Handle headless analysis state (existing logic) ----
+      if (live) {
         var status = live.status || "";
         var summary = live.summary || {};
         var sourceName = live.source_name || currentVideoName || "Phiên đang chạy";
@@ -776,6 +842,7 @@
         }
 
         if (activeId && (status === "running" || status === "queued")) {
+          headlessActive = true;
           var runBtn = document.getElementById("run-analysis-btn");
           var stopBtn = document.getElementById("stop-analysis-btn");
           if (runBtn) {
@@ -830,8 +897,57 @@
           updateResultCounts(summary);
           setResultMeta("Đã dừng phân tích", sourceName, live.error_message || "Phiên gặp lỗi và đã dừng.");
         }
-      })
-      .catch(function () {});
+      }
+
+      // ---- 2. Reconnect to active MJPEG stream (NEW) ----
+      // If no headless analysis is running AND there's an active MJPEG stream,
+      // automatically reconnect to it so the user sees live view restored.
+      if (!headlessActive && !isLiveStreaming && streamData.has_active_stream && streamData.streams && streamData.streams.length > 0) {
+        var activeStream = streamData.streams[0];
+        var streamSourceId = activeStream.source_id;
+
+        var streamTile = tiles.find(function (t) {
+          var sid = t.getAttribute("data-source-id");
+          return sid && parseInt(sid, 10) === streamSourceId;
+        }) || null;
+
+        if (streamTile) {
+          // Select the tile manually (without calling updateSelection which would reset state)
+          tiles.forEach(function (item) { item.classList.remove("is-selected"); });
+          streamTile.classList.add("is-selected");
+
+          var videoPath = streamTile.getAttribute("data-video-path");
+          var videoName = streamTile.getAttribute("data-video-name");
+          var roiReady = streamTile.getAttribute("data-video-roi");
+          var sourceId = streamTile.getAttribute("data-source-id");
+          var camIndex = streamTile.getAttribute("data-cam-index") || "1";
+
+          currentInputVideoUrl = streamTile.getAttribute("data-video-url");
+          currentVideoName = videoName;
+          currentSourceId = parseInt(sourceId, 10);
+
+          // Update side panel labels
+          var camLabel = document.getElementById("selected-cam-label");
+          if (camLabel) camLabel.textContent = "CAM " + camIndex;
+          if (selectedVideoName) selectedVideoName.textContent = videoName;
+          if (selectedRoiStatus) selectedRoiStatus.textContent = roiReady === "yes" ? "Đã cấu hình" : "Chưa cấu hình";
+          if (editRoiLink) editRoiLink.href = "/monitoring/edit-roi-for-video?path=" + encodeURIComponent(videoPath);
+
+          // Reconnect to the live MJPEG stream
+          startLiveStream();
+
+          // Immediately restore counts from the active stream data (instead of showing 0)
+          updateFocusCounts(activeStream);
+          updateResultCounts(activeStream);
+          setResultMeta("Đang stream trực tiếp", videoName, "");
+        }
+      }
+
+      // ---- 3. Default: select first tile if nothing else was handled ----
+      if (!live && !isLiveStreaming && !currentVideoName && tiles.length) {
+        setSelectedTile(tiles[0]);
+      }
+    });
   }
 
   hydrateFromLiveState();
