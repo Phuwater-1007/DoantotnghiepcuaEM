@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from datetime import date
 
+VN_SQLITE_TZ_MOD = "+7 hours"
+
 
 class DashboardService:
     def __init__(self, db, source_service):
@@ -40,9 +42,9 @@ class DashboardService:
             SELECT id FROM analysis_sessions
             WHERE status = 'completed'
               AND finished_at IS NOT NULL
-              AND date(datetime(finished_at, 'localtime')) = ?
+              AND date(datetime(finished_at, ?)) = ?
             """,
-            (today,),
+            (VN_SQLITE_TZ_MOD, today),
         )
         completed_sessions_today = len(completed_today_rows)
 
@@ -56,27 +58,28 @@ class DashboardService:
 
         hourly_rows = self.db.fetchall(
             """
-            SELECT substr(datetime(sess.finished_at, 'localtime'), 12, 2) AS hour_label, COALESCE(SUM(rs.total), 0) AS vehicle_count
+            SELECT substr(datetime(sess.finished_at, ?), 12, 2) AS hour_label, COALESCE(SUM(rs.total), 0) AS vehicle_count
             FROM analysis_sessions sess
             LEFT JOIN report_snapshots rs ON rs.session_id = sess.id
             WHERE sess.status = 'completed'
               AND sess.finished_at IS NOT NULL
-              AND date(datetime(sess.finished_at, 'localtime')) = ?
-            GROUP BY substr(datetime(sess.finished_at, 'localtime'), 12, 2)
+              AND date(datetime(sess.finished_at, ?)) = ?
+            GROUP BY substr(datetime(sess.finished_at, ?), 12, 2)
             ORDER BY hour_label ASC
             """,
-            (today,),
+            (VN_SQLITE_TZ_MOD, VN_SQLITE_TZ_MOD, today, VN_SQLITE_TZ_MOD),
         )
         sources = self.source_service.list_sources()
         configured_sources = sum(1 for source in sources if source.counting_config_path)
         running_row = self.db.fetchone(
             """
-            SELECT id, source_id, datetime(started_at, 'localtime') AS started_at
+            SELECT id, source_id, datetime(started_at, ?) AS started_at
             FROM analysis_sessions
             WHERE status = 'running'
             ORDER BY id DESC
             LIMIT 1
-            """
+            """,
+            (VN_SQLITE_TZ_MOD,),
         )
 
         hourly_activity = [
@@ -92,14 +95,15 @@ class DashboardService:
         latest_row = self.db.fetchone(
             """
             SELECT sess.id, sess.status,
-                   datetime(sess.started_at, 'localtime') AS started_at,
-                   CASE WHEN sess.finished_at IS NULL THEN NULL ELSE datetime(sess.finished_at, 'localtime') END AS finished_at,
+                   datetime(sess.started_at, ?) AS started_at,
+                   CASE WHEN sess.finished_at IS NULL THEN NULL ELSE datetime(sess.finished_at, ?) END AS finished_at,
                    sess.summary_json, sess.error_message, src.name AS source_name, src.source_type
             FROM analysis_sessions sess
             JOIN sources src ON src.id = sess.source_id
             ORDER BY sess.id DESC
             LIMIT 1
-            """
+            """,
+            (VN_SQLITE_TZ_MOD, VN_SQLITE_TZ_MOD),
         )
         latest_session = None
         if latest_row:

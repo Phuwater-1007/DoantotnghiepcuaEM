@@ -15,6 +15,7 @@ from vehicle_counting_system.configs.paths import OUTPUT_CSV_DIR, OUTPUT_LOGS_DI
 from vehicle_counting_system.utils.logger import get_logger
 
 logger = get_logger(__name__)
+VN_SQLITE_TZ_MOD = "+7 hours"
 
 
 class MonitoringService:
@@ -280,10 +281,10 @@ class MonitoringService:
             # Only save report snapshot for completed sessions (not stopped/failed)
             if finished_status == "completed":
                 session_row = self.db.fetchone(
-                    """SELECT datetime(started_at, 'localtime') AS started_at,
-                              datetime(finished_at, 'localtime') AS finished_at
+                    """SELECT datetime(started_at, ?) AS started_at,
+                              datetime(finished_at, ?) AS finished_at
                        FROM analysis_sessions WHERE id = ?""",
-                    (session_id,),
+                    (VN_SQLITE_TZ_MOD, VN_SQLITE_TZ_MOD, session_id),
                 )
                 finished_at = str(session_row["finished_at"]) if session_row and session_row["finished_at"] else ""
                 started_at = str(session_row["started_at"]) if session_row is not None else ""

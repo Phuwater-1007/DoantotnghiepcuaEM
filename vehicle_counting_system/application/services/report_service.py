@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 
+VN_SQLITE_TZ_MOD = "+7 hours"
+
 
 class ReportService:
     def __init__(self, db):
@@ -18,15 +20,16 @@ class ReportService:
                 rs.per_class_json,
                 rs.peak_hour_label,
                 sess.status,
-                datetime(sess.started_at, 'localtime') AS started_at,
-                CASE WHEN sess.finished_at IS NULL THEN NULL ELSE datetime(sess.finished_at, 'localtime') END AS finished_at,
+                datetime(sess.started_at, ?) AS started_at,
+                CASE WHEN sess.finished_at IS NULL THEN NULL ELSE datetime(sess.finished_at, ?) END AS finished_at,
                 sess.output_video_path,
                 src.name AS source_name
             FROM report_snapshots rs
             JOIN analysis_sessions sess ON sess.id = rs.session_id
             JOIN sources src ON src.id = sess.source_id
             ORDER BY sess.started_at DESC
-            """
+            """,
+            (VN_SQLITE_TZ_MOD, VN_SQLITE_TZ_MOD),
         )
         reports: list[dict] = []
         for row in rows:

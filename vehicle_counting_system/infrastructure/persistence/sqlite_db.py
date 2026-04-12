@@ -191,11 +191,11 @@ class SQLiteDatabase:
                 UPDATE report_snapshots
                 SET report_date = date(datetime(
                         (SELECT sess.finished_at FROM analysis_sessions sess WHERE sess.id = report_snapshots.session_id),
-                        'localtime'
+                        '+7 hours'
                     )),
                     peak_hour_label = substr(datetime(
                         (SELECT sess.finished_at FROM analysis_sessions sess WHERE sess.id = report_snapshots.session_id),
-                        'localtime'
+                        '+7 hours'
                     ), 12, 2) || ':00'
                 WHERE EXISTS (SELECT 1 FROM analysis_sessions sess WHERE sess.id = report_snapshots.session_id AND sess.finished_at IS NOT NULL)
                 """

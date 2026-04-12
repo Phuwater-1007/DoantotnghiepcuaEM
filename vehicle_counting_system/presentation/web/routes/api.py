@@ -17,6 +17,7 @@ from vehicle_counting_system.utils.file_utils import VIDEO_EXTENSIONS, ensure_di
 from vehicle_counting_system.utils.logger import get_logger
 
 logger = get_logger(__name__)
+VN_SQLITE_TZ_MOD = "+7 hours"
 
 
 class SaveConfigBody(BaseModel):
@@ -85,8 +86,8 @@ def build_router() -> APIRouter:
         rows = container.db.fetchall(
             """
             SELECT sess.id, sess.source_id, sess.status,
-                   datetime(sess.started_at, 'localtime') AS started_at,
-                   CASE WHEN sess.finished_at IS NULL THEN NULL ELSE datetime(sess.finished_at, 'localtime') END AS finished_at,
+                   datetime(sess.started_at, ?) AS started_at,
+                   CASE WHEN sess.finished_at IS NULL THEN NULL ELSE datetime(sess.finished_at, ?) END AS finished_at,
                    sess.summary_json, sess.output_video_path, sess.error_message,
                    src.name AS source_name, src.source_type
             FROM analysis_sessions sess
@@ -94,7 +95,7 @@ def build_router() -> APIRouter:
             ORDER BY sess.id DESC
             LIMIT ?
             """,
-            (min(limit, 200),),
+            (VN_SQLITE_TZ_MOD, VN_SQLITE_TZ_MOD, min(limit, 200)),
         )
         import json
         sessions = []
@@ -123,15 +124,15 @@ def build_router() -> APIRouter:
         row = container.db.fetchone(
             """
             SELECT sess.id, sess.source_id, sess.status,
-                   datetime(sess.started_at, 'localtime') AS started_at,
-                   CASE WHEN sess.finished_at IS NULL THEN NULL ELSE datetime(sess.finished_at, 'localtime') END AS finished_at,
+                   datetime(sess.started_at, ?) AS started_at,
+                   CASE WHEN sess.finished_at IS NULL THEN NULL ELSE datetime(sess.finished_at, ?) END AS finished_at,
                    sess.summary_json, sess.output_video_path, sess.error_message,
                    src.name AS source_name, src.source_type
             FROM analysis_sessions sess
             JOIN sources src ON src.id = sess.source_id
             WHERE sess.id = ?
             """,
-            (session_id,),
+            (VN_SQLITE_TZ_MOD, VN_SQLITE_TZ_MOD, session_id),
         )
         if not row:
             return JSONResponse(status_code=404, content={"error": "Session not found"})
