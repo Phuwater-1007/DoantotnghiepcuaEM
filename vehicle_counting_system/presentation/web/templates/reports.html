@@ -42,91 +42,324 @@
 </section>
 
 {% if reports %}
-<section class="report-summary">
-  <div class="report-summary-item">
-    <span class="muted">Tổng số báo cáo</span>
-    <strong>{{ report_summary.total_reports }}</strong>
+<!-- PREMIUM STATS GRID -->
+<div class="report-stats-grid">
+  <div class="report-stat-card">
+    <div class="report-stat-label">Tổng số báo cáo</div>
+    <div class="report-stat-val">{{ report_summary.total_reports }} <span style="font-size: 14px; color: var(--color-muted); font-weight: 500;">phiên</span></div>
   </div>
-  <div class="report-summary-item">
-    <span class="muted">Tổng xe (tất cả phiên)</span>
-    <strong>{{ report_summary.total_vehicles }}</strong>
+  <div class="report-stat-card total-vehicles">
+    <div class="report-stat-label">Tổng lượng phương tiện</div>
+    <div class="report-stat-val" style="color: #10b981;">{{ report_summary.total_vehicles }} <span style="font-size: 14px; color: var(--color-muted); font-weight: 500;">xe</span></div>
   </div>
-</section>
+</div>
+
+<!-- TOOLBAR -->
+<div class="report-toolbar">
+  <div class="toolbar-group">
+    <input type="text" id="search-input" class="search-input" placeholder="Tìm kiếm tên video, camera...">
+    <select id="status-filter" class="filter-select">
+      <option value="all">Tất cả trạng thái</option>
+      <option value="completed">Hoàn thành</option>
+      <option value="running">Đang chạy</option>
+      <option value="failed">Thất bại</option>
+      <option value="stopped">Đã dừng</option>
+    </select>
+  </div>
+  <button id="export-csv-btn" class="btn-export">
+    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+    Xuất CSV
+  </button>
+</div>
 {% endif %}
 
-<section class="card">
+<div class="card" style="padding: 0; overflow: auto; border: 1px solid var(--color-border); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
   {% if reports %}
-  <table class="data-table">
+  <table class="premium-table">
     <thead>
       <tr>
         <th>Phiên</th>
-        <th>Ngày</th>
+        <th>Thời gian</th>
         <th>Nguồn</th>
-        <th>Tổng</th>
-        <th>Loại xe</th>
+        <th>Tổng phân tích</th>
+        <th>Cơ cấu phương tiện</th>
         <th>Giờ cao điểm</th>
         <th>Trạng thái</th>
-        <th>Video</th>
+        <th style="text-align: center;">Thao tác</th>
       </tr>
     </thead>
-    <tbody>
+    <tbody id="report-table-body">
       {% for report in reports %}
-      <tr>
-        <td>#{{ report.session_id }}</td>
-        <td>{{ report.report_date }}</td>
-        <td>{{ report.source_name }}</td>
-        <td><strong>{{ report.total }}</strong></td>
+      {% set c_car = report.per_class.get('car', report.per_class.get('automobile', 0)) %}
+      {% set c_moto = report.per_class.get('motorcycle', 0) %}
+      {% set c_bus = report.per_class.get('bus', 0) %}
+      {% set c_truck = report.per_class.get('truck', 0) %}
+      {% set total = report.total if report.total > 0 else 1 %}
+      
+      <tr class="report-row" 
+          data-status="{{ report.status }}"
+          data-session="{{ report.session_id }}"
+          data-date="{{ report.report_date }}"
+          data-source="{{ report.source_name }}"
+          data-total="{{ report.total }}"
+          data-car="{{ c_car }}"
+          data-moto="{{ c_moto }}"
+          data-bus="{{ c_bus }}"
+          data-truck="{{ c_truck }}"
+          data-peak="{{ report.peak_hour_label }}"
+          data-status-label="{% if report.status == 'completed' %}Hoàn thành{% elif report.status == 'running' %}Đang chạy{% elif report.status == 'queued' %}Đang chờ{% elif report.status == 'failed' %}Thất bại{% elif report.status == 'stopped' %}Đã dừng{% else %}{{ report.status }}{% endif %}">
+        <td style="font-family: inherit; font-weight: 700; color: #4f46e5;">#{{ report.session_id }}</td>
         <td>
-          {% for key, value in report.per_class.items() %}
-          <span class="pill">{{ key }}: {{ value }}</span>
-          {% else %}
-          —
-          {% endfor %}
+          <div style="font-weight: 600; color: #1e293b;">{{ report.report_date.split(' ')[0] if ' ' in report.report_date else report.report_date }}</div>
+          {% if ' ' in report.report_date %}
+          <div style="font-size: 11px; color: var(--color-muted); font-weight: 500; margin-top: 2px;">{{ report.report_date.split(' ')[1] }}</div>
+          {% endif %}
         </td>
-        <td>{{ report.peak_hour_label }}</td>
-        <td><span class="pill status-{{ report.status }}">{% if report.status == 'completed' %}Hoàn thành{% elif report.status == 'running' %}Đang chạy{% elif report.status == 'queued' %}Đang chờ{% elif report.status == 'failed' %}Thất bại{% elif report.status == 'stopped' %}Đã dừng{% else %}{{ report.status }}{% endif %}</span></td>
         <td>
-          {% if report.media_url %}
-          <a href="{{ report.media_url }}" target="_blank">Mở video</a>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 15px; background: #e2e8f0; padding: 4px; border-radius: 6px;">📹</span>
+            <span style="font-weight: 600; color: #334155;">{{ report.source_name }}</span>
+          </div>
+        </td>
+        <td>
+          <div style="font-size: 18px; font-weight: 800; color: #1e293b; line-height: 1;">{{ report.total }} <span style="font-size: 11px; font-weight: 600; color: #94a3b8; text-transform: uppercase;">xe</span></div>
+          {% if report.total > 0 %}
+          <div class="mini-mix-bar">
+            <div class="mix-segment bg-car" style="width: {{ (c_car / total * 100) }}%" title="Ô tô"></div>
+            <div class="mix-segment bg-moto" style="width: {{ (c_moto / total * 100) }}%" title="Xe máy"></div>
+            <div class="mix-segment bg-bus" style="width: {{ (c_bus / total * 100) }}%" title="Xe buýt"></div>
+            <div class="mix-segment bg-truck" style="width: {{ (c_truck / total * 100) }}%" title="Xe tải"></div>
+          </div>
           {% else %}
-          —
+          <div class="mini-mix-bar" style="background: #f1f5f9;"></div>
+          {% endif %}
+        </td>
+        <td>
+          <div style="display: flex; flex-wrap: wrap; max-width: 250px;">
+            {% if c_car > 0 %}<span class="vehicle-badge v-car">🚗 Ô tô: {{ c_car }}</span>{% endif %}
+            {% if c_moto > 0 %}<span class="vehicle-badge v-motorcycle">🏍️ Xe máy: {{ c_moto }}</span>{% endif %}
+            {% if c_bus > 0 %}<span class="vehicle-badge v-bus">🚌 Buýt: {{ c_bus }}</span>{% endif %}
+            {% if c_truck > 0 %}<span class="vehicle-badge v-truck">🚛 Tải: {{ c_truck }}</span>{% endif %}
+            {% if c_car == 0 and c_moto == 0 and c_bus == 0 and c_truck == 0 %}
+              <span style="font-size: 13px; color: #94a3b8; font-style: italic;">Chưa có phương tiện</span>
+            {% endif %}
+          </div>
+        </td>
+        <td>
+          {% if report.peak_hour_label and report.peak_hour_label != 'N/A' %}
+            <span style="display:inline-flex; align-items:center; gap:4px; font-size:12px; background:#fef2f2; border:1px solid #fee2e2; color: #b91c1c; padding:3px 8px; border-radius:6px; font-weight:600;"><span style="color:#ef4444;">🔥</span> {{ report.peak_hour_label }}</span>
+          {% else %}
+            <span style="color: #cbd5e1; font-weight: 500;">—</span>
+          {% endif %}
+        </td>
+        <td>
+          <span class="pill status-{{ report.status }}" style="padding: 4px 10px; font-size: 12px; border-radius: 8px;">
+            {% if report.status == 'completed' %}Hoàn thành
+            {% elif report.status == 'running' %}Đang chạy
+            {% elif report.status == 'queued' %}Đang chờ
+            {% elif report.status == 'failed' %}Thất bại
+            {% elif report.status == 'stopped' %}Đã dừng
+            {% else %}{{ report.status }}{% endif %}
+          </span>
+        </td>
+        <td style="text-align: center;">
+          {% if report.media_url %}
+          <a href="{{ report.media_url }}" target="_blank" class="action-btn" title="Mở Video góc nhìn AI">
+            🎥
+          </a>
+          {% else %}
+          <span style="opacity: 0.3; cursor: not-allowed;" class="action-btn" title="Không có bản ghi video">➖</span>
           {% endif %}
         </td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
+  
+  <div id="no-results" style="display: none; padding: 60px 20px; text-align: center; color: var(--color-muted);">
+    <div style="font-size: 42px; margin-bottom: 12px;">🕵️‍♂️</div>
+    <h3 style="margin: 0 0 8px 0; color: var(--color-text);">Không tìm thấy báo cáo</h3>
+    <p>Thử điều chỉnh bộ lọc hoặc từ khóa tìm kiếm của bạn.</p>
+  </div>
+  
   {% else %}
-  <div class="empty-state">
-    <div class="empty-state-icon">📋</div>
-    <p>Chưa có báo cáo nào.</p>
-    <p style="font-size: 13px; color: var(--color-muted); margin-top: 8px;">
-      Hoàn thành phiên phân tích từ trang 
-      <a href="/monitoring" style="color: var(--color-primary); text-decoration: underline;">Giám sát</a> 
-      để xem báo cáo ở đây.
-    </p>
+  <div class="empty-state" style="padding: 80px 20px;">
+    <div class="empty-state-icon" style="font-size: 56px; margin-bottom: 20px;">📋</div>
+    <h3 style="margin: 0 0 8px 0;">Hệ thống chưa có báo cáo nào</h3>
+    <p style="color: var(--color-muted); max-width: 420px; margin: 0 auto; line-height: 1.5;">Kết quả phân tích giao thông sẽ tự động được thu thập và lưu trữ vĩnh viễn tại đây ngay khi một phiên giám sát hoàn thành.</p>
+    <br>
+    <a href="/monitoring" class="btn btn-primary" style="padding: 10px 20px; box-shadow: 0 4px 12px rgba(99,102,241,0.25);">🚀 Bắt đầu ngay phiên phân tích đầu tiên</a>
   </div>
   {% endif %}
-</section>
+</div>
 
 <style>
-  .live-dot-inline {
-    display: inline-block;
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: #ef4444;
-    animation: live-pulse 1.2s ease-in-out infinite;
-    margin-right: 4px;
-    vertical-align: middle;
-  }
-  @keyframes live-pulse {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.4; transform: scale(0.8); }
-  }
+  /* Premium Report Stats */
+  .report-stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 24px; }
+  .report-stat-card { background: var(--color-surface, #fff); border-radius: 14px; padding: 24px; border: 1px solid var(--color-border, #e5e7eb); box-shadow: 0 2px 8px rgba(0,0,0,0.02); position: relative; overflow: hidden; transition: transform 0.2s, box-shadow 0.2s; }
+  .report-stat-card:hover { transform: translateY(-2px); box-shadow: 0 8px 16px rgba(0,0,0,0.04); }
+  .report-stat-card::before { content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: var(--color-primary); }
+  .report-stat-card.total-vehicles::before { background: #10b981; }
+  .report-stat-label { font-size: 13px; color: var(--color-muted); font-weight: 600; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .report-stat-val { font-size: 42px; font-weight: 800; color: var(--color-text); line-height: 1; letter-spacing: -1px; }
+  
+  /* Toolbar */
+  .report-toolbar { display: flex; gap: 12px; flex-wrap: wrap; justify-content: space-between; align-items: center; margin-bottom: 20px; padding: 16px; background: var(--color-surface); border-radius: 12px; border: 1px solid var(--color-border); box-shadow: 0 2px 8px rgba(0,0,0,0.02); }
+  .toolbar-group { display: flex; gap: 12px; flex-wrap: wrap; flex: 1; }
+  .search-input { min-width: 280px; padding: 10px 14px 10px 38px; border: 1px solid var(--color-border); border-radius: 8px; font-size: 13px; background: url('data:image/svg+xml;utf8,<svg stroke="%239ca3af" fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>') no-repeat 12px center; background-color: var(--color-background); background-size: 16px; transition: border-color 0.2s, box-shadow 0.2s; font-weight: 500; }
+  .search-input:focus { outline: none; border-color: var(--color-primary); box-shadow: 0 0 0 3px rgba(99,102,241,0.1); background-color: var(--color-surface); }
+  .filter-select { padding: 10px 32px 10px 16px; border: 1px solid var(--color-border); border-radius: 8px; font-size: 13px; background-color: var(--color-background); color: var(--color-text); cursor: pointer; outline: none; appearance: none; background-image: url('data:image/svg+xml;utf8,<svg fill="none" stroke="%236b7280" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>'); background-repeat: no-repeat; background-position: right 12px center; background-size: 14px; font-weight: 500; transition: border-color 0.2s; }
+  .filter-select:focus { border-color: var(--color-primary); box-shadow: 0 0 0 3px rgba(99,102,241,0.1); background-color: var(--color-surface); }
+  
+  /* Table Enhancements */
+  .premium-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+  .premium-table th { background: #f8fafc; padding: 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #e2e8f0; white-space: nowrap; }
+  .premium-table td { padding: 18px 16px; font-size: 14px; color: #334155; border-bottom: 1px solid #f1f5f9; vertical-align: middle; transition: background 0.2s; }
+  .premium-table tbody tr:last-child td { border-bottom: none; }
+  .premium-table tbody tr:hover td { background: #f8fafc; }
+  
+  /* Visual Pills */
+  .vehicle-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 8px; font-size: 12px; font-weight: 600; margin: 3px; }
+  .v-car { background: #eef2ff; color: #4f46e5; border: 1px solid #c7d2fe; }
+  .v-motorcycle { background: #fffbeb; color: #d97706; border: 1px solid #fde68a; }
+  .v-bus { background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0; }
+  .v-truck { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+  
+  /* Mini chart */
+  .mini-mix-bar { display: flex; height: 8px; border-radius: 4px; overflow: hidden; width: 100px; margin-top: 8px; background: #e2e8f0; box-shadow: inset 0 1px 2px rgba(0,0,0,0.05); }
+  .mix-segment { height: 100%; transition: width 0.5s ease; border-right: 1px solid rgba(255,255,255,0.2); }
+  .mix-segment:last-child { border-right: none; }
+  .bg-car { background: linear-gradient(90deg, #6366f1, #818cf8); }
+  .bg-moto { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+  .bg-bus { background: linear-gradient(90deg, #10b981, #34d399); }
+  .bg-truck { background: linear-gradient(90deg, #ef4444, #f87171); }
+
+  /* Actions */
+  .action-btn { width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; border-radius: 10px; background: #f1f5f9; color: #64748b; text-decoration: none; transition: all 0.2s; font-size: 16px; border: 1px solid transparent; }
+  .action-btn:hover { background: #fff; border-color: #c7d2fe; transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08); z-index: 10; position: relative; }
+  .btn-export { display: inline-flex; align-items: center; gap: 8px; background: #1f2937; color: white; border: none; padding: 10px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.2s, box-shadow 0.2s; text-decoration: none; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+  .btn-export:hover { background: #111827; box-shadow: 0 4px 6px rgba(0,0,0,0.15); }
 </style>
 
 <script>
+// ==========================================================
+// THAO TÁC JS TRÊN BẢNG BÁO CÁO (Lọc, Tìm kiếm, Xuất CSV...)
+// ==========================================================
+document.addEventListener('DOMContentLoaded', function() {
+  const searchInput = document.getElementById('search-input');
+  const statusFilter = document.getElementById('status-filter');
+  const exportBtn = document.getElementById('export-csv-btn');
+  
+  if (searchInput && statusFilter) {
+    searchInput.addEventListener('input', applyFilters);
+    statusFilter.addEventListener('change', applyFilters);
+  }
+
+  function applyFilters() {
+    const searchTerm = searchInput.value.toLowerCase();
+    const statusTerm = statusFilter.value;
+    const rows = document.querySelectorAll('.report-row');
+    let visibleCount = 0;
+    
+    rows.forEach(row => {
+      const textData = row.textContent.toLowerCase();
+      const rowStatus = row.dataset.status;
+      
+      const matchSearch = textData.includes(searchTerm);
+      const matchStatus = statusTerm === 'all' || rowStatus === statusTerm;
+      
+      if (matchSearch && matchStatus) {
+        row.style.display = '';
+        visibleCount++;
+      } else {
+        row.style.display = 'none';
+      }
+    });
+    
+    const noResults = document.getElementById('no-results');
+    const thead = document.querySelector('.premium-table thead');
+    if (noResults && thead) {
+      if (visibleCount === 0 && rows.length > 0) {
+        noResults.style.display = 'block';
+        thead.style.display = 'none';
+      } else {
+        noResults.style.display = 'none';
+        thead.style.display = '';
+      }
+    }
+  }
+  
+  if (exportBtn) {
+    exportBtn.addEventListener('click', function() {
+      // Get current timestamp for the report header
+      const now = new Date();
+      const timeString = now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+      const dateString = now.toLocaleDateString('vi-VN');
+      
+      // Build Professional CSV Header
+      let csv = "\ufeffTHỐNG KÊ LƯU LƯỢNG PHƯƠNG TIỆN GIAO THÔNG\n";
+      csv += "Ứng dụng Hệ thống Giám sát Cơ sở hạ tầng AI\n";
+      csv += `Thời gian xuất báo cáo: ${timeString} - ${dateString}\n\n`;
+      
+      // Feature Columns
+      csv += "Phiên,Ngày,Giờ,Nguồn phân tích,Tổng lượng xe,Ô tô,Xe máy,Xe buýt,Xe tải,Khung giờ cao điểm,Trạng thái\n";
+      
+      const rows = document.querySelectorAll('.report-row');
+      
+      rows.forEach(row => {
+        if (row.style.display !== 'none') {
+          // Read clean data strictly from data attributes
+          const session = row.getAttribute('data-session') || '';
+          const dateFull = row.getAttribute('data-date') || '';
+          const source = row.getAttribute('data-source') || '';
+          const total = row.getAttribute('data-total') || '0';
+          const car = row.getAttribute('data-car') || '0';
+          const moto = row.getAttribute('data-moto') || '0';
+          const bus = row.getAttribute('data-bus') || '0';
+          const truck = row.getAttribute('data-truck') || '0';
+          const peak = row.getAttribute('data-peak') && row.getAttribute('data-peak') !== 'N/A' ? row.getAttribute('data-peak') : 'Không xác định';
+          const status = row.getAttribute('data-status-label') || '';
+          
+          // Split Date/Time if possible
+          let dateParts = dateFull.split(' ');
+          let dateOnly = dateParts[0] || dateFull;
+          let timeOnly = dateParts[1] || '';
+          
+          const cols = [
+            `#${session}`,
+            dateOnly,
+            timeOnly,
+            source,
+            total,
+            car,
+            moto,
+            bus,
+            truck,
+            peak,
+            status
+          ];
+          
+          // Escape and stringify row
+          const data = cols.map(c => `"${c.replace(/"/g, '""')}"`);
+          csv += data.join(',') + "\n";
+        }
+      });
+      
+      // Tạo file tải về
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `BaoCao_GiaoThong_${dateString.replace(/\//g, '')}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    });
+  }
+});
+
+// ==========================================================
+// POLLING SERVER CHO CẬP NHẬT BANNER KHI CÓ PHIÊN ĐANG CHẠY
+// ==========================================================
 (function () {
   var wasRunning = false;
 

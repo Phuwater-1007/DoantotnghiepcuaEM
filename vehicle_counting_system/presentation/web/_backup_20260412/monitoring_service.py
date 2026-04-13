@@ -141,6 +141,7 @@ class MonitoringService:
             self._stop_event = None
             self._worker = None
             self._live_state = None
+            self._latest_mjpeg_frame = None
 
         self.db.execute("DELETE FROM report_snapshots")
         self.db.execute("DELETE FROM analysis_sessions")
@@ -168,6 +169,7 @@ class MonitoringService:
             self._stop_event = None
             self._worker = None
             self._live_state = None
+            self._latest_mjpeg_frame = None
 
         # Clear session/report tables
         self.db.execute("DELETE FROM report_snapshots")

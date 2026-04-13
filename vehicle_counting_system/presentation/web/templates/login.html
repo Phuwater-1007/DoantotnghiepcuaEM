@@ -4,26 +4,249 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Đăng nhập | Hệ thống Giám sát Giao thông</title>
+  <link rel="icon" type="image/png" href="/static/favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/app.css">
+  <style>
+    .login-page {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    /* ===== BACKGROUND IMAGE + DARK OVERLAY ===== */
+    .login-bg {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+    }
+
+    .login-bg img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    /* Dark overlay — tối vừa phải để đọc text, nhưng vẫn thấy ảnh */
+    .login-bg::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(
+        135deg,
+        rgba(0, 0, 0, 0.65) 0%,
+        rgba(0, 0, 0, 0.45) 50%,
+        rgba(0, 0, 0, 0.55) 100%
+      );
+    }
+
+    /* ===== CONTENT ===== */
+    .login-container {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      width: min(440px, 92vw);
+      animation: login-appear 0.7s ease-out;
+    }
+
+    @keyframes login-appear {
+      0% { opacity: 0; transform: translateY(24px) scale(0.96); }
+      100% { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    /* ===== LOGO ===== */
+    .login-logo-area {
+      text-align: center;
+      margin-bottom: 4px;
+    }
+
+    .login-logo-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 60px;
+      height: 60px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+      margin-bottom: 16px;
+    }
+
+    .login-logo-icon svg {
+      width: 28px;
+      height: 28px;
+      color: #fff;
+    }
+
+    .login-logo-title {
+      font-size: 28px;
+      font-weight: 800;
+      color: #fff;
+      letter-spacing: -0.02em;
+      margin: 0;
+      text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .login-logo-subtitle {
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.7);
+      margin-top: 8px;
+      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    /* ===== GLASS CARD ===== */
+    .login-glass-card {
+      width: 100%;
+      padding: 32px 28px 28px;
+      background: rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 20px;
+      box-shadow:
+        0 24px 48px rgba(0, 0, 0, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    }
+
+    .login-glass-card .form-grid {
+      display: grid;
+      gap: 16px;
+    }
+
+    .login-glass-card label {
+      font-size: 12px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.6);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      margin-bottom: -6px;
+    }
+
+    .login-glass-card input[type="text"],
+    .login-glass-card input[type="password"] {
+      width: 100%;
+      padding: 13px 16px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 12px;
+      color: #fff;
+      font-size: 15px;
+      font-family: 'Inter', sans-serif;
+      transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+      outline: none;
+    }
+
+    .login-glass-card input[type="text"]::placeholder,
+    .login-glass-card input[type="password"]::placeholder {
+      color: rgba(255, 255, 255, 0.3);
+    }
+
+    .login-glass-card input[type="text"]:focus,
+    .login-glass-card input[type="password"]:focus {
+      border-color: rgba(255, 255, 255, 0.35);
+      box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    /* ===== SUBMIT BUTTON ===== */
+    .login-submit-btn {
+      width: 100%;
+      padding: 14px 24px;
+      background: #fff;
+      border: none;
+      border-radius: 12px;
+      color: #111827;
+      font-size: 15px;
+      font-weight: 700;
+      font-family: 'Inter', sans-serif;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.2s, background 0.2s;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+      margin-top: 4px;
+    }
+
+    .login-submit-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+      background: #f1f5f9;
+    }
+
+    .login-submit-btn:active {
+      transform: translateY(0);
+    }
+
+    /* ===== ERROR ALERT ===== */
+    .login-alert {
+      padding: 12px 16px;
+      background: rgba(239, 68, 68, 0.2);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      border-radius: 10px;
+      color: #fca5a5;
+      font-size: 14px;
+      margin-bottom: 4px;
+    }
+
+    /* ===== FOOTER HINT ===== */
+    .login-footer-hint {
+      text-align: center;
+      padding: 12px 20px;
+      background: rgba(0, 0, 0, 0.25);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 14px;
+      color: rgba(255, 255, 255, 0.45);
+      font-size: 12px;
+      line-height: 1.6;
+    }
+  </style>
 </head>
-<body class="login-body">
-  <div class="login-card">
-    <h1>Hệ thống Giám sát Giao thông</h1>
-    <p class="page-subtitle">Đăng nhập để truy cập bảng điều khiển và trang giám sát.</p>
-    {% if error %}
-    <div class="alert alert-error">{{ error }}</div>
-    {% endif %}
-    <form method="post" action="/login" class="form-grid">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-      <label>Tên đăng nhập</label>
-      <input type="text" name="username" placeholder="Nhập tên đăng nhập" required>
-      <label>Mật khẩu</label>
-      <input type="password" name="password" placeholder="Nhập mật khẩu" required>
-      <button type="submit">Đăng nhập</button>
-    </form>
-    <div class="hint-box">
-      <div>Phiên bản web này tập trung vào luồng phân tích video offline.</div>
-      <div>Tài khoản mặc định vẫn do bạn quản lý riêng, không hiển thị công khai trên trang đăng nhập.</div>
+<body class="login-page">
+  <!-- Background image + dark overlay -->
+  <div class="login-bg">
+    <img src="/static/login_bg.png" alt="">
+  </div>
+
+  <div class="login-container">
+    <div class="login-logo-area">
+      <div class="login-logo-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="23 7 16 12 23 17 23 7"></polygon>
+          <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+        </svg>
+      </div>
+      <h1 class="login-logo-title">Giám sát Giao thông</h1>
+      <p class="login-logo-subtitle">Hệ thống phân tích video AI thông minh</p>
+    </div>
+
+    <div class="login-glass-card">
+      {% if error %}
+      <div class="login-alert">{{ error }}</div>
+      {% endif %}
+      <form method="post" action="/login" class="form-grid">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <label>Tên đăng nhập</label>
+        <input type="text" name="username" placeholder="Nhập tên đăng nhập" required autocomplete="username">
+        <label>Mật khẩu</label>
+        <input type="password" name="password" placeholder="Nhập mật khẩu" required autocomplete="current-password">
+        <button type="submit" class="login-submit-btn">Đăng nhập</button>
+      </form>
+    </div>
+
+    <div class="login-footer-hint">
+      Đồ án tốt nghiệp — Hệ thống đếm và phân loại phương tiện giao thông sử dụng AI
     </div>
   </div>
 </body>

@@ -733,37 +733,6 @@
             // Update traffic density based on total vehicle count
             var counts = getVehicleSummary(data);
             updateTrafficDensity(counts.total);
-          } else if (isLiveStreaming) {
-            // Stream ended naturally (video finished) — keep final stats, update UI
-            clearInterval(liveStatsPollTimer);
-            liveStatsPollTimer = null;
-            isLiveStreaming = false;
-            liveStreamSourceId = null;
-
-            // Hide live badge and stream image
-            if (liveBadge) liveBadge.hidden = true;
-            if (liveStreamImg) {
-              var wrapper = document.getElementById("live-stream-wrapper");
-              if (wrapper) wrapper.style.display = "none";
-              liveStreamImg.src = "";
-            }
-            if (focusPlayer) {
-              focusPlayer.hidden = false;
-              focusPlayer.style.display = "";
-            }
-
-            // Update buttons
-            if (startLiveBtn) startLiveBtn.hidden = false;
-            if (stopLiveBtn) stopLiveBtn.hidden = true;
-
-            // Keep the final counts — DON'T reset them
-            setResultMeta("Hoàn thành phân tích", currentVideoName, "Video đã chạy xong. Kết quả đã được lưu vào báo cáo.");
-            setFocusMode("Kết quả phân tích", "Video đã chạy xong — kết quả đếm cuối cùng hiển thị bên cạnh.");
-
-            // Show toast notification
-            if (typeof showToast === "function") {
-              showToast("Phân tích video hoàn tất — kết quả đã lưu vào Dashboard & Báo cáo", "success", 5000);
-            }
           }
         })
         .catch(function () {});

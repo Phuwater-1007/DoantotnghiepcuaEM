@@ -161,13 +161,9 @@ def _process_video(session: _StreamSession) -> None:
 
             ok, frame = cap.read()
             if not ok:
-                # Loop back to start (simulate continuous camera)
-                cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-                processor.reset()
-                processor.tracker = ByteTrackTracker()
-                ok, frame = cap.read()
-                if not ok:
-                    break
+                # Video finished — stop and save results (don't loop/reset)
+                logger.info("Stream %s: video finished, saving results", session.source_id)
+                break
 
             processed = processor.process(frame)
 
@@ -202,11 +198,12 @@ def _process_video(session: _StreamSession) -> None:
         logger.exception("Stream processing error for source %s", session.source_id)
     finally:
         cap.release()
-        processor.reset()
         logger.info("Stream processing stopped for source %s", session.source_id)
 
-        # --- Save results to DB ---
+        # --- Save results to DB BEFORE resetting processor ---
         _save_stream_results_to_db(session)
+
+        processor.reset()
 
         # Remove from registry
         with _registry_lock:

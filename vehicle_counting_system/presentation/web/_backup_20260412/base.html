@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ page_title }} | Hệ thống Giám sát Giao thông</title>
+  <link rel="icon" type="image/png" href="/static/favicon.png">
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-title">Giám sát Giao thông</div>
+        <div class="brand-subtitle">Đồ án Demo</div>
+      </div>
+      <nav class="nav-links">
+        <a href="/dashboard" class="{% if request.url.path in ['/', '/dashboard'] %}active{% endif %}">📊 Bảng điều khiển</a>
+        <a href="/monitoring" id="nav-monitoring" class="{% if request.url.path == '/monitoring' %}active{% endif %}">🎥 Giám sát <span id="nav-live-dot" style="display:none; width:8px; height:8px; border-radius:50%; background:#ef4444; animation: nav-pulse 1.2s ease-in-out infinite; margin-left: 6px;"></span></a>
+        <a href="/ai-config" class="{% if request.url.path == '/ai-config' %}active{% endif %}">⚙️ Tối ưu & Cảnh báo</a>
+        <a href="/reports" class="{% if request.url.path == '/reports' %}active{% endif %}">📋 Báo cáo</a>
+        {% if current_user and current_user.role == "admin" %}
+        <a href="/users" class="{% if request.url.path == '/users' %}active{% endif %}">Người dùng</a>
+        <a href="/admin" class="{% if request.url.path == '/admin' %}active{% endif %}">Quản trị hệ thống</a>
+        {% endif %}
+      </nav>
+      <div class="sidebar-footer">
+        {% if current_user %}
+        <div class="user-chip">{{ current_user.full_name }} ({{ current_user.role }})</div>
+        <form method="post" action="/logout" style="display:inline;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button type="submit" class="logout-link">Đăng xuất</button>
+        </form>
+        {% endif %}
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="page-header">
+        <div>
+          <h1>{{ page_title }}</h1>
+          <p class="page-subtitle">Hệ thống giám sát giao thông thông minh</p>
+        </div>
+      </header>
+
+      {% if error %}
+      <div class="alert alert-error">{{ error }}</div>
+      {% endif %}
+
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+
+  <style>
+    @keyframes nav-pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.8); }
+    }
+    #nav-live-dot { display: inline-block; }
+  </style>
+  <script>
+  (function () {
+    function post(url) {
+      return fetch(url, { method: "POST", credentials: "same-origin" }).catch(function () {});
+    }
+
+    function heartbeat() {
+      post("/api/client/heartbeat");
+    }
+
+    heartbeat();
+    setInterval(heartbeat, 1000);
+
+    window.addEventListener("pagehide", function () {
+      var url = "/api/client/disconnect";
+      try {
+        if (navigator.sendBeacon) {
+          navigator.sendBeacon(url);
+        }
+      } catch (e) {}
+      post(url);
+    });
+
+    // Live dot indicator trong sidebar
+    function checkLiveNav() {
+      fetch("/api/monitoring/status", { credentials: "same-origin" })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          var dot = document.getElementById("nav-live-dot");
+          if (dot) {
+            dot.style.display = data.active_session_id ? "inline-block" : "none";
+          }
+        })
+        .catch(function () {});
+    }
+    checkLiveNav();
+    setInterval(checkLiveNav, 3000);
+  })();
+  </script>
+</body>
+</html>
