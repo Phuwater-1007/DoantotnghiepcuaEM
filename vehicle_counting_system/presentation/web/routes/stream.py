@@ -383,8 +383,11 @@ def build_router() -> APIRouter:
             return JSONResponse(status_code=404, content={"error": "Source not found"})
 
         video_path = source.source_uri
-        if video_path and not Path(video_path).is_absolute():
-            video_path = str((PROJECT_ROOT / video_path).resolve())
+        if video_path:
+            if video_path.startswith(("rtsp://", "http://", "https://")):
+                pass  # Keep as is for network streams
+            elif not Path(video_path).is_absolute():
+                video_path = str((PROJECT_ROOT / video_path).resolve())
 
         info = get_video_info(video_path)
         if info is None:
@@ -438,6 +441,49 @@ def build_router() -> APIRouter:
 
         return StreamingResponse(
             generate(),
+            media_type="multipart/x-mixed-replace; boundary=frame",
+        )
+
+    # -----------------------------------------------------------------
+    # RAW MJPEG stream endpoint (No AI Processing) - Hoạt động như VLC
+    # Dùng để xem trực tiếp lập tức khi vừa nhấp vào Camera mạng
+    # -----------------------------------------------------------------
+    @router.get("/stream/{source_id}/raw")
+    def stream_video_raw(request: Request, source_id: int):
+        auth_err = _require_auth(request)
+        if auth_err is not None:
+            return auth_err
+        
+        container = get_container(request)
+        source = container.source_service.get_source(source_id)
+        if not source:
+            return JSONResponse(status_code=404, content={"error": "Source not found"})
+
+        def generate_raw():
+            cap = cv2.VideoCapture(source.source_uri)
+            if not cap.isOpened():
+                return
+            
+            try:
+                while True:
+                    ok, frame = cap.read()
+                    if not ok:
+                        break
+                    
+                    _, buf = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), 60])
+                    yield (
+                        b"--frame\r\n"
+                        b"Content-Type: image/jpeg\r\n\r\n" +
+                        buf.tobytes() +
+                        b"\r\n"
+                    )
+            except GeneratorExit:
+                pass
+            finally:
+                cap.release()
+
+        return StreamingResponse(
+            generate_raw(),
             media_type="multipart/x-mixed-replace; boundary=frame",
         )
 

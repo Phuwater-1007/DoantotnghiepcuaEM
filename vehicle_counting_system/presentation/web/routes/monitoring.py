@@ -19,9 +19,25 @@ def _build_monitoring_page_data(container) -> dict:
         source = container.source_service.get_source_by_uri(video["path"])
         video["roi_ready"] = bool(source and source.counting_config_path)
         video["source_id"] = source.id if source else None
+        video["source_type"] = "video"
         video["roi_edit_url"] = (
             f"/monitoring/edit-roi-for-video?path={video['path']}"
         )
+
+    # Thêm các luồng camera mạng (RTSP/HTTP) từ database
+    all_sources = container.source_service.list_sources()
+    for source in all_sources:
+        if source.source_type == "stream":
+            # Tạo 1 tile video giả lập cho luồng
+            detected_videos.append({
+                "path": source.source_uri,
+                "name": source.name,
+                "preview_url": "",  # Stream không có file mp4 preview tĩnh
+                "roi_ready": bool(source.counting_config_path),
+                "source_id": source.id,
+                "source_type": "stream",
+                "roi_edit_url": f"/monitoring/edit-roi-for-video?path={source.source_uri}"
+            })
 
     sessions = container.monitoring_service.list_sessions(limit=8)
     latest_completed_session = None

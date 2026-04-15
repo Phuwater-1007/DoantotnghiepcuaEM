@@ -26,15 +26,20 @@ def validate_source_paths(
     if not source_uri or not source_uri.strip():
         raise ValueError("Source path is required.")
 
-    video_path = _resolve_path(source_uri)
-    if not video_path.exists():
-        raise ValueError(f"Video file not found: {video_path}")
-    if not video_path.is_file():
-        raise ValueError(f"Source path is not a file: {video_path}")
-    if video_path.suffix.lower() not in VIDEO_EXTENSIONS:
-        raise ValueError(
-            f"Unsupported video format. Allowed: {', '.join(sorted(VIDEO_EXTENSIONS))}"
-        )
+    source_uri_cleaned = source_uri.strip()
+    if source_uri_cleaned.lower().startswith(("rtsp://", "http://", "https://", "rtmp://")):
+        resolved_uri = source_uri_cleaned
+    else:
+        video_path = _resolve_path(source_uri)
+        if not video_path.exists():
+            raise ValueError(f"Video file not found: {video_path}")
+        if not video_path.is_file():
+            raise ValueError(f"Source path is not a file: {video_path}")
+        if video_path.suffix.lower() not in VIDEO_EXTENSIONS:
+            raise ValueError(
+                f"Unsupported video format. Allowed: {', '.join(sorted(VIDEO_EXTENSIONS))}"
+            )
+        resolved_uri = str(video_path)
 
     resolved_config: str | None = None
     if counting_config_path and counting_config_path.strip():
@@ -45,11 +50,11 @@ def validate_source_paths(
             raise ValueError(f"Counting config path is not a file: {config_path}")
         resolved_config = str(config_path)
 
-    return str(video_path), resolved_config
+    return resolved_uri, resolved_config
 
 
 class SourceService:
-    _SUPPORTED_SOURCE_TYPES = {"video"}
+    _SUPPORTED_SOURCE_TYPES = {"video", "stream"}
 
     def __init__(self, db):
         self.db = db
@@ -108,7 +113,7 @@ class SourceService:
     ) -> None:
         normalized_type = source_type.strip().lower()
         if normalized_type not in self._SUPPORTED_SOURCE_TYPES:
-            raise ValueError("Current web product only supports offline video sources.")
+            raise ValueError("Type nguồn chưa được hỗ trợ.")
 
         cleaned_name = name.strip()
         if not cleaned_name:
@@ -138,10 +143,14 @@ class SourceService:
 
     def get_source_by_uri(self, source_uri: str) -> Source | None:
         """Tìm source theo source_uri (relative hoặc absolute). Ưu tiên source đã có config ROI."""
-        try:
-            resolved = str(_resolve_path(source_uri))
-        except Exception:
-            return None
+        source_uri_cleaned = source_uri.strip()
+        if source_uri_cleaned.lower().startswith(("rtsp://", "http://", "https://", "rtmp://")):
+            resolved = source_uri_cleaned
+        else:
+            try:
+                resolved = str(_resolve_path(source_uri))
+            except Exception:
+                return None
         rows = self.db.fetchall(
             """
             SELECT id
@@ -217,3 +226,23 @@ class SourceService:
             notes=str(row["notes"] or ""),
             counting_config_path=row["counting_config_path"],
         )
+
+    def delete_source(self, source_id: int) -> bool:
+        """Xóa source khỏi hệ thống."""
+        source = self.get_source(source_id)
+        if not source:
+            return False
+            
+        import os
+        from vehicle_counting_system.utils.logger import get_logger
+        logger = get_logger(__name__)
+        
+        if source.counting_config_path:
+            try:
+                if os.path.exists(source.counting_config_path):
+                    os.remove(source.counting_config_path)
+            except Exception as e:
+                logger.warning(f"Không thể xóa config file {source.counting_config_path}: {e}")
+                
+        self.db.execute("DELETE FROM sources WHERE id = ?", (source_id,))
+        return True

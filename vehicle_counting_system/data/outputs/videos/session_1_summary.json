@@ -1,0 +1,10 @@
+{
+  "timestamp": "2026-04-14T11:23:19",
+  "session_id": 1,
+  "total": 18,
+  "per_class": {
+    "motorcycle": 10,
+    "car": 6,
+    "truck": 2
+  }
+}

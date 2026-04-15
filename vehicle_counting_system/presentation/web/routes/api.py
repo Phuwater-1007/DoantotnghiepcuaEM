@@ -209,6 +209,54 @@ def build_router() -> APIRouter:
         source_id = int(row["id"]) if row else None
         return {"ok": True, "path": rel_str, "source_id": source_id, "renamed": counter > 0, "final_name": dest.name}
 
+    @router.post("/monitoring/add-stream")
+    async def api_add_stream(request: Request):
+        auth_err = _require_auth(request)
+        if auth_err is not None:
+            return auth_err
+        try:
+            data = await request.json()
+            name = data.get("name")
+            url = data.get("url")
+            if not name or not url:
+                return JSONResponse(status_code=400, content={"error": "Thiếu tên hoặc URL kết nối."})
+            
+            container = get_container(request)
+            existing = container.source_service.get_source_by_uri(url)
+            if existing:
+                return {"ok": True, "source_id": existing.id, "message": "Luồng này đã tồn tại."}
+            
+            container.source_service.create_source(
+                name=name,
+                source_type="stream",
+                source_uri=url,
+                notes="Thêm luồng RTSP/HTTP từ web"
+            )
+            row = container.db.fetchone("SELECT id FROM sources ORDER BY id DESC LIMIT 1")
+            source_id = int(row["id"]) if row else None
+            return {"ok": True, "source_id": source_id, "message": "Thêm luồng Camera IP thành công!"}
+        except ValueError as e:
+            return JSONResponse(status_code=400, content={"error": str(e)})
+        except Exception as e:
+            logger.error(f"Error adding RTSP stream: {e}", exc_info=True)
+            return JSONResponse(status_code=500, content={"error": "Lỗi máy chủ khi kết nối Camera."})
+
+    @router.delete("/sources/{source_id}")
+    def api_delete_source(request: Request, source_id: int):
+        auth_err = _require_auth(request)
+        if auth_err is not None:
+            return auth_err
+        container = get_container(request)
+        try:
+            success = container.source_service.delete_source(source_id)
+            if success:
+                return {"ok": True, "message": "Đã xóa nguồn dữ liệu."}
+            else:
+                return JSONResponse(status_code=404, content={"error": "Nguồn không tồn tại."})
+        except Exception as e:
+            logger.error(f"Error deleting source: {e}", exc_info=True)
+            return JSONResponse(status_code=500, content={"error": "Lỗi khi xóa nguồn."})
+
     @router.get("/video/input")
     def api_input_video(request: Request, path: str = ""):
         """Stream input video for preview. path = relative from PROJECT_ROOT (e.g. data/inputs/videos/x.mp4)."""
@@ -270,8 +318,8 @@ def build_router() -> APIRouter:
         source = container.source_service.get_source(source_id)
         if not source:
             return JSONResponse(status_code=404, content={"error": "Source not found"})
-        if source.source_type != "video":
-            return JSONResponse(status_code=400, content={"error": "Chỉ hỗ trợ video"})
+        if source.source_type not in ("video", "stream"):
+            return JSONResponse(status_code=400, content={"error": "Chỉ hỗ trợ video và luồng mạng"})
         cap = cv2.VideoCapture(source.source_uri)
         if not cap.isOpened():
             return JSONResponse(status_code=400, content={"error": "Không mở được video"})

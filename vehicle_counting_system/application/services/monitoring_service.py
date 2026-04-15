@@ -210,8 +210,11 @@ class MonitoringService:
             from vehicle_counting_system.utils.video_utils import validate_video_source
 
             video_path = source.source_uri
-            if video_path and not Path(video_path).is_absolute():
-                video_path = str((PROJECT_ROOT / video_path).resolve())
+            if video_path:
+                if video_path.startswith(("rtsp://", "http://", "https://")):
+                    pass
+                elif not Path(video_path).is_absolute():
+                    video_path = str((PROJECT_ROOT / video_path).resolve())
 
             ok, err = validate_video_source(video_path)
             if not ok:

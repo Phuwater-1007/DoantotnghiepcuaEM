@@ -85,6 +85,12 @@ def validate_video_source(source: str | int) -> tuple[bool, str]:
             return False, f"Không mở được camera index {source}"
         return True, ""
 
+    if isinstance(source, str) and source.lower().startswith(("rtsp://", "http://", "https://", "rtmp://")):
+        info = get_video_info(source)
+        if info is None:
+            return False, f"Không kết nối được luồng camera/stream: {source}"
+        return True, ""
+
     path = Path(source)
     if not path.exists():
         return False, f"File không tồn tại: {path}"

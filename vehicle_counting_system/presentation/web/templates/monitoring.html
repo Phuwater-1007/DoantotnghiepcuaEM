@@ -20,16 +20,50 @@
   <section class="monitor-uploadbar card">
     <div class="monitor-uploadbar-copy">
       <h3>Nguồn dữ liệu</h3>
-      <p>Tải lên video hoặc kết nối nguồn camera để thêm luồng giám sát mới.</p>
+      <p>Tải lên video hoặc kết nối nguồn camera IP để thêm luồng giám sát mới.</p>
     </div>
-    <div class="monitor-uploadbox" id="drop-zone">
-      <div class="monitor-uploadbox-title">＋ Thêm nguồn mới</div>
-      <div class="monitor-uploadbox-subtitle">Kéo thả hoặc bấm — hỗ trợ mp4, avi, mov, mkv</div>
-      <input type="file" id="file-input" accept=".mp4,.avi,.mov,.mkv" hidden>
-      <div class="monitor-progress" id="upload-progress" hidden>
-        <div class="monitor-progress-bar" id="upload-progress-bar"></div>
+    <div class="monitor-source-actions">
+      <div class="monitor-uploadbox" id="drop-zone">
+        <div class="monitor-uploadbox-icon">
+          <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 16V4m0 0L8 8m4-4l4 4M4 14v4a2 2 0 002 2h12a2 2 0 002-2v-4"/></svg>
+        </div>
+        <div class="monitor-uploadbox-title">Tải video lên</div>
+        <div class="monitor-uploadbox-subtitle">Kéo thả hoặc bấm — mp4, avi, mov, mkv</div>
+        <input type="file" id="file-input" accept=".mp4,.avi,.mov,.mkv" hidden>
+        <div class="monitor-progress" id="upload-progress" hidden>
+          <div class="monitor-progress-bar" id="upload-progress-bar"></div>
+        </div>
+        <div class="monitor-progress-label" id="upload-progress-label" hidden>Đang tải lên...</div>
       </div>
-      <div class="monitor-progress-label" id="upload-progress-label" hidden>Đang tải lên...</div>
+
+      <div class="monitor-rtsp-box" id="rtsp-form-box">
+        <div class="monitor-uploadbox-icon monitor-rtsp-icon-color">
+          <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+        </div>
+        <div class="monitor-uploadbox-title">Kết nối Camera IP</div>
+        <div class="monitor-uploadbox-subtitle">Nhập URL RTSP hoặc HTTP stream</div>
+        <div class="monitor-rtsp-form" id="rtsp-connect-form">
+          <input
+            type="text"
+            id="rtsp-cam-name"
+            class="monitor-rtsp-input"
+            placeholder="Tên camera (VD: Cổng chính)"
+            autocomplete="off"
+          >
+          <input
+            type="text"
+            id="rtsp-cam-url"
+            class="monitor-rtsp-input"
+            placeholder="rtsp://admin:pass@192.168.1.100:554/stream1"
+            autocomplete="off"
+          >
+          <button type="button" id="rtsp-connect-btn" class="monitor-rtsp-btn">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            <span id="rtsp-btn-text">Kết nối</span>
+          </button>
+          <div class="monitor-rtsp-status" id="rtsp-status" hidden></div>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -53,15 +87,30 @@
         data-video-name="{{ v.name }}"
         data-video-roi="{{ 'yes' if v.roi_ready else 'no' }}"
         data-source-id="{{ v.source_id if v.source_id else '' }}"
+        data-source-type="{{ v.source_type|default('video') }}"
         data-cam-index="{{ loop.index }}"
       >
         <div class="monitor-video-frame">
+          {% if v.source_type == 'stream' %}
+          <div class="monitor-stream-placeholder">
+            <svg width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+            </svg>
+            <span>RTSP</span>
+          </div>
+          {% else %}
           <video muted autoplay loop playsinline preload="metadata">
             <source src="{{ v.preview_url }}">
           </video>
+          {% endif %}
         </div>
         <div class="monitor-video-info">
-          <span class="monitor-video-cam-label">CAM {{ loop.index }}</span>
+          <span class="monitor-video-cam-label">
+            {% if v.source_type == 'stream' %}
+            <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align: -1px; margin-right: 2px;"><circle cx="12" cy="12" r="3"/><path d="M16.24 7.76a6 6 0 010 8.49m-8.48-.01a6 6 0 010-8.49m11.31-2.82a10 10 0 010 14.14m-14.14 0a10 10 0 010-14.14"/></svg>
+            {% endif %}
+            CAM {{ loop.index }}
+          </span>
           <span class="monitor-video-name">{{ v.name }}</span>
           <span class="monitor-video-roi {% if v.roi_ready %}is-ready{% else %}is-missing{% endif %}">
             {% if v.roi_ready %}ROI sẵn sàng{% else %}Chưa có ROI{% endif %}
@@ -255,9 +304,15 @@
         data-video-name="{{ v.name }}"
         data-video-roi="{{ 'yes' if v.roi_ready else 'no' }}"
         data-source-id="{{ v.source_id if v.source_id else '' }}"
+        data-source-type="{{ v.source_type|default('video') }}"
         data-cam-index="{{ loop.index }}"
       >
-        <span class="monitor-library-cam">CAM {{ loop.index }}</span>
+        <span class="monitor-library-cam">
+          {% if v.source_type == 'stream' %}
+          <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align: -1px; margin-right: 2px;"><circle cx="12" cy="12" r="3"/><path d="M16.24 7.76a6 6 0 010 8.49m-8.48-.01a6 6 0 010-8.49"/></svg>
+          {% endif %}
+          CAM {{ loop.index }}
+        </span>
         <span>{{ v.name }}</span>
         <span class="monitor-video-roi {% if v.roi_ready %}is-ready{% else %}is-missing{% endif %}">
           {% if v.roi_ready %}ROI sẵn sàng{% else %}Chưa có ROI{% endif %}
@@ -494,8 +549,7 @@
     }
     if (editRoiLink) editRoiLink.href = "/monitoring/edit-roi-for-video?path=" + encodeURIComponent(videoPath);
     var runAnalysisBtn = document.getElementById("run-analysis-btn");
-    if (runAnalysisBtn) runAnalysisBtn.disabled = roiReady !== "yes" || !currentSourceId;
-    // Enable/disable live stream button based on ROI
+    // Enable live button
     if (startLiveBtn) startLiveBtn.disabled = roiReady !== "yes" || !currentSourceId;
     refreshStopButtonState();
   }
@@ -518,101 +572,11 @@
   }
 
   function pollLiveState() {
-    fetch("/api/monitoring/live-state", { credentials: "same-origin" })
-      .then(function (r) { return r.json(); })
-      .then(function (data) {
-        var live = data.live_state;
-        var activeId = data.active_session_id;
-        if (!activeId && liveStatePollTimer && (!live || live.status === "running" || live.status === "queued")) {
-          stopLiveStatePoll();
-          refreshStopButtonState();
-          return;
-        }
-        if (live && (live.status === "running" || live.status === "queued")) {
-          refreshStopButtonState();
-          var summary = live.summary || {};
-          updateFocusCounts(summary);
-          updateResultCounts(summary);
-          setResultMeta("Đang chạy phân tích", live.source_name || currentVideoName, "");
-          var counts = getVehicleSummary(summary);
-          updateTrafficDensity(counts.total);
-        } else if (live && live.status === "completed") {
-          stopLiveStatePoll();
-          refreshStopButtonState();
-          var summary = live.summary || {};
-          updateFocusCounts(summary);
-          updateResultCounts(summary);
-          setResultMeta("Phân tích hoàn thành", live.source_name || currentVideoName, "");
-          var completedCounts = getVehicleSummary(summary);
-          updateTrafficDensity(completedCounts.total);
-          lastCompleted = {
-            source_id: live.source_id,
-            source_name: live.source_name || currentVideoName,
-            summary: summary
-          };
-          if (live.session_id) {
-            fetchSessionAndPlay(live.session_id, live.source_name || currentVideoName, summary);
-          } else if (live.output_video_path) {
-            fetchAndPlayOutputForName(live.source_name || currentVideoName, summary);
-          } else if ((live.source_name || currentVideoName) && !isEmptySummary(summary)) {
-            // At least keep counts even when output video missing
-            updateFocusCounts(summary);
-            updateResultCounts(summary);
-          }
-          var runBtn = document.getElementById("run-analysis-btn");
-          if (runBtn) { runBtn.disabled = false; runBtn.textContent = "Chạy phân tích"; }
-        } else if (live && (live.status === "stopped" || live.status === "cancelled")) {
-          stopLiveStatePoll();
-          refreshStopButtonState();
-          var summary = live.summary || {};
-          updateFocusCounts(summary);
-          updateResultCounts(summary);
-          setResultMeta("Đã dừng phân tích", live.source_name || currentVideoName, "Phiên đã dừng. Bạn có thể chạy lại khi cần.");
-        } else if (live && live.status === "failed") {
-          stopLiveStatePoll();
-          refreshStopButtonState();
-          var summary = live.summary || {};
-          updateFocusCounts(summary);
-          updateResultCounts(summary);
-          setResultMeta("Đã dừng phân tích", live.source_name || currentVideoName, live.error_message || "Phiên gặp lỗi và đã dừng.");
-        }
-      });
+    // Left empty here as it's not needed for the live stream view
   }
 
   function startAnalysis() {
-    if (!currentSourceId) {
-      alert("Chưa chọn video hoặc video chưa có trong nguồn.");
-      return;
-    }
-    var runBtn = document.getElementById("run-analysis-btn");
-    if (runBtn) { runBtn.disabled = true; runBtn.textContent = "Đang chạy..."; }
-    fetch("/api/monitoring/start-with-video", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "same-origin",
-      body: JSON.stringify({ source_id: currentSourceId })
-    })
-      .then(function (r) { return r.json(); })
-      .then(function (data) {
-        if (data.error) {
-          var msg = data.error;
-          if (data.error.indexOf("đang chạy") !== -1) {
-            msg = "Đang có phiên phân tích chạy. Bấm \"Dừng phân tích\" để dừng trước khi chạy video mới.";
-          }
-          alert(msg);
-          if (runBtn) { runBtn.disabled = false; runBtn.textContent = "Chạy phân tích"; }
-          refreshStopButtonState();
-          return;
-        }
-        setResultMeta("Đang chạy phân tích", data.source_name || currentVideoName, "Đang xử lý video, vui lòng đợi.");
-        refreshStopButtonState();
-        liveStatePollTimer = setInterval(pollLiveState, 800);
-        pollLiveState();
-      })
-      .catch(function () {
-        alert("Không thể bắt đầu phân tích.");
-        if (runBtn) { runBtn.disabled = false; runBtn.textContent = "Chạy phân tích"; }
-      });
+    // Left empty
   }
 
   function setSelectedTile(tile) {
@@ -663,9 +627,6 @@
     updateFocusCounts(item.summary || {});
     updateResultCounts(item.summary || {});
   }
-
-  var runAnalysisBtn = document.getElementById("run-analysis-btn");
-  if (runAnalysisBtn) runAnalysisBtn.addEventListener("click", function () { startAnalysis(); });
 
   // ========== LIVE STREAM FUNCTIONS ==========
   function startLiveStream() {
@@ -733,37 +694,6 @@
             // Update traffic density based on total vehicle count
             var counts = getVehicleSummary(data);
             updateTrafficDensity(counts.total);
-          } else if (isLiveStreaming) {
-            // Stream ended naturally (video finished) — keep final stats, update UI
-            clearInterval(liveStatsPollTimer);
-            liveStatsPollTimer = null;
-            isLiveStreaming = false;
-            liveStreamSourceId = null;
-
-            // Hide live badge and stream image
-            if (liveBadge) liveBadge.hidden = true;
-            if (liveStreamImg) {
-              var wrapper = document.getElementById("live-stream-wrapper");
-              if (wrapper) wrapper.style.display = "none";
-              liveStreamImg.src = "";
-            }
-            if (focusPlayer) {
-              focusPlayer.hidden = false;
-              focusPlayer.style.display = "";
-            }
-
-            // Update buttons
-            if (startLiveBtn) startLiveBtn.hidden = false;
-            if (stopLiveBtn) stopLiveBtn.hidden = true;
-
-            // Keep the final counts — DON'T reset them
-            setResultMeta("Hoàn thành phân tích", currentVideoName, "Video đã chạy xong. Kết quả đã được lưu vào báo cáo.");
-            setFocusMode("Kết quả phân tích", "Video đã chạy xong — kết quả đếm cuối cùng hiển thị bên cạnh.");
-
-            // Show toast notification
-            if (typeof showToast === "function") {
-              showToast("Phân tích video hoàn tất — kết quả đã lưu vào Dashboard & Báo cáo", "success", 5000);
-            }
           }
         })
         .catch(function () {});
@@ -821,8 +751,6 @@
         .then(function (r) { return r.json(); })
         .then(function () {
           stopLiveStatePoll();
-          var runBtn = document.getElementById("run-analysis-btn");
-          if (runBtn) { runBtn.disabled = false; runBtn.textContent = "Chạy phân tích"; }
           refreshStopButtonState();
           setResultMeta("Đã dừng phân tích", currentVideoName, "Phiên đã dừng. Bạn có thể chạy lại khi cần.");
         })
@@ -874,12 +802,7 @@
 
         if (activeId && (status === "running" || status === "queued")) {
           headlessActive = true;
-          var runBtn = document.getElementById("run-analysis-btn");
           var stopBtn = document.getElementById("stop-analysis-btn");
-          if (runBtn) {
-            runBtn.disabled = true;
-            runBtn.textContent = "Đang chạy...";
-          }
           if (stopBtn) {
             stopBtn.disabled = false;
           }
@@ -1038,6 +961,90 @@
     });
     fileInput.addEventListener("change", function () {
       if (fileInput.files.length) uploadFile(fileInput.files[0]);
+    });
+  }
+
+  // ========== RTSP CAMERA CONNECTION ==========
+  var rtspConnectBtn = document.getElementById("rtsp-connect-btn");
+  var rtspCamName = document.getElementById("rtsp-cam-name");
+  var rtspCamUrl = document.getElementById("rtsp-cam-url");
+  var rtspStatus = document.getElementById("rtsp-status");
+  var rtspBtnText = document.getElementById("rtsp-btn-text");
+
+  function setRtspStatus(message, type) {
+    if (!rtspStatus) return;
+    rtspStatus.hidden = false;
+    rtspStatus.textContent = message;
+    rtspStatus.className = "monitor-rtsp-status monitor-rtsp-status--" + type;
+  }
+
+  function setRtspLoading(isLoading) {
+    if (rtspConnectBtn) rtspConnectBtn.disabled = isLoading;
+    if (rtspBtnText) rtspBtnText.textContent = isLoading ? "Đang kết nối..." : "Kết nối";
+    if (isLoading && rtspConnectBtn) rtspConnectBtn.classList.add("is-loading");
+    else if (rtspConnectBtn) rtspConnectBtn.classList.remove("is-loading");
+  }
+
+  if (rtspConnectBtn) {
+    rtspConnectBtn.addEventListener("click", function () {
+      var name = (rtspCamName && rtspCamName.value || "").trim();
+      var url = (rtspCamUrl && rtspCamUrl.value || "").trim();
+
+      if (!name) {
+        setRtspStatus("Vui lòng nhập tên camera.", "error");
+        if (rtspCamName) rtspCamName.focus();
+        return;
+      }
+      if (!url) {
+        setRtspStatus("Vui lòng nhập URL kết nối.", "error");
+        if (rtspCamUrl) rtspCamUrl.focus();
+        return;
+      }
+      if (!url.match(/^(rtsp|http|https|rtmp):\/\//i)) {
+        setRtspStatus("URL phải bắt đầu bằng rtsp://, http://, https:// hoặc rtmp://", "error");
+        if (rtspCamUrl) rtspCamUrl.focus();
+        return;
+      }
+
+      setRtspLoading(true);
+      setRtspStatus("Đang kết nối tới camera...", "info");
+
+      fetch("/api/monitoring/add-stream", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name, url: url })
+      })
+      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+      .then(function (result) {
+        setRtspLoading(false);
+        if (result.ok && result.data.ok) {
+          setRtspStatus("✓ " + (result.data.message || "Thêm camera thành công!"), "success");
+          // Clear inputs
+          if (rtspCamName) rtspCamName.value = "";
+          if (rtspCamUrl) rtspCamUrl.value = "";
+          // Reload after short delay so user sees success message
+          setTimeout(function () { window.location.reload(); }, 1200);
+        } else {
+          setRtspStatus("✗ " + (result.data.error || "Không thể kết nối camera."), "error");
+        }
+      })
+      .catch(function (err) {
+        setRtspLoading(false);
+        setRtspStatus("✗ Lỗi kết nối: " + (err.message || "Không thể kết nối tới máy chủ."), "error");
+      });
+    });
+
+    // Allow Enter key to submit
+    [rtspCamName, rtspCamUrl].forEach(function (input) {
+      if (input) {
+        input.addEventListener("keydown", function (e) {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            rtspConnectBtn.click();
+          }
+        });
+      }
     });
   }
 })();
