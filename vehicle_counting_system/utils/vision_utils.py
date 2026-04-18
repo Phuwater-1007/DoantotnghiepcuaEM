@@ -36,6 +36,24 @@ _FONT_SCALE_LABEL = 0.5
 _FONT_SCALE_STATS = 0.7
 _FONT_THICKNESS = 1
 
+# Reference width at which base values above were designed.
+_REF_WIDTH = 640
+
+
+def _get_render_scale(frame) -> float:
+    """
+    Return a multiplier for text/line sizes based on the frame's native width.
+
+    Camera resolution examples:
+      640 px  → scale 1.0  (base values used as-is)
+      1280 px → scale 1.6  (slightly thicker boxes/text)
+      1920 px → scale 2.0  (HD camera — much more readable overlay)
+
+    Capped at 2.0 to avoid enormous graphics on very high-res sources.
+    """
+    h, w = frame.shape[:2]
+    return min(2.0, max(1.0, w / _REF_WIDTH))
+
 
 def _draw_rounded_rect(
     frame,
@@ -67,27 +85,32 @@ def draw_bbox(
     x1, y1, x2, y2 = map(int, bbox)
     if color is None:
         color = settings._parse_color(settings.bbox_color)
-    thick = max(1, getattr(settings, "bbox_thickness", 1))
-    radius = max(0, getattr(settings, "bbox_corner_radius", 4))
+    sf = _get_render_scale(frame)
+    thick = max(1, int(getattr(settings, "bbox_thickness", 2) * sf))
+    radius = max(0, int(getattr(settings, "bbox_corner_radius", 6) * sf))
+    lbl_thick = max(1, int(_FONT_THICKNESS * sf))
     _draw_rounded_rect(frame, x1, y1, x2, y2, color, thick, radius)
     if label:
-        scale = getattr(settings, "bbox_label_font_scale", _FONT_SCALE_LABEL)
-        (tw, th), baseline = cv2.getTextSize(label, _FONT, scale, _FONT_THICKNESS)
-        pad = 5
+        scale = getattr(settings, "bbox_label_font_scale", _FONT_SCALE_LABEL) * sf
+        (tw, th), baseline = cv2.getTextSize(label, _FONT, scale, lbl_thick)
+        pad = max(6, int(7 * sf))
         lbl_x1 = x1
         lbl_y1 = y1 - th - baseline - pad
         lbl_x2 = x1 + tw + pad * 2
         lbl_y2 = y1
-        _draw_rounded_rect(frame, lbl_x1, lbl_y1, lbl_x2, lbl_y2, color, thick, min(radius, 3))
+        _draw_rounded_rect(frame, lbl_x1, lbl_y1, lbl_x2, lbl_y2, color, thick, min(radius, int(3 * sf)))
         cv2.putText(
             frame, label,
             (x1 + pad, y1 - baseline - pad // 2),
             _FONT,
             scale,
             (255, 255, 255),
-            _FONT_THICKNESS,
+            lbl_thick,
             cv2.LINE_AA,
         )
+
+
+
 
 
 def draw_center(
@@ -115,7 +138,8 @@ def draw_counting_line(
     if mode in {"hidden", "none", "off"}:
         return
 
-    thickness = max(1, int(settings.counting_line_thickness))
+    sf = _get_render_scale(frame)
+    thickness = max(1, int(settings.counting_line_thickness * sf))
     if mode in {"soft", "faded"}:
         overlay = frame.copy()
         cv2.line(overlay, start, end, color, thickness, cv2.LINE_AA)
@@ -127,7 +151,7 @@ def draw_counting_line(
     if label and settings.show_counting_line_label:
         x = int((start[0] + end[0]) / 2)
         y = int((start[1] + end[1]) / 2) - 6
-        cv2.putText(frame, label, (x, y), _FONT, 0.55, color, _FONT_THICKNESS, cv2.LINE_AA)
+        cv2.putText(frame, label, (x, y), _FONT, 0.55 * sf, color, max(1, int(_FONT_THICKNESS * sf)), cv2.LINE_AA)
 
 
 def draw_statistics(
@@ -140,20 +164,24 @@ def draw_statistics(
     if not lines:
         return
 
+    sf = _get_render_scale(frame)
+    font_scale = _FONT_SCALE_STATS * sf
+    font_thick = max(1, int(_FONT_THICKNESS * sf))
+
     # Measure text block
     max_w = 0
     line_h = 0
     for text in lines:
-        (tw, th), _ = cv2.getTextSize(text, _FONT, _FONT_SCALE_STATS, _FONT_THICKNESS)
+        (tw, th), _ = cv2.getTextSize(text, _FONT, font_scale, font_thick)
         max_w = max(max_w, tw)
         line_h = max(line_h, th)
-    padding = 10
+    padding = max(8, int(10 * sf))
     bg_color = settings._parse_color(settings.stats_bg_color)
     text_color = settings._parse_color(settings.stats_text_color)
 
     # Semi-transparent background
     x2 = x + max_w + 2 * padding
-    y2 = y + len(lines) * (line_h + 6) + padding
+    y2 = y + len(lines) * (line_h + int(6 * sf)) + padding
     overlay = frame.copy()
     cv2.rectangle(overlay, (x, y - padding), (x2, y2), bg_color, -1)
     alpha = 0.4
@@ -166,12 +194,12 @@ def draw_statistics(
             frame, text,
             (x + padding // 2, cy),
             _FONT,
-            _FONT_SCALE_STATS,
+            font_scale,
             text_color,
-            _FONT_THICKNESS,
+            font_thick,
             cv2.LINE_AA,
         )
-        cy += line_h + 6
+        cy += line_h + int(6 * sf)
 
 
 def draw_track(
@@ -188,11 +216,10 @@ def draw_track(
     label = None
     if show_label:
         short_cls = track.class_name
-        did = track.get_display_id()
         if settings.show_confidence:
-            label = f"{short_cls} #{did} {track.confidence:.2f}"
+            label = f"{short_cls} {track.confidence:.2f}"
         else:
-            label = f"{short_cls} #{did}"
+            label = short_cls
     draw_bbox(frame, bbox, label=label, color=color)
     if show_center:
         draw_center(frame, anchor)

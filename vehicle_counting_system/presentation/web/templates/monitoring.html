@@ -160,18 +160,19 @@
         <style>
           @keyframes monitor-spin { to { transform: rotate(360deg); } }
         </style>
-        <div id="live-stream-wrapper" class="monitor-focus-player" style="display: none; position: relative; background: #000; overflow: hidden; width: 100% !important; height: auto !important; border-radius: 18px !important;">
-          <div id="live-stream-loading" style="position: absolute; top:0; left:0; width:100%; height:100%; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1; background: #1a1a2e;">
+        <div id="live-stream-wrapper" style="display: none; position: relative; overflow: hidden; width: 100%; border-radius: 18px; min-height: 220px; background: #111827;">
+          <div id="live-stream-loading" style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1; background: #1a1a2e;">
             <svg style="animation: monitor-spin 1s linear infinite; width: 40px; height: 40px; margin-bottom: 12px; color: #818cf8;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
               <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-opacity="0.25" stroke-width="4"></circle>
               <path fill="currentColor" fill-opacity="0.75" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
             <span style="font-size: 14px; font-weight: 500; color: #a5b4fc;">Đang kết nối luồng phân tích...</span>
           </div>
+          <!-- img dùng natural flow (không absolute) → tự fill theo tỷ lệ thực của camera, không có viền đen -->
           <img
             id="live-stream-img"
             alt="Live Stream"
-            style="position: absolute; inset: 0; width: 100% !important; height: 100% !important; object-fit: contain !important; border-radius: 18px !important; z-index: 2; opacity: 0; transition: opacity 0.3s;"
+            style="display: block; width: 100%; height: auto; border-radius: 18px; position: relative; z-index: 2; opacity: 0; transition: opacity 0.4s ease;"
           >
         </div>
       </div>
@@ -649,11 +650,8 @@
       var wrapper = document.getElementById("live-stream-wrapper");
       var loading = document.getElementById("live-stream-loading");
       if (wrapper && loading) {
-        if (focusPlayer && focusPlayer.videoHeight > 0) {
-          wrapper.style.aspectRatio = (focusPlayer.videoWidth / focusPlayer.videoHeight).toString();
-        } else {
-          wrapper.style.aspectRatio = "16/9";
-        }
+        // Xoá aspect-ratio cố định — wrapper tự co theo ảnh thực
+        wrapper.style.aspectRatio = "";
         wrapper.style.display = "block";
         loading.style.display = "flex";
       }
