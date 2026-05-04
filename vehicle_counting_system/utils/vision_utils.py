@@ -213,16 +213,28 @@ def draw_track(
 ) -> None:
     bbox = bbox_override if bbox_override is not None else track.bbox
     anchor = get_bbox_bottom_center(bbox) if bbox_override is not None else track.last_anchor()
+
+    # Build label parts
     label = None
+    parts = []
+
+    # Track ID prefix: "#42"
+    if settings.show_track_id:
+        parts.append(f"#{track.track_id}")
+
+    # Class name & confidence
     if show_label:
-        short_cls = track.class_name
         if settings.show_confidence:
-            label = f"{short_cls} {track.confidence:.2f}"
+            parts.append(f"{track.class_name} {track.confidence:.2f}")
         else:
-            label = short_cls
+            parts.append(track.class_name)
+
+    label = " ".join(parts) if parts else None
+
     draw_bbox(frame, bbox, label=label, color=color)
     if show_center:
         draw_center(frame, anchor)
+
 
 
 def draw_roi_polygon(

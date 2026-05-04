@@ -95,6 +95,8 @@ class Settings:
     show_track_center: bool = _read_bool("SHOW_TRACK_CENTER", "true")
     show_labels: bool = _read_bool("SHOW_LABELS", "true")
     show_confidence: bool = _read_bool("SHOW_CONFIDENCE", "false")
+    # Hiển thị Track ID (#số) trên bounding box — giúp theo dõi từng xe riêng biệt.
+    show_track_id: bool = _read_bool("SHOW_TRACK_ID", "false")
 
     # ROI rendering mode (friendly names):
     # "hidden" (or "off", "none")  -> no ROI drawn

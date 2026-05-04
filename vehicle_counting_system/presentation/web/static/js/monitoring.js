@@ -270,74 +270,90 @@
       .catch(function () {});
   }
 
-  function stopLiveStatePoll() {
-    if (liveStatePollTimer) {
-      clearInterval(liveStatePollTimer);
-      liveStatePollTimer = null;
+  // ========== WEBSOCKET LIVE STATE ==========
+  var _monitoringWS = null;
+  var _wsReconnectTimer = null;
+  var _lastCompletedHandledSessionId = null;
+
+  function _handleMonitoringMessage(data) {
+    var live = data.live_state;
+    var activeId = data.active_session_id;
+
+    // Update stop button
+    var stopBtn = document.getElementById("stop-analysis-btn");
+    if (stopBtn) stopBtn.disabled = !activeId;
+
+    if (!live) return;
+    var summary = live.summary || {};
+
+    if (live.status === "running" || live.status === "queued") {
+      updateFocusCounts(summary);
+      updateResultCounts(summary);
+      setResultMeta("Đang chạy phân tích", live.source_name || currentVideoName, "");
+      var counts = getVehicleSummary(summary);
+      updateTrafficDensity(counts.total);
+
+    } else if (live.status === "completed") {
+      updateFocusCounts(summary);
+      updateResultCounts(summary);
+      setResultMeta("Phân tích hoàn thành", live.source_name || currentVideoName, "");
+      var completedCounts = getVehicleSummary(summary);
+      updateTrafficDensity(completedCounts.total);
+
+      // Only trigger video playback once per completed session
+      if (live.session_id && _lastCompletedHandledSessionId !== live.session_id) {
+        _lastCompletedHandledSessionId = live.session_id;
+        lastCompleted = {
+          source_id: live.source_id,
+          source_name: live.source_name || currentVideoName,
+          summary: summary
+        };
+        var runBtn = document.getElementById("run-analysis-btn");
+        if (runBtn) { runBtn.disabled = false; runBtn.textContent = "Chạy phân tích"; }
+        fetchSessionAndPlay(live.session_id, live.source_name || currentVideoName, summary);
+      } else if (!live.session_id && live.output_video_path) {
+        lastCompleted = { source_id: live.source_id, source_name: live.source_name || currentVideoName, summary: summary };
+        fetchAndPlayOutputForName(live.source_name || currentVideoName, summary);
+      }
+
+    } else if (live.status === "stopped" || live.status === "cancelled") {
+      updateFocusCounts(summary);
+      updateResultCounts(summary);
+      setResultMeta("Đã dừng phân tích", live.source_name || currentVideoName, "Phiên đã dừng. Bạn có thể chạy lại khi cần.");
+      var runBtn2 = document.getElementById("run-analysis-btn");
+      if (runBtn2) { runBtn2.disabled = false; runBtn2.textContent = "Chạy phân tích"; }
+
+    } else if (live.status === "failed") {
+      updateFocusCounts(summary);
+      updateResultCounts(summary);
+      setResultMeta("Đã dừng phân tích", live.source_name || currentVideoName, live.error_message || "Phiên gặp lỗi và đã dừng.");
+      var runBtn3 = document.getElementById("run-analysis-btn");
+      if (runBtn3) { runBtn3.disabled = false; runBtn3.textContent = "Chạy phân tích"; }
     }
   }
 
-  function pollLiveState() {
-    fetch("/api/monitoring/live-state", { credentials: "same-origin" })
-      .then(function (r) { return r.json(); })
-      .then(function (data) {
-        var live = data.live_state;
-        var activeId = data.active_session_id;
-        if (!activeId && liveStatePollTimer && (!live || live.status === "running" || live.status === "queued")) {
-          stopLiveStatePoll();
-          refreshStopButtonState();
-          return;
-        }
-        if (live && (live.status === "running" || live.status === "queued")) {
-          refreshStopButtonState();
-          var summary = live.summary || {};
-          updateFocusCounts(summary);
-          updateResultCounts(summary);
-          setResultMeta("Đang chạy phân tích", live.source_name || currentVideoName, "");
-          var counts = getVehicleSummary(summary);
-          updateTrafficDensity(counts.total);
-        } else if (live && live.status === "completed") {
-          stopLiveStatePoll();
-          refreshStopButtonState();
-          var summary = live.summary || {};
-          updateFocusCounts(summary);
-          updateResultCounts(summary);
-          setResultMeta("Phân tích hoàn thành", live.source_name || currentVideoName, "");
-          var completedCounts = getVehicleSummary(summary);
-          updateTrafficDensity(completedCounts.total);
-          lastCompleted = {
-            source_id: live.source_id,
-            source_name: live.source_name || currentVideoName,
-            summary: summary
-          };
-          if (live.session_id) {
-            fetchSessionAndPlay(live.session_id, live.source_name || currentVideoName, summary);
-          } else if (live.output_video_path) {
-            fetchAndPlayOutputForName(live.source_name || currentVideoName, summary);
-          } else if ((live.source_name || currentVideoName) && !isEmptySummary(summary)) {
-            // At least keep counts even when output video missing
-            updateFocusCounts(summary);
-            updateResultCounts(summary);
-          }
-          var runBtn = document.getElementById("run-analysis-btn");
-          if (runBtn) { runBtn.disabled = false; runBtn.textContent = "Chạy phân tích"; }
-        } else if (live && (live.status === "stopped" || live.status === "cancelled")) {
-          stopLiveStatePoll();
-          refreshStopButtonState();
-          var summary = live.summary || {};
-          updateFocusCounts(summary);
-          updateResultCounts(summary);
-          setResultMeta("Đã dừng phân tích", live.source_name || currentVideoName, "Phiên đã dừng. Bạn có thể chạy lại khi cần.");
-        } else if (live && live.status === "failed") {
-          stopLiveStatePoll();
-          refreshStopButtonState();
-          var summary = live.summary || {};
-          updateFocusCounts(summary);
-          updateResultCounts(summary);
-          setResultMeta("Đã dừng phân tích", live.source_name || currentVideoName, live.error_message || "Phiên gặp lỗi và đã dừng.");
-        }
-      });
+  function connectMonitoringWS() {
+    if (_monitoringWS && (_monitoringWS.readyState === WebSocket.OPEN || _monitoringWS.readyState === WebSocket.CONNECTING)) {
+      return;
+    }
+    var proto = location.protocol === "https:" ? "wss:" : "ws:";
+    var ws = new WebSocket(proto + "//" + location.host + "/ws/monitoring");
+    _monitoringWS = ws;
+
+    ws.onmessage = function (event) {
+      try { _handleMonitoringMessage(JSON.parse(event.data)); } catch (e) {}
+    };
+
+    ws.onclose = function () {
+      _wsReconnectTimer = setTimeout(connectMonitoringWS, 2000);
+    };
+
+    ws.onerror = function () { ws.close(); };
   }
+
+  // Stubs for backward-compat (startAnalysis still calls stopLiveStatePoll)
+  function stopLiveStatePoll() { /* no-op: WebSocket handles updates */ }
+  function pollLiveState() { /* no-op: WebSocket handles updates */ }
 
   function startAnalysis() {
     if (!currentSourceId) {
@@ -365,9 +381,7 @@
           return;
         }
         setResultMeta("Đang chạy phân tích", data.source_name || currentVideoName, "Đang xử lý video, vui lòng đợi.");
-        refreshStopButtonState();
-        liveStatePollTimer = setInterval(pollLiveState, 800);
-        pollLiveState();
+        // WebSocket sẽ tự động nhận cập nhật — không cần setInterval nữa
       })
       .catch(function () {
         alert("Không thể bắt đầu phân tích.");
@@ -463,22 +477,15 @@
   refreshStopButtonState();
 
   function hydrateFromLiveState() {
-    // Fetch BOTH headless analysis state AND active MJPEG streams in parallel
+    // One-time fetch on page load to restore UI state — ongoing updates via WebSocket
     var pLiveState = fetch("/api/monitoring/live-state", { credentials: "same-origin" })
       .then(function (r) { return r.json(); })
       .catch(function () { return {}; });
-    var pActiveStreams = fetch("/api/stream/active-stats", { credentials: "same-origin" })
-      .then(function (r) { return r.json(); })
-      .catch(function () { return {}; });
 
-    Promise.all([pLiveState, pActiveStreams]).then(function (results) {
-      var data = results[0] || {};
-      var streamData = results[1] || {};
+    pLiveState.then(function (data) {
       var live = data.live_state || null;
       var activeId = data.active_session_id;
-      var headlessActive = false;
 
-      // ---- 1. Handle headless analysis state (existing logic) ----
       if (live) {
         var status = live.status || "";
         var summary = live.summary || {};
@@ -503,37 +510,26 @@
         }
 
         if (activeId && (status === "running" || status === "queued")) {
-          headlessActive = true;
           var runBtn = document.getElementById("run-analysis-btn");
           var stopBtn = document.getElementById("stop-analysis-btn");
-          if (runBtn) {
-            runBtn.disabled = true;
-            runBtn.textContent = "Đang chạy...";
-          }
-          if (stopBtn) {
-            stopBtn.disabled = false;
-          }
+          if (runBtn) { runBtn.disabled = true; runBtn.textContent = "Đang chạy..."; }
+          if (stopBtn) { stopBtn.disabled = false; }
           updateFocusCounts(summary);
           updateResultCounts(summary);
           setResultMeta("Đang chạy phân tích", sourceName, "Đang xử lý video, vui lòng đợi.");
-          if (!liveStatePollTimer) {
-            liveStatePollTimer = setInterval(pollLiveState, 800);
-          }
+          // WebSocket sẽ tiếp tục cập nhật real-time
+
         } else if (status === "completed") {
           updateFocusCounts(summary);
           updateResultCounts(summary);
           setResultMeta("Phân tích hoàn thành", sourceName, "Phân tích xong. Kết quả hiển thị bên dưới.");
-          lastCompleted = {
-            source_id: live.source_id,
-            source_name: sourceName,
-            summary: summary
-          };
+          lastCompleted = { source_id: live.source_id, source_name: sourceName, summary: summary };
           if (live.session_id) {
+            _lastCompletedHandledSessionId = live.session_id;
             fetchSessionAndPlay(live.session_id, sourceName, summary);
           } else if (!isEmptySummary(summary)) {
             fetchAndPlayOutputForName(sourceName, summary);
           } else {
-            // Fallback: ask server for latest sessions and pick the newest completed
             fetch("/api/sessions?limit=5", { credentials: "same-origin" })
               .then(function (r) { return r.json(); })
               .then(function (payload) {
@@ -558,18 +554,15 @@
           updateResultCounts(summary);
           setResultMeta("Đã dừng phân tích", sourceName, live.error_message || "Phiên gặp lỗi và đã dừng.");
         }
-      }
-
-
-
-      // ---- 3. Default: select first tile if nothing else was handled ----
-      if (!live && !isLiveStreaming && !currentVideoName && tiles.length) {
+      } else if (!currentVideoName && tiles.length) {
         setSelectedTile(tiles[0]);
       }
     });
   }
 
   hydrateFromLiveState();
+  connectMonitoringWS();  // Start WebSocket for ongoing real-time updates
+
 
   function uploadFile(file) {
     if (!file || !file.name.match(/\.(mp4|avi|mov|mkv)$/i)) {

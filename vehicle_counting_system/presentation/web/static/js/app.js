@@ -124,18 +124,43 @@
     post(url);
   });
 
-  // Live dot indicator trong sidebar
-  function checkLiveNav() {
-    fetch("/api/monitoring/status", { credentials: "same-origin" })
-      .then(function (r) { return r.json(); })
-      .then(function (data) {
+  // Live dot indicator trong sidebar — dùng WebSocket thay vì poll
+  var _appStatusWS = null;
+  var _appStatusReconnectTimer = null;
+
+  function connectAppStatusWS() {
+    if (_appStatusWS && (_appStatusWS.readyState === WebSocket.OPEN || _appStatusWS.readyState === WebSocket.CONNECTING)) {
+      return;
+    }
+    var proto = location.protocol === "https:" ? "wss:" : "ws:";
+    var ws = new WebSocket(proto + "//" + location.host + "/ws/app-status");
+    _appStatusWS = ws;
+
+    ws.onmessage = function (event) {
+      try {
+        var data = JSON.parse(event.data);
         var dot = document.getElementById("nav-live-dot");
         if (dot) {
-          dot.style.display = data.active_session_id ? "inline-block" : "none";
+          var isActive = data.active_session_id || data.has_active_stream;
+          dot.style.display = isActive ? "inline-block" : "none";
         }
-      })
-      .catch(function () {});
+      } catch (e) {}
+    };
+
+    ws.onclose = function () {
+      _appStatusReconnectTimer = setTimeout(connectAppStatusWS, 3000);
+    };
+
+    ws.onerror = function () { ws.close(); };
   }
-  checkLiveNav();
-  setInterval(checkLiveNav, 3000);
+
+  // Initial check then keep alive via WebSocket
+  fetch("/api/monitoring/status", { credentials: "same-origin" })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      var dot = document.getElementById("nav-live-dot");
+      if (dot) dot.style.display = data.active_session_id ? "inline-block" : "none";
+    })
+    .catch(function () {})
+    .finally(function () { connectAppStatusWS(); });
 })();

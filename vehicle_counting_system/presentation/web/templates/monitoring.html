@@ -661,10 +661,10 @@
         if (loading) loading.style.display = "none";
       };
       
-      // Also add fallback in case of stream errors
+      // Fallback in case of stream errors
       liveStreamImg.onerror = function() {
         if (loading) {
-            loading.innerHTML = '<span style="color:#ef4444; font-weight: 500;">Không thể kết nối. Vui lòng thử lại.</span>';
+          loading.innerHTML = '<span style="color:#ef4444; font-weight: 500;">Không thể kết nối. Vui lòng thử lại.</span>';
         }
       };
 

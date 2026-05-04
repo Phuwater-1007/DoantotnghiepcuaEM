@@ -1,11 +1,10 @@
 (function () {
   // ====================================================================
   // Dashboard Real-time Sync Engine
-  // Polls both headless analysis AND live MJPEG stream, merges the data,
-  // and updates every widget on the page without full reload.
+  // Uses WebSocket /ws/dashboard for server-push updates instead of polling.
+  // Merged from headless analysis AND live MJPEG stream stats.
   // ====================================================================
 
-  var POLL_MS = 1500;
   var conf = window.DashboardData || {};
 
   // Baseline DB values
@@ -668,14 +667,7 @@
       .catch(function () {});
   }
 
-  function pollAll() {
-    var pHeadless = fetch("/api/monitoring/live-state", { credentials: "same-origin" }).then(function (r) { return r.json(); }).catch(function () { return null; });
-    var pStream = fetch("/api/stream/active-stats", { credentials: "same-origin" }).then(function (r) { return r.json(); }).catch(function () { return null; });
-
-    Promise.all([pHeadless, pStream]).then(function (results) {
-      var headless = results[0];
-      var stream = results[1];
-
+  function _processPollResults(headless, stream) {
       var headlessActive = false;
       var streamActive = false;
       var livePerClass = {};
@@ -710,8 +702,8 @@
           bannerTitle = "🎥 Stream trực tiếp đang chạy";
           bannerDetail = stream.stream_count + " luồng camera — dữ liệu cập nhật real-time";
 
-          var pill = document.getElementById("dashboard-status-pill");
-          if (pill) pill.innerHTML = '<span class="live-dot-inline"></span> Stream trực tiếp đang hoạt động';
+          var pill2 = document.getElementById("dashboard-status-pill");
+          if (pill2) pill2.innerHTML = '<span class="live-dot-inline"></span> Stream trực tiếp đang hoạt động';
         }
       }
 
@@ -767,15 +759,12 @@
           }
         }
 
-        var liveMix = getVehicleMix(livePerClass);
         showLiveBanner(bannerTitle, bannerDetail, mergedTotal, mergedMix.automobile, mergedMix.motorcycle);
-
         processLiveFeed(livePerClass, liveTotal, true);
 
       } else {
         hideLiveBanner();
         setStatCardLive(false);
-
         processLiveFeed({}, 0, false);
 
         if (wasHeadlessRunning || wasStreamActive) {
@@ -786,12 +775,62 @@
 
       wasHeadlessRunning = headlessActive;
       wasStreamActive = streamActive;
+  }
+
+  function pollAll() {
+    var pHeadless = fetch("/api/monitoring/live-state", { credentials: "same-origin" }).then(function (r) { return r.json(); }).catch(function () { return null; });
+    var pStream = fetch("/api/stream/active-stats", { credentials: "same-origin" }).then(function (r) { return r.json(); }).catch(function () { return null; });
+
+    Promise.all([pHeadless, pStream]).then(function (results) {
+      _processPollResults(results[0], results[1]);
     });
   }
 
-  // Start polling
-  if(document.getElementById('dashboard-stats')) {
-      pollAll();
-      setInterval(pollAll, POLL_MS);
+  // ====================================================================
+  // WebSocket connection — replaces setInterval(pollAll, POLL_MS)
+  // ====================================================================
+
+  var _dashboardWS = null;
+  var _wsReconnectTimer = null;
+
+  function _handleDashboardMessage(data) {
+    // Rebuild the two-source structure pollAll() expected
+    var headlessPayload = null;
+    var streamPayload = null;
+
+    if (data.live_state || data.active_session_id) {
+      headlessPayload = { active_session_id: data.active_session_id, live_state: data.live_state };
+    }
+    if (data.stream_stats) {
+      streamPayload = data.stream_stats;
+    }
+
+    // Re-use the existing pollAll() logic
+    _processPollResults(headlessPayload, streamPayload);
+  }
+
+  function connectDashboardWS() {
+    if (_dashboardWS && (_dashboardWS.readyState === WebSocket.OPEN || _dashboardWS.readyState === WebSocket.CONNECTING)) {
+      return;
+    }
+    var proto = location.protocol === "https:" ? "wss:" : "ws:";
+    var ws = new WebSocket(proto + "//" + location.host + "/ws/dashboard");
+    _dashboardWS = ws;
+
+    ws.onmessage = function (event) {
+      try { _handleDashboardMessage(JSON.parse(event.data)); } catch (e) {}
+    };
+
+    ws.onclose = function () {
+      _wsReconnectTimer = setTimeout(connectDashboardWS, 2000);
+    };
+
+    ws.onerror = function () { ws.close(); };
+  }
+
+  // Start polling (initial data on page load + WebSocket ongoing)
+  if (document.getElementById('dashboard-stats')) {
+    pollAll();   // one-time initial load
+    connectDashboardWS();
   }
 })();

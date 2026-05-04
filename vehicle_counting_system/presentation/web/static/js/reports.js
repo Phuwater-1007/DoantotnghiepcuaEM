@@ -114,42 +114,63 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // ==========================================================
-// POLLING SERVER CHO CẬP NHẬT BANNER KHI CÓ PHIÊN ĐANG CHẠY
+// WEBSOCKET CHO CẬP NHẬT BANNER KHI CÓ PHIÊN ĐANG CHẠY
 // ==========================================================
 (function () {
   var wasRunning = false;
+  var _reportsWS = null;
+  var _reportsReconnectTimer = null;
 
-  function pollLiveState() {
+  function handleReportUpdate(data) {
+    var activeId = data.active_session_id;
+    var live = data.live_state;
+    var banner = document.getElementById("report-live-banner");
+    var liveTitle = document.getElementById("report-live-title");
+    var liveTotalEl = document.getElementById("report-live-total");
+
+    if (activeId && live && (live.status === "running" || live.status === "queued")) {
+      wasRunning = true;
+      if (banner) banner.style.display = "";
+      if (liveTitle) liveTitle.textContent = "Đang phân tích: " + (live.source_name || "video");
+      var summary = live.summary || {};
+      var total = (typeof summary.total === "number") ? summary.total : 0;
+      if (liveTotalEl) liveTotalEl.textContent = total;
+    } else {
+      if (banner) banner.style.display = "none";
+      // Auto-reload khi phiên vừa hoàn thành → hiện kết quả mới
+      if (wasRunning) {
+        wasRunning = false;
+        setTimeout(function () { window.location.reload(); }, 1500);
+      }
+    }
+  }
+
+  function connectReportsWS() {
+    if (_reportsWS && (_reportsWS.readyState === WebSocket.OPEN || _reportsWS.readyState === WebSocket.CONNECTING)) {
+      return;
+    }
+    var proto = location.protocol === "https:" ? "wss:" : "ws:";
+    var ws = new WebSocket(proto + "//" + location.host + "/ws/monitoring");
+    _reportsWS = ws;
+
+    ws.onmessage = function (event) {
+      try { handleReportUpdate(JSON.parse(event.data)); } catch (e) {}
+    };
+
+    ws.onclose = function () {
+      _reportsReconnectTimer = setTimeout(connectReportsWS, 2000);
+    };
+
+    ws.onerror = function () { ws.close(); };
+  }
+
+  if (document.getElementById('report-live-banner')) {
+    // Initial state check then switch to WebSocket
     fetch("/api/monitoring/live-state", { credentials: "same-origin" })
       .then(function (r) { return r.json(); })
-      .then(function (data) {
-        var activeId = data.active_session_id;
-        var live = data.live_state;
-        var banner = document.getElementById("report-live-banner");
-        var liveTitle = document.getElementById("report-live-title");
-        var liveTotal = document.getElementById("report-live-total");
-
-        if (activeId && live && (live.status === "running" || live.status === "queued")) {
-          wasRunning = true;
-          if (banner) banner.style.display = "";
-          if (liveTitle) liveTitle.textContent = "Đang phân tích: " + (live.source_name || "video");
-          var summary = live.summary || {};
-          var total = (typeof summary.total === "number") ? summary.total : 0;
-          if (liveTotal) liveTotal.textContent = total;
-        } else {
-          if (banner) banner.style.display = "none";
-          // Auto-reload khi phiên vừa hoàn thành → hiện kết quả mới
-          if (wasRunning) {
-            wasRunning = false;
-            setTimeout(function () { window.location.reload(); }, 1500);
-          }
-        }
-      })
-      .catch(function () {});
-  }
-
-  if(document.getElementById('report-live-banner')) {
-      pollLiveState();
-      setInterval(pollLiveState, 2000);
+      .then(function (data) { handleReportUpdate(data); })
+      .catch(function () {})
+      .finally(function () { connectReportsWS(); });
   }
 })();
+
