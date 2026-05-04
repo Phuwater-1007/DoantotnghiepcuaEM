@@ -218,9 +218,9 @@ def draw_track(
     label = None
     parts = []
 
-    # Track ID prefix: "#42"
+    # Track ID prefix: "#1", "#2", "#3"... (display_id tuần tự, không phải ID nội bộ ByteTrack)
     if settings.show_track_id:
-        parts.append(f"#{track.track_id}")
+        parts.append(f"#{track.get_display_id()}")
 
     # Class name & confidence
     if show_label:
