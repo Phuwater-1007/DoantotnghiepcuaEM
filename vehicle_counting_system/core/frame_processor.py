@@ -190,6 +190,19 @@ class FrameProcessor:
         except Exception:
             pass
 
+    def set_active_classes(self, classes: set | None) -> None:
+        """Cập nhật filter loại xe được đếm trong khi stream đang chạy.
+
+        Args:
+            classes: Set tên class cần đếm (vd: {"car", "motorcycle"}).
+                     None = đếm tất cả class được phép trong settings.
+        """
+        from vehicle_counting_system.configs.settings import settings as _settings
+        if classes is None:
+            self.counter._allowed_names = set(_settings.allowed_class_names)
+        else:
+            self.counter._allowed_names = set(classes)
+
     def process(self, frame):
         started_at = time.perf_counter()
         tracks, stats = self._run_inference(frame)

@@ -196,6 +196,10 @@ class _StreamSession:
         self._raw_buffer: Optional[_LatestFrameBuffer] = None
         self._reader_thread: Optional[threading.Thread] = None
 
+        # Vehicle class filter: None = count all allowed classes from settings.
+        # Updated live via POST /api/stream/{source_id}/set-classes.
+        self.active_classes: set | None = None
+
     # ------------------------------------------------------------------
 
     def add_client(self) -> None:
@@ -349,6 +353,10 @@ def _process_live_stream(session: _StreamSession, processor: FrameProcessor) -> 
             # Timeout — loop and check stop_event again
             continue
 
+        # Apply per-session class filter (set by UI toggle, None = count all)
+        if session.active_classes is not None:
+            processor.set_active_classes(session.active_classes)
+
         # YOLO + overlay (Fix #5: if inference lock is busy we've already
         # moved on to the latest frame, so no stale-frame accumulation)
         processed = processor.process(frame)
@@ -405,6 +413,10 @@ def _process_video_file(
             if not ok:
                 logger.info("Stream %s: video finished, saving results", session.source_id)
                 break
+
+            # Apply per-session class filter
+            if session.active_classes is not None:
+                processor.set_active_classes(session.active_classes)
 
             processed = processor.process(frame)
 
@@ -827,5 +839,35 @@ def build_router() -> APIRouter:
 
         _stop_stream(source_id)
         return {"ok": True}
+
+    # ------------------------------------------------------------------
+    # Update vehicle class filter for a running stream
+    # ------------------------------------------------------------------
+    @router.post("/stream/{source_id}/set-classes")
+    async def set_stream_classes(request: Request, source_id: int):
+        auth_err = _require_auth(request)
+        if auth_err is not None:
+            return auth_err
+
+        session = _get_session(source_id)
+        if session is None:
+            return JSONResponse(status_code=404, content={"error": "Stream not active"})
+
+        try:
+            body = await request.json()
+        except Exception:
+            body = {}
+
+        classes = body.get("classes", None)
+        if not classes:
+            # Empty list or None → reset to count all
+            session.active_classes = None
+        else:
+            session.active_classes = set(str(c).lower() for c in classes)
+
+        return {
+            "ok": True,
+            "active_classes": sorted(session.active_classes) if session.active_classes else None
+        }
 
     return router

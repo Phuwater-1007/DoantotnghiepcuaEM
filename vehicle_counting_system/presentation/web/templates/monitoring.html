@@ -238,6 +238,25 @@
             hidden
           >■ Dừng trực tiếp</button>
         </div>
+
+        <!-- ── Bộ lọc loại xe (hiện khi đang live stream) ─── -->
+        <div id="class-filter-panel" class="monitor-class-filter" hidden>
+          <div class="monitor-class-filter-label">Bộ lọc đếm xe</div>
+          <div class="monitor-class-filter-btns">
+            <button type="button" class="class-filter-btn is-active" data-class="car"
+              title="Bật/tắt đếm ô tô">🚗 Ô tô</button>
+            <button type="button" class="class-filter-btn is-active" data-class="motorcycle"
+              title="Bật/tắt đếm xe máy">🏍 Xe máy</button>
+            <button type="button" class="class-filter-btn is-active" data-class="bus"
+              title="Bật/tắt đếm xe buýt">🚌 Xe buýt</button>
+            <button type="button" class="class-filter-btn is-active" data-class="truck"
+              title="Bật/tắt đếm xe tải">🚛 Xe tải</button>
+          </div>
+          <button type="button" id="class-filter-all-btn" class="class-filter-reset-btn">
+            ✓ Đếm tất cả
+          </button>
+        </div>
+
         {% else %}
         <div class="monitor-empty-block">
           <p>Chưa có video để thao tác.</p>
@@ -676,6 +695,14 @@
     if (startLiveBtn) startLiveBtn.hidden = true;
     if (stopLiveBtn) stopLiveBtn.hidden = false;
 
+    // Show vehicle class filter panel
+    var filterPanel = document.getElementById("class-filter-panel");
+    if (filterPanel) filterPanel.hidden = false;
+    // Reset all filters to active
+    document.querySelectorAll(".class-filter-btn").forEach(function(btn) {
+      btn.classList.add("is-active");
+    });
+
     setFocusMode("Trực tiếp (LIVE)", "Đang stream video với YOLO detect real-time.");
     updateFocusCounts({total: 0, per_class: {}});
 
@@ -730,6 +757,10 @@
     if (startLiveBtn) startLiveBtn.hidden = false;
     if (stopLiveBtn) stopLiveBtn.hidden = true;
 
+    // Hide vehicle class filter panel
+    var filterPanel = document.getElementById("class-filter-panel");
+    if (filterPanel) filterPanel.hidden = true;
+
     setFocusMode("Video gốc", "Chạy phân tích để xem kết quả.");
     resetTrafficDensity();
   }
@@ -739,6 +770,45 @@
   }
   if (stopLiveBtn) {
     stopLiveBtn.addEventListener("click", function () { stopLiveStream(); });
+  }
+
+  // ========== VEHICLE CLASS FILTER ==========
+  function applyClassFilter() {
+    if (!isLiveStreaming || !liveStreamSourceId) return;
+    var activeBtns = document.querySelectorAll(".class-filter-btn.is-active");
+    var classes = [];
+    activeBtns.forEach(function(btn) {
+      classes.push(btn.getAttribute("data-class"));
+    });
+    // null means count all (all selected = same as no filter)
+    var allBtns = document.querySelectorAll(".class-filter-btn");
+    var payload = (classes.length === allBtns.length) ? { classes: [] } : { classes: classes };
+    fetch("/api/stream/" + liveStreamSourceId + "/set-classes", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    }).catch(function() {});
+  }
+
+  document.querySelectorAll(".class-filter-btn").forEach(function(btn) {
+    btn.addEventListener("click", function() {
+      btn.classList.toggle("is-active");
+      // Ensure at least 1 type is selected
+      var anyActive = document.querySelectorAll(".class-filter-btn.is-active").length > 0;
+      if (!anyActive) btn.classList.add("is-active"); // revert if all deselected
+      applyClassFilter();
+    });
+  });
+
+  var classFilterAllBtn = document.getElementById("class-filter-all-btn");
+  if (classFilterAllBtn) {
+    classFilterAllBtn.addEventListener("click", function() {
+      document.querySelectorAll(".class-filter-btn").forEach(function(btn) {
+        btn.classList.add("is-active");
+      });
+      applyClassFilter();
+    });
   }
 
   var stopAnalysisBtn = document.getElementById("stop-analysis-btn");
@@ -1047,4 +1117,76 @@
   }
 })();
 </script>
+
+<style>
+/* ── Vehicle Class Filter Panel ───────────────────────────── */
+.monitor-class-filter {
+  margin-top: 12px;
+  padding: 12px 14px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.09);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.monitor-class-filter-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted, #8899aa);
+}
+
+.monitor-class-filter-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.class-filter-btn {
+  padding: 5px 12px;
+  border-radius: 20px;
+  border: 1.5px solid rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.05);
+  color: var(--text-muted, #8899aa);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  white-space: nowrap;
+}
+
+.class-filter-btn:hover {
+  border-color: rgba(255,255,255,0.3);
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+}
+
+.class-filter-btn.is-active {
+  background: rgba(34, 197, 94, 0.18);
+  border-color: rgba(34, 197, 94, 0.55);
+  color: #4ade80;
+  font-weight: 600;
+}
+
+.class-filter-reset-btn {
+  align-self: flex-start;
+  padding: 4px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: transparent;
+  color: var(--text-muted, #8899aa);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.class-filter-reset-btn:hover {
+  background: rgba(255,255,255,0.06);
+  color: #fff;
+}
+</style>
+
 {% endblock %}
