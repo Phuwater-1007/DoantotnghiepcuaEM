@@ -58,7 +58,7 @@ document.addEventListener('DOMContentLoaded', function() {
       csv += `Thời gian xuất báo cáo: ${timeString} - ${dateString}\n\n`;
       
       // Feature Columns
-      csv += "Phiên,Ngày,Giờ,Nguồn phân tích,Tổng lượng xe,Ô tô,Xe máy,Xe buýt,Xe tải,Khung giờ cao điểm,Trạng thái\n";
+      csv += "Phiên,Ngày,Giờ,Nguồn phân tích,Tổng lượng xe,Ô tô,Xe máy,Xe buýt,Xe tải,Chiều Đi,Chiều Về,Lưu lượng (xe/giờ),Khung giờ cao điểm,Trạng thái\n";
       
       const rows = document.querySelectorAll('.report-row');
       
@@ -73,6 +73,9 @@ document.addEventListener('DOMContentLoaded', function() {
           const moto = row.getAttribute('data-moto') || '0';
           const bus = row.getAttribute('data-bus') || '0';
           const truck = row.getAttribute('data-truck') || '0';
+          const di = row.getAttribute('data-di') || '0';
+          const ve = row.getAttribute('data-ve') || '0';
+          const flowrate = row.getAttribute('data-flowrate') || 'N/A';
           const peak = row.getAttribute('data-peak') && row.getAttribute('data-peak') !== 'N/A' ? row.getAttribute('data-peak') : 'Không xác định';
           const status = row.getAttribute('data-status-label') || '';
           
@@ -91,6 +94,9 @@ document.addEventListener('DOMContentLoaded', function() {
             moto,
             bus,
             truck,
+            di,
+            ve,
+            flowrate,
             peak,
             status
           ];

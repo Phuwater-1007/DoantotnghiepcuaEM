@@ -364,10 +364,26 @@ def _process_live_stream(session: _StreamSession, processor: FrameProcessor) -> 
         # Update live stats
         raw_stats = processor.last_stats
         if raw_stats is not None:
+            elapsed_sec = (datetime.now() - session.started_at).total_seconds()
+            dir_data = raw_stats.per_direction
+            # Chỉ tính flow rate sau tối thiểu 60 giây để tránh số liệu sai lệch
+            if elapsed_sec >= 60 and raw_stats.total > 0:
+                elapsed_min = elapsed_sec / 60.0
+                flow_rate = int(round(raw_stats.total / elapsed_min * 60))
+            else:
+                flow_rate = None  # Chưa đủ thời gian quan sát
             with session.lock:
                 session.last_stats = {
                     "total": int(raw_stats.total),
                     "per_class": dict(raw_stats.per_class),
+                    "flow_rate_vph": flow_rate,
+                    "elapsed_sec": int(elapsed_sec),
+                    "directions": {
+                        "di":  {"total": dir_data.get("p1_to_p2", {"total": 0, "per_class": {}})["total"],
+                                "per_class": dir_data.get("p1_to_p2", {"total": 0, "per_class": {}})["per_class"]},
+                        "ve":  {"total": dir_data.get("p2_to_p1", {"total": 0, "per_class": {}})["total"],
+                                "per_class": dir_data.get("p2_to_p1", {"total": 0, "per_class": {}})["per_class"]},
+                    },
                 }
 
         # Resize before encoding: reduces JPEG size → less lag in browser
@@ -422,10 +438,25 @@ def _process_video_file(
 
             raw_stats = processor.last_stats
             if raw_stats is not None:
+                elapsed_sec = (datetime.now() - session.started_at).total_seconds()
+                dir_data = raw_stats.per_direction
+                if elapsed_sec >= 60 and raw_stats.total > 0:
+                    elapsed_min = elapsed_sec / 60.0
+                    flow_rate = int(round(raw_stats.total / elapsed_min * 60))
+                else:
+                    flow_rate = None
                 with session.lock:
                     session.last_stats = {
                         "total": int(raw_stats.total),
                         "per_class": dict(raw_stats.per_class),
+                        "flow_rate_vph": flow_rate,
+                        "elapsed_sec": int(elapsed_sec),
+                        "directions": {
+                            "di":  {"total": dir_data.get("p1_to_p2", {"total": 0, "per_class": {}})["total"],
+                                    "per_class": dir_data.get("p1_to_p2", {"total": 0, "per_class": {}})["per_class"]},
+                            "ve":  {"total": dir_data.get("p2_to_p1", {"total": 0, "per_class": {}})["total"],
+                                    "per_class": dir_data.get("p2_to_p1", {"total": 0, "per_class": {}})["per_class"]},
+                        },
                     }
 
             # Resize before encoding: keeps video files smooth too

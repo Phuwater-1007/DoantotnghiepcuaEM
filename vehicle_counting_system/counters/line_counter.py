@@ -77,6 +77,7 @@ class LineCounter(BaseCounter):
                             break
                     if not skip:
                         self.stats.increment(tr.class_name)
+                        self.stats.increment_direction(tr.class_name, cross_dir)
                         self._counted.add(key)
                         self._recent_positions.append((cx, cy, self._frame_id))
             self._last_anchors[track_id] = current

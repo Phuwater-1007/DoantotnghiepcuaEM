@@ -99,6 +99,48 @@
     };
   }
 
+  // ========== DIRECTION + FLOW RATE HELPERS ==========
+  function updateDirectionCounts(data, prefix) {
+    // prefix = "focus" (khung xem) hoặc "latest" (kết quả)
+    var p = prefix || "focus";
+    var dirs = data && data.directions;
+    var diEl  = document.getElementById(p + "-di-count");
+    var veEl  = document.getElementById(p + "-ve-count");
+    var diStat = document.getElementById(p === "focus" ? "focus-di-stat" : "result-di-stat");
+    var veStat = document.getElementById(p === "focus" ? "focus-ve-stat" : "result-ve-stat");
+    if (!dirs) {
+      if (diStat) diStat.style.display = "none";
+      if (veStat) veStat.style.display = "none";
+      return;
+    }
+    if (diStat) diStat.style.display = "";
+    if (veStat) veStat.style.display = "";
+    if (diEl)  diEl.textContent  = (dirs.di  && dirs.di.total)  || 0;
+    if (veEl)  veEl.textContent  = (dirs.ve  && dirs.ve.total)  || 0;
+  }
+
+  function updateFlowRate(data, prefix) {
+    var p = prefix || "focus";
+    var frEl   = document.getElementById(p === "focus" ? "focus-flowrate" : "latest-flowrate");
+    var frStat = document.getElementById(p === "focus" ? "focus-flowrate-stat" : "result-flowrate-stat");
+    var vph = data && data.flow_rate_vph;
+    if (!frStat) return;
+    if (typeof vph === "number") {
+      frStat.style.display = "";
+      if (frEl) frEl.textContent = vph + " xe/gi\u1edd";
+    } else {
+      frStat.style.display = "none";
+    }
+  }
+
+  function hideDirectionStats() {
+    ["focus-di-stat", "focus-ve-stat", "focus-flowrate-stat",
+     "result-di-stat", "result-ve-stat", "result-flowrate-stat"].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.style.display = "none";
+    });
+  }
+
   function updateFocusCounts(summary) {
     var counts = getVehicleSummary(summary || {});
     if (focusTotalCount) focusTotalCount.textContent = counts.total;
@@ -148,6 +190,7 @@
     setResultMeta("Chưa xem kết quả", "—", "");
     updateResultCounts({});
     resetTrafficDensity();
+    hideDirectionStats();
   }
 
   function fetchAndPlayOutputForName(sourceName, fallbackSummary) {

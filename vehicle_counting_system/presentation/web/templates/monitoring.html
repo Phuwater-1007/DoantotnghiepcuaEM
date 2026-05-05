@@ -189,6 +189,34 @@
           <span>Xe máy</span>
           <strong id="focus-motorcycle-count">0</strong>
         </div>
+        <div class="monitor-live-stat" id="focus-di-stat" style="display:none">
+          <span>↗ Đi</span>
+          <strong id="focus-di-count">0</strong>
+        </div>
+        <div class="monitor-live-stat" id="focus-ve-stat" style="display:none">
+          <span>↘ Về</span>
+          <strong id="focus-ve-count">0</strong>
+        </div>
+        <div class="monitor-live-stat" id="focus-flowrate-stat" style="display:none">
+          <span>Lưu lượng</span>
+          <strong id="focus-flowrate">0 xe/giờ</strong>
+        </div>
+      </div>
+      <!-- D-Factor bar (hiện khi LIVE) -->
+      <div id="focus-dfactor-row" style="display:none; margin-top:10px; padding: 8px 12px; background: rgba(99,102,241,0.07); border-radius:10px; border:1px solid rgba(99,102,241,0.15);">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:5px; font-size:12px; color:var(--color-muted);">
+          <span>↗ Đi: <strong id="focus-dfactor-di-pct" style="color:#6366f1;">—</strong></span>
+          <span style="font-weight:600; color:var(--color-muted); font-size:11px;">D-Factor (tỷ lệ chiều chủ đạo)</span>
+          <span>↘ Về: <strong id="focus-dfactor-ve-pct" style="color:#10b981;">—</strong></span>
+        </div>
+        <div style="display:flex; height:8px; border-radius:6px; overflow:hidden; background:#e5e7eb;">
+          <div id="focus-dfactor-bar-di" style="background:#6366f1; width:50%; transition:width 0.5s ease;"></div>
+          <div id="focus-dfactor-bar-ve" style="background:#10b981; width:50%; transition:width 0.5s ease;"></div>
+        </div>
+        <div style="margin-top:6px; font-size:11px; text-align:center; color:var(--color-muted);">
+          LOS: <span id="focus-los-badge" style="font-weight:700; padding:1px 7px; border-radius:5px; background:#e5e7eb; color:#374151;">—</span>
+          &nbsp;|&nbsp; PCE/giờ: <strong id="focus-pce">—</strong>
+        </div>
       </div>
       {% else %}
       <div class="monitor-empty-block monitor-empty-large">
@@ -268,11 +296,11 @@
       <section class="card monitor-output-panel">
         <div class="monitor-header-row">
           <div>
-            <h3>Kết quả mới nhất</h3>
+            <h3 id="result-panel-title">Kết quả mới nhất</h3>
           </div>
         </div>
 
-        <div class="monitor-selected-panel monitor-session-status-card">
+        <div class="monitor-selected-panel monitor-session-status-card" id="result-status-card">
           <div class="monitor-selected-label">Trạng thái</div>
           <div class="monitor-selected-title" id="latest-session-status">Chưa xem kết quả</div>
           <div class="monitor-selected-status">
@@ -281,20 +309,81 @@
           </div>
         </div>
 
-        <div class="monitor-result-summary" id="result-summary">
-          <div class="monitor-result-stat">
-            <span>Tổng số xe</span>
-            <strong id="latest-total-count">0</strong>
+        <!-- Panel kết quả cũ (hiện khi không stream) -->
+        <div id="result-static-panel">
+          <div class="monitor-result-summary" id="result-summary">
+            <div class="monitor-result-stat">
+              <span>Tổng số xe</span>
+              <strong id="latest-total-count">0</strong>
+            </div>
+            <div class="monitor-result-stat">
+              <span>Ô tô</span>
+              <strong id="latest-car-count">0</strong>
+            </div>
+            <div class="monitor-result-stat">
+              <span>Xe máy</span>
+              <strong id="latest-motorcycle-count">0</strong>
+            </div>
+            <div class="monitor-result-stat" id="result-di-stat" style="display:none">
+              <span>↗ Đi</span>
+              <strong id="latest-di-count">0</strong>
+            </div>
+            <div class="monitor-result-stat" id="result-ve-stat" style="display:none">
+              <span>↘ Về</span>
+              <strong id="latest-ve-count">0</strong>
+            </div>
+            <div class="monitor-result-stat" id="result-flowrate-stat" style="display:none">
+              <span>Lưu lượng</span>
+              <strong id="latest-flowrate">0 xe/giờ</strong>
+            </div>
           </div>
-          <div class="monitor-result-stat">
-            <span>Ô tô</span>
-            <strong id="latest-car-count">0</strong>
-          </div>
-          <div class="monitor-result-stat">
-            <span>Xe máy</span>
-            <strong id="latest-motorcycle-count">0</strong>
+          <!-- D-Factor + LOS (kết quả panel) -->
+          <div id="result-dfactor-row" style="display:none; margin: 8px 0; padding:8px 10px; background:rgba(16,185,129,0.07); border-radius:9px; border:1px solid rgba(16,185,129,0.15); font-size:12px;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+              <span style="color:var(--color-muted);">Chiều chủ đạo</span>
+              <strong id="latest-dominant-dir" style="color:#6366f1;">—</strong>
+            </div>
+            <div style="display:flex; height:6px; border-radius:5px; overflow:hidden; background:#e5e7eb; margin-bottom:6px;">
+              <div id="result-dfactor-bar-di" style="background:#6366f1; width:50%; transition:width 0.5s ease;"></div>
+              <div id="result-dfactor-bar-ve" style="background:#10b981; width:50%;"></div>
+            </div>
+            <div style="display:flex; justify-content:space-between;">
+              <span>LOS: <strong id="result-los-badge" style="padding:1px 6px; border-radius:4px; background:#e5e7eb;">—</strong></span>
+              <span>PCE/giờ: <strong id="result-pce">—</strong></span>
+            </div>
           </div>
         </div>
+
+        <!-- Panel phân tích nhanh (chỉ hiện khi đang LIVE stream) -->
+        <div id="live-analytics-panel" style="display:none;">
+          <!-- Bộ đếm thời gian -->
+          <div style="display:flex; align-items:center; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--color-border); margin-bottom:10px;">
+            <span style="font-size:12px; color:var(--color-muted);">Thời gian giám sát</span>
+            <strong id="live-elapsed-timer" style="font-size:16px; font-variant-numeric:tabular-nums; color:#6366f1;">00:00</strong>
+          </div>
+          <!-- LOS nổi bật -->
+          <div style="text-align:center; padding:12px 0; border-bottom:1px solid var(--color-border); margin-bottom:10px;">
+            <div style="font-size:11px; color:var(--color-muted); margin-bottom:6px; text-transform:uppercase; letter-spacing:0.05em;">Mức phục vụ (LOS)</div>
+            <div id="live-los-big" style="display:inline-block; font-size:36px; font-weight:900; width:56px; height:56px; line-height:56px; border-radius:14px; background:#e5e7eb; color:#374151; margin-bottom:6px;">—</div>
+            <div id="live-los-desc" style="font-size:12px; color:var(--color-muted); font-style:italic;">Đang thu thập dữ liệu...</div>
+          </div>
+          <!-- Chiều chủ đạo -->
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <span style="font-size:12px; color:var(--color-muted);">Chiều chủ đạo</span>
+            <strong id="live-dominant-dir" style="font-size:13px; color:#6366f1;">—</strong>
+          </div>
+          <!-- PCE/giờ -->
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <span style="font-size:12px; color:var(--color-muted);">PCE/giờ</span>
+            <strong id="live-pce-big" style="font-size:13px;">—</strong>
+          </div>
+          <!-- Lưu lượng (xe/giờ) -->
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:12px; color:var(--color-muted);">Lưu lượng</span>
+            <strong id="live-vph-summary" style="font-size:13px;">—</strong>
+          </div>
+        </div>
+
         <div class="monitor-note-row monitor-result-note" id="latest-result-note">
           <span>Mật độ giao thông</span>
           <div id="traffic-density-indicator" class="traffic-density idle">
@@ -378,6 +467,56 @@
   var currentSourceId = null;
   var liveStatePollTimer = null;
   var lastCompleted = null;
+  var liveElapsedTimerInterval = null;  // Bộ đếm giờ stream
+  var liveStreamStartTime = null;       // Thời điểm bắt đầu stream
+
+  // ========== LIVE ANALYTICS PANEL HELPERS ==========
+  var LOS_DESC = {
+    'A': 'Dòng xe thông thoáng',
+    'B': 'Dòng xe ổn định',
+    'C': 'Tốc độ bị hạn chế',
+    'D': 'Gần bão hòa',
+    'E': 'Tắc nghẽ́n',
+    'F': 'Quá tải'
+  };
+
+  function _showLiveAnalytics() {
+    var staticPanel  = document.getElementById('result-static-panel');
+    var livePanel    = document.getElementById('live-analytics-panel');
+    var statusCard   = document.getElementById('result-status-card');
+    var title        = document.getElementById('result-panel-title');
+    if (staticPanel)  staticPanel.style.display  = 'none';
+    if (livePanel)    livePanel.style.display     = '';
+    if (statusCard)   statusCard.style.display    = 'none';  // Ẩn trạng thái khi LIVE
+    if (title)        title.textContent = 'Phân tích nhanh';
+    // Khởi động bộ đếm thời gian
+    liveStreamStartTime = Date.now();
+    if (liveElapsedTimerInterval) clearInterval(liveElapsedTimerInterval);
+    liveElapsedTimerInterval = setInterval(function() {
+      var sec = Math.floor((Date.now() - liveStreamStartTime) / 1000);
+      var mm  = String(Math.floor(sec / 60)).padStart(2, '0');
+      var ss  = String(sec % 60).padStart(2, '0');
+      var el = document.getElementById('live-elapsed-timer');
+      if (el) el.textContent = mm + ':' + ss;
+    }, 1000);
+  }
+
+  function _hideLiveAnalytics() {
+    var staticPanel  = document.getElementById('result-static-panel');
+    var livePanel    = document.getElementById('live-analytics-panel');
+    var statusCard   = document.getElementById('result-status-card');
+    var title        = document.getElementById('result-panel-title');
+    if (staticPanel)  staticPanel.style.display  = '';
+    if (livePanel)    livePanel.style.display     = 'none';
+    if (statusCard)   statusCard.style.display    = '';  // Hiện lại khi dừng
+    if (title)        title.textContent = 'Kết quả mới nhất';
+    if (liveElapsedTimerInterval) {
+      clearInterval(liveElapsedTimerInterval);
+      liveElapsedTimerInterval = null;
+    }
+    var timerEl = document.getElementById('live-elapsed-timer');
+    if (timerEl) timerEl.textContent = '00:00';
+  }
 
   // ========== TRAFFIC DENSITY TRACKER ==========
   var densityHistory = [];        // array of {timestamp, total}
@@ -648,6 +787,147 @@
     updateResultCounts(item.summary || {});
   }
 
+  // ========== DIRECTION / FLOW / D-FACTOR / LOS / PCE HELPERS ==========
+
+  var LOS_THRESHOLDS = [
+    { max: 600,  grade: 'A', color: '#16a34a', bg: '#dcfce7' },
+    { max: 900,  grade: 'B', color: '#65a30d', bg: '#ecfccb' },
+    { max: 1200, grade: 'C', color: '#ca8a04', bg: '#fef9c3' },
+    { max: 1500, grade: 'D', color: '#ea580c', bg: '#ffedd5' },
+    { max: 1800, grade: 'E', color: '#dc2626', bg: '#fee2e2' },
+    { max: Infinity, grade: 'F', color: '#7f1d1d', bg: '#fca5a5' }
+  ];
+
+  function getLOS(vph) {
+    for (var i = 0; i < LOS_THRESHOLDS.length; i++) {
+      if (vph < LOS_THRESHOLDS[i].max) return LOS_THRESHOLDS[i];
+    }
+    return LOS_THRESHOLDS[LOS_THRESHOLDS.length - 1];
+  }
+
+  function calcPCE(perClass) {
+    var car   = (perClass && perClass.car)        || 0;
+    var moto  = (perClass && perClass.motorcycle)  || 0;
+    var bus   = (perClass && perClass.bus)         || 0;
+    var truck = (perClass && perClass.truck)       || 0;
+    return Math.round(car * 1.0 + moto * 0.5 + bus * 2.5 + truck * 2.0);
+  }
+
+  function _setText(id, val)  { var el = document.getElementById(id); if (el) el.textContent = val; }
+  function _setStyle(id, prop, val) { var el = document.getElementById(id); if (el) el.style[prop] = val; }
+  function _show(id) { _setStyle(id, 'display', ''); }
+  function _hide(id) { _setStyle(id, 'display', 'none'); }
+
+  function updateDirectionCounts(data) {
+    var dirs = data && data.directions;
+    if (!dirs) return;
+    var di = (dirs.di && dirs.di.total) || 0;
+    var ve = (dirs.ve && dirs.ve.total) || 0;
+    _setText('focus-di-count',  di);
+    _setText('focus-ve-count',  ve);
+    _setText('latest-di-count', di);
+    _setText('latest-ve-count', ve);
+    _show('focus-di-stat');   _show('focus-ve-stat');
+    _show('result-di-stat');  _show('result-ve-stat');
+  }
+
+  function updateFlowRate(data) {
+    var vph = data && data.flow_rate_vph;
+    var elapsed = (data && data.elapsed_sec) || 0;
+    _show('focus-flowrate-stat');
+    _show('result-flowrate-stat');
+    if (typeof vph === 'number') {
+      var elapsedMin = Math.round(elapsed / 60);
+      var label = vph + ' xe/giờ';
+      if (elapsedMin >= 1) label += ' (' + elapsedMin + ' phút)';
+      _setText('focus-flowrate',  label);
+      _setText('latest-flowrate', label);
+      _setText('live-vph-summary', label);
+    } else {
+      var remaining = Math.max(0, 60 - elapsed);
+      var waitLabel = 'Đang thu thập... (' + remaining + 's)';
+      _setText('focus-flowrate',  waitLabel);
+      _setText('latest-flowrate', waitLabel);
+      _setText('live-vph-summary', waitLabel);
+    }
+  }
+
+  function updateDFactor(data) {
+    var dirs = data && data.directions;
+    if (!dirs) return;
+    var di = (dirs.di && dirs.di.total) || 0;
+    var ve = (dirs.ve && dirs.ve.total) || 0;
+    var total = di + ve;
+    if (total === 0) return;
+    var diPct = Math.round(di / total * 100);
+    var vePct = 100 - diPct;
+    var dominant = diPct >= vePct ? ('↗ Đi (' + diPct + '%)') : ('↘ Về (' + vePct + '%)');
+    // Focus panel
+    _setText('focus-dfactor-di-pct', diPct + '%');
+    _setText('focus-dfactor-ve-pct', vePct + '%');
+    _setStyle('focus-dfactor-bar-di', 'width', diPct + '%');
+    _setStyle('focus-dfactor-bar-ve', 'width', vePct + '%');
+    _show('focus-dfactor-row');
+    // Result static panel
+    _setText('latest-dominant-dir', dominant);
+    _setStyle('result-dfactor-bar-di', 'width', diPct + '%');
+    _setStyle('result-dfactor-bar-ve', 'width', vePct + '%');
+    _show('result-dfactor-row');
+    // Live analytics panel
+    _setText('live-dominant-dir', dominant);
+  }
+
+  function updateLOS(data) {
+    var vph = data && data.flow_rate_vph;
+    if (typeof vph !== 'number') {
+      _setText('focus-los-badge',  '—');
+      _setText('result-los-badge', '—');
+      _setText('live-los-big',  '—');
+      _setText('live-los-desc', 'Đang thu thập dữ liệu...');
+      return;
+    }
+    var los = getLOS(vph);
+    var desc = LOS_DESC[los.grade] || '';
+    var focusBadge = document.getElementById('focus-los-badge');
+    if (focusBadge) { focusBadge.textContent = los.grade; focusBadge.style.background = los.bg; focusBadge.style.color = los.color; }
+    var resultBadge = document.getElementById('result-los-badge');
+    if (resultBadge) { resultBadge.textContent = los.grade; resultBadge.style.background = los.bg; resultBadge.style.color = los.color; }
+    // Live analytics panel
+    var liveBig = document.getElementById('live-los-big');
+    if (liveBig) { liveBig.textContent = los.grade; liveBig.style.background = los.bg; liveBig.style.color = los.color; }
+    _setText('live-los-desc', desc);
+  }
+
+  function updatePCE(data) {
+    var vph = data && data.flow_rate_vph;
+    if (typeof vph !== 'number') {
+      _setText('focus-pce',  '—');
+      _setText('result-pce', '—');
+      _setText('live-pce-big', '—');
+      return;
+    }
+    var perClass = (data && data.per_class) || {};
+    var pce = calcPCE(perClass);
+    var total = data.total || 1;
+    var pceVph = total > 0 ? Math.round(pce / total * vph) : 0;
+    _setText('focus-pce',    pceVph);
+    _setText('result-pce',   pceVph);
+    _setText('live-pce-big', pceVph);
+  }
+
+  function showDirectionStats() {
+    _show('focus-di-stat');   _show('focus-ve-stat');   _show('focus-flowrate-stat');
+    _show('result-di-stat');  _show('result-ve-stat');  _show('result-flowrate-stat');
+  }
+
+  function hideDirectionStats() {
+    ['focus-di-stat','focus-ve-stat','focus-flowrate-stat','focus-dfactor-row',
+     'result-di-stat','result-ve-stat','result-flowrate-stat','result-dfactor-row'
+    ].forEach(function(id) { _hide(id); });
+    _setText('focus-los-badge',  '—'); _setText('focus-pce',  '—');
+    _setText('result-los-badge', '—'); _setText('result-pce', '—');
+  }
+
   // ========== LIVE STREAM FUNCTIONS ==========
   function startLiveStream() {
     if (!currentSourceId) {
@@ -705,6 +985,7 @@
 
     setFocusMode("Trực tiếp (LIVE)", "Đang stream video với YOLO detect real-time.");
     updateFocusCounts({total: 0, per_class: {}});
+    _showLiveAnalytics();  // Chuyển panel phải sang "Phân tích nhanh"
 
     // Poll stats
     liveStatsPollTimer = setInterval(function () {
@@ -716,7 +997,11 @@
             updateFocusCounts(data);
             updateResultCounts(data);
             setResultMeta("Đang stream trực tiếp", currentVideoName, "");
-            // Update traffic density based on total vehicle count
+            updateDirectionCounts(data);  // Đi / Về
+            updateFlowRate(data);         // xe/giờ
+            updateDFactor(data);          // tỷ lệ chiều + thanh progress
+            updateLOS(data);              // Level of Service A→F
+            updatePCE(data);              // PCE/giờ
             var counts = getVehicleSummary(data);
             updateTrafficDensity(counts.total);
           }
@@ -763,6 +1048,8 @@
 
     setFocusMode("Video gốc", "Chạy phân tích để xem kết quả.");
     resetTrafficDensity();
+    hideDirectionStats();
+    _hideLiveAnalytics();  // Quảy lại panel "Kết quả mới nhất"
   }
 
   if (startLiveBtn) {

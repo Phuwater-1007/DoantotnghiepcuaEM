@@ -618,6 +618,7 @@
     }
   }
 
+
   function showLiveBanner(title, detail, total, car, moto) {
     var banner = document.getElementById("live-analysis-banner");
     if (banner) banner.style.display = "";

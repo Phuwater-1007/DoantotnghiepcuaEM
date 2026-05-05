@@ -106,6 +106,9 @@
           data-moto="{{ c_moto }}"
           data-bus="{{ c_bus }}"
           data-truck="{{ c_truck }}"
+          data-di="0"
+          data-ve="0"
+          data-flowrate="N/A"
           data-peak="{{ report.peak_hour_label }}"
           data-status-label="{% if report.status == 'completed' %}Hoàn thành{% elif report.status == 'running' %}Đang chạy{% elif report.status == 'queued' %}Đang chờ{% elif report.status == 'failed' %}Thất bại{% elif report.status == 'stopped' %}Đã dừng{% else %}{{ report.status }}{% endif %}">
         <td style="font-family: inherit; font-weight: 700; color: #4f46e5;">#{{ report.session_id }}</td>
