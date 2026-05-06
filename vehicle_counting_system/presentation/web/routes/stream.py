@@ -36,6 +36,9 @@ _RTSP_TRANSPORT: str = os.getenv("STREAM_RTSP_TRANSPORT", "tcp").lower()
 #     0 = disabled (send full resolution). Default 1280 is a good balance.
 _STREAM_OUTPUT_WIDTH: int = int(os.getenv("STREAM_OUTPUT_WIDTH", "1280"))
 
+# --- GPU Guard: max concurrent AI streams (RTX 3050 4GB VRAM safe limit) ---
+MAX_CONCURRENT_STREAMS: int = int(os.getenv("MAX_CONCURRENT_STREAMS", "3"))
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -685,10 +688,21 @@ def _ensure_stream(
     counting_persistence=None,
     source_name: str = "",
 ) -> _StreamSession:
-    """Get existing stream or create a new one. Never restarts a running stream."""
+    """Get existing stream or create a new one. Never restarts a running stream.
+    Returns None if MAX_CONCURRENT_STREAMS limit reached."""
     existing = _get_session(source_id)
     if existing is not None and not existing.stop_event.is_set():
         return existing
+
+    # GPU guard: check concurrent stream count
+    with _registry_lock:
+        active_count = sum(1 for s in _active_streams.values() if not s.stop_event.is_set())
+    if active_count >= MAX_CONCURRENT_STREAMS:
+        logger.warning(
+            "GPU guard: refusing new stream (active=%d, max=%d)",
+            active_count, MAX_CONCURRENT_STREAMS,
+        )
+        return None  # Caller should check and return error
 
     session = _StreamSession(
         source_id=source_id,
@@ -751,10 +765,14 @@ def build_router() -> APIRouter:
         for source_id, session in snapshot:
             with session.lock:
                 stats = dict(session.last_stats)
+            elapsed = int((datetime.now() - session.started_at).total_seconds())
             streams.append({
                 "source_id": source_id,
+                "source_name": session.source_name or f"Source {source_id}",
+                "is_live": session.is_live,
                 "total": stats.get("total", 0),
                 "per_class": stats.get("per_class", {}),
+                "elapsed_sec": elapsed,
             })
 
         agg_total = 0
@@ -767,6 +785,7 @@ def build_router() -> APIRouter:
         return {
             "has_active_stream": len(streams) > 0,
             "stream_count": len(streams),
+            "max_streams": MAX_CONCURRENT_STREAMS,
             "total": agg_total,
             "per_class": agg_per_class,
             "streams": streams,
@@ -807,6 +826,16 @@ def build_router() -> APIRouter:
             counting_persistence=container.counting_persistence_service,
             source_name=source.name,
         )
+
+        if session is None:
+            return JSONResponse(
+                status_code=429,
+                content={
+                    "error": f"Đã đạt giới hạn {MAX_CONCURRENT_STREAMS} luồng đồng thời. "
+                             "Dừng một luồng khác trước khi bắt đầu luồng mới.",
+                    "max_streams": MAX_CONCURRENT_STREAMS,
+                },
+            )
 
         def generate():
             session.add_client()

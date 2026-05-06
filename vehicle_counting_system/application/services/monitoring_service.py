@@ -29,6 +29,8 @@ class MonitoringService:
         self._stop_event: threading.Event | None = None
         self._worker: threading.Thread | None = None
         self._live_state: dict[str, Any] | None = None
+        # Queue for multi-headless analysis
+        self._queue: list[dict[str, Any]] = []  # [{source_id, user_id, queued_at}]
 
     def list_sessions(self, limit: int = 10) -> list[dict[str, Any]]:
         rows = self.db.fetchall(
@@ -88,29 +90,115 @@ class MonitoringService:
 
         with self._lock:
             if self._active_session_id is not None:
-                raise RuntimeError("Đã có phiên phân tích đang chạy.")
+                raise RuntimeError("Đã có phiên phân tích đang chạy. Dùng queue_session() để xếp hàng.")
 
-            session_id = self.db.execute_and_get_id(
-                """
-                INSERT INTO analysis_sessions (source_id, started_by, status, summary_json)
-                VALUES (?, ?, ?, ?)
-                """,
-                (source_id, user_id, "queued", "{}"),
-            )
+            return self._start_session_locked(source_id, user_id)
 
-            stop_event = threading.Event()
-            worker = threading.Thread(
-                target=self._run_session,
-                args=(session_id, source_id, stop_event),
-                name=f"analysis-session-{session_id}",
-                # Make it daemon so web shutdown doesn't hang the process.
-                daemon=True,
-            )
-            self._active_session_id = session_id
-            self._stop_event = stop_event
-            self._worker = worker
-            worker.start()
-            return session_id
+    def _start_session_locked(self, source_id: int, user_id: int) -> int:
+        """Internal: start a session (must be called with self._lock held or no active session)."""
+        session_id = self.db.execute_and_get_id(
+            """
+            INSERT INTO analysis_sessions (source_id, started_by, status, summary_json)
+            VALUES (?, ?, ?, ?)
+            """,
+            (source_id, user_id, "queued", "{}"),
+        )
+
+        stop_event = threading.Event()
+        worker = threading.Thread(
+            target=self._run_session,
+            args=(session_id, source_id, stop_event),
+            name=f"analysis-session-{session_id}",
+            daemon=True,
+        )
+        self._active_session_id = session_id
+        self._stop_event = stop_event
+        self._worker = worker
+        worker.start()
+        return session_id
+
+    # ------------------------------------------------------------------
+    # Queue management for multi-headless analysis
+    # ------------------------------------------------------------------
+
+    def queue_session(self, source_id: int, user_id: int) -> dict[str, Any]:
+        """Add a source to the analysis queue. If no session running, start immediately."""
+        source = self.source_service.get_source(source_id)
+        if source is None:
+            raise ValueError("Không tìm thấy nguồn.")
+        if not source.counting_config_path:
+            raise ValueError("Video này chưa có ROI.")
+
+        with self._lock:
+            # Check if already queued
+            for item in self._queue:
+                if item["source_id"] == source_id:
+                    return {"action": "already_queued", "source_id": source_id}
+
+            # If nothing running, start immediately
+            if self._active_session_id is None:
+                session_id = self._start_session_locked(source_id, user_id)
+                return {"action": "started", "session_id": session_id, "source_id": source_id}
+
+            # If the same source is already running, skip
+            if self._active_session_id is not None:
+                active_source = self._get_active_source_id()
+                if active_source == source_id:
+                    return {"action": "already_running", "source_id": source_id}
+
+            # Queue it
+            self._queue.append({
+                "source_id": source_id,
+                "user_id": user_id,
+                "queued_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+                "source_name": source.name,
+            })
+            return {
+                "action": "queued",
+                "source_id": source_id,
+                "position": len(self._queue),
+                "source_name": source.name,
+            }
+
+    def get_queue(self) -> list[dict[str, Any]]:
+        """Return current queue + active session info."""
+        with self._lock:
+            return {
+                "active_session_id": self._active_session_id,
+                "active_live_state": copy.deepcopy(self._live_state) if self._live_state else None,
+                "queue": list(self._queue),
+            }
+
+    def remove_from_queue(self, source_id: int) -> bool:
+        """Remove a queued item by source_id."""
+        with self._lock:
+            before = len(self._queue)
+            self._queue = [q for q in self._queue if q["source_id"] != source_id]
+            return len(self._queue) < before
+
+    def _get_active_source_id(self) -> int | None:
+        """Get source_id of currently running session (must hold lock)."""
+        if self._live_state:
+            return self._live_state.get("source_id")
+        return None
+
+    def _process_next_in_queue(self) -> None:
+        """Auto-start the next queued session if any."""
+        with self._lock:
+            if self._active_session_id is not None:
+                return  # Something is still running
+            if not self._queue:
+                return  # Nothing queued
+            next_item = self._queue.pop(0)
+
+        logger.info("Queue: auto-starting next session for source %s", next_item["source_id"])
+        try:
+            with self._lock:
+                self._start_session_locked(next_item["source_id"], next_item["user_id"])
+        except Exception:
+            logger.exception("Queue: failed to auto-start source %s", next_item["source_id"])
+            # Try the next one
+            self._process_next_in_queue()
 
     def stop_active_session(self) -> None:
         with self._lock:
@@ -338,6 +426,8 @@ class MonitoringService:
                 self._active_session_id = None
                 self._stop_event = None
                 self._worker = None
+            # Auto-start next queued session
+            self._process_next_in_queue()
 
     def _mark_failed(self, session_id: int, message: str) -> None:
         self.db.execute(

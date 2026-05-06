@@ -25,7 +25,10 @@
     <div class="monitor-source-actions">
       <div class="monitor-uploadbox" id="drop-zone">
         <div class="monitor-uploadbox-icon">
-          <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 16V4m0 0L8 8m4-4l4 4M4 14v4a2 2 0 002 2h12a2 2 0 002-2v-4"/></svg>
+          <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="M12 16V4m0 0L8 8m4-4l4 4M4 14v4a2 2 0 002 2h12a2 2 0 002-2v-4" />
+          </svg>
         </div>
         <div class="monitor-uploadbox-title">Tải video lên</div>
         <div class="monitor-uploadbox-subtitle">Kéo thả hoặc bấm — mp4, avi, mov, mkv</div>
@@ -38,27 +41,22 @@
 
       <div class="monitor-rtsp-box" id="rtsp-form-box">
         <div class="monitor-uploadbox-icon monitor-rtsp-icon-color">
-          <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+          <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+          </svg>
         </div>
         <div class="monitor-uploadbox-title">Kết nối Camera IP</div>
         <div class="monitor-uploadbox-subtitle">Nhập URL RTSP hoặc HTTP stream</div>
         <div class="monitor-rtsp-form" id="rtsp-connect-form">
-          <input
-            type="text"
-            id="rtsp-cam-name"
-            class="monitor-rtsp-input"
-            placeholder="Tên camera (VD: Cổng chính)"
-            autocomplete="off"
-          >
-          <input
-            type="text"
-            id="rtsp-cam-url"
-            class="monitor-rtsp-input"
-            placeholder="rtsp://admin:pass@192.168.1.100:554/stream1"
-            autocomplete="off"
-          >
+          <input type="text" id="rtsp-cam-name" class="monitor-rtsp-input" placeholder="Tên camera (VD: Cổng chính)"
+            autocomplete="off">
+          <input type="text" id="rtsp-cam-url" class="monitor-rtsp-input"
+            placeholder="rtsp://admin:pass@192.168.1.100:554/stream1" autocomplete="off">
           <button type="button" id="rtsp-connect-btn" class="monitor-rtsp-btn">
-            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
             <span id="rtsp-btn-text">Kết nối</span>
           </button>
           <div class="monitor-rtsp-status" id="rtsp-status" hidden></div>
@@ -79,22 +77,17 @@
     {% if detected_videos %}
     <div class="monitor-tile-row">
       {% for v in detected_videos[:5] %}
-      <button
-        type="button"
-        class="monitor-video-tile {% if loop.first %}is-selected{% endif %}"
-        data-video-path="{{ v.path }}"
-        data-video-url="{{ v.preview_url }}"
-        data-video-name="{{ v.name }}"
-        data-video-roi="{{ 'yes' if v.roi_ready else 'no' }}"
-        data-source-id="{{ v.source_id if v.source_id else '' }}"
-        data-source-type="{{ v.source_type|default('video') }}"
-        data-cam-index="{{ loop.index }}"
-      >
+      <div class="monitor-tile-wrapper" style="position: relative;">
+      <button type="button" class="monitor-video-tile {% if loop.first %}is-selected{% endif %}"
+        data-video-path="{{ v.path }}" data-video-url="{{ v.preview_url }}" data-video-name="{{ v.name }}"
+        data-video-roi="{{ 'yes' if v.roi_ready else 'no' }}" data-source-id="{{ v.source_id if v.source_id else '' }}"
+        data-source-type="{{ v.source_type|default('video') }}" data-cam-index="{{ loop.index }}">
         <div class="monitor-video-frame">
           {% if v.source_type == 'stream' %}
           <div class="monitor-stream-placeholder">
             <svg width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
             </svg>
             <span>RTSP</span>
           </div>
@@ -107,7 +100,12 @@
         <div class="monitor-video-info">
           <span class="monitor-video-cam-label">
             {% if v.source_type == 'stream' %}
-            <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align: -1px; margin-right: 2px;"><circle cx="12" cy="12" r="3"/><path d="M16.24 7.76a6 6 0 010 8.49m-8.48-.01a6 6 0 010-8.49m11.31-2.82a10 10 0 010 14.14m-14.14 0a10 10 0 010-14.14"/></svg>
+            <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
+              style="vertical-align: -1px; margin-right: 2px;">
+              <circle cx="12" cy="12" r="3" />
+              <path
+                d="M16.24 7.76a6 6 0 010 8.49m-8.48-.01a6 6 0 010-8.49m11.31-2.82a10 10 0 010 14.14m-14.14 0a10 10 0 010-14.14" />
+            </svg>
             {% endif %}
             CAM {{ loop.index }}
           </span>
@@ -117,6 +115,16 @@
           </span>
         </div>
       </button>
+      {% if v.source_id %}
+      <button
+        type="button"
+        class="tile-delete-btn"
+        data-source-id="{{ v.source_id }}"
+        data-source-name="{{ v.name }}"
+        title="Xóa luồng {{ v.name }}"
+      >✕</button>
+      {% endif %}
+      </div>
       {% endfor %}
     </div>
     {% else %}
@@ -134,7 +142,7 @@
       <div class="monitor-header-row">
         <div>
           <h3>Khung xem chính</h3>
-            <p id="focus-player-note">
+          <p id="focus-player-note">
             Video gốc. Bấm Chạy phân tích để xử lý và xem kết quả.
           </p>
         </div>
@@ -148,32 +156,33 @@
         <div class="live-badge" id="live-badge" hidden>
           <span class="live-badge-dot"></span> LIVE
         </div>
-        <video
-          id="focus-player"
-          class="monitor-focus-player"
+        <video id="focus-player" class="monitor-focus-player"
           style="width: 100% !important; height: auto !important; aspect-ratio: auto !important; object-fit: contain !important; border-radius: 18px !important; display: block !important;"
-          controls
-          playsinline
-          preload="metadata"
-          src="{{ first_video.preview_url }}"
-        ></video>
+          controls playsinline preload="metadata" src="{{ first_video.preview_url }}"></video>
         <style>
-          @keyframes monitor-spin { to { transform: rotate(360deg); } }
+          @keyframes monitor-spin {
+            to {
+              transform: rotate(360deg);
+            }
+          }
         </style>
-        <div id="live-stream-wrapper" style="display: none; position: relative; overflow: hidden; width: 100%; border-radius: 18px; min-height: 220px; background: #111827;">
-          <div id="live-stream-loading" style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1; background: #1a1a2e;">
-            <svg style="animation: monitor-spin 1s linear infinite; width: 40px; height: 40px; margin-bottom: 12px; color: #818cf8;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <div id="live-stream-wrapper"
+          style="display: none; position: relative; overflow: hidden; width: 100%; border-radius: 18px; min-height: 220px; background: #111827;">
+          <div id="live-stream-loading"
+            style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1; background: #1a1a2e;">
+            <svg
+              style="animation: monitor-spin 1s linear infinite; width: 40px; height: 40px; margin-bottom: 12px; color: #818cf8;"
+              xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
               <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-opacity="0.25" stroke-width="4"></circle>
-              <path fill="currentColor" fill-opacity="0.75" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              <path fill="currentColor" fill-opacity="0.75"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+              </path>
             </svg>
             <span style="font-size: 14px; font-weight: 500; color: #a5b4fc;">Đang kết nối luồng phân tích...</span>
           </div>
           <!-- img dùng natural flow (không absolute) → tự fill theo tỷ lệ thực của camera, không có viền đen -->
-          <img
-            id="live-stream-img"
-            alt="Live Stream"
-            style="display: block; width: 100%; height: auto; border-radius: 18px; position: relative; z-index: 2; opacity: 0; transition: opacity 0.4s ease;"
-          >
+          <img id="live-stream-img" alt="Live Stream"
+            style="display: block; width: 100%; height: auto; border-radius: 18px; position: relative; z-index: 2; opacity: 0; transition: opacity 0.4s ease;">
         </div>
       </div>
       <div class="monitor-live-summary" id="focus-summary">
@@ -203,8 +212,10 @@
         </div>
       </div>
       <!-- D-Factor bar (hiện khi LIVE) -->
-      <div id="focus-dfactor-row" style="display:none; margin-top:10px; padding: 8px 12px; background: rgba(99,102,241,0.07); border-radius:10px; border:1px solid rgba(99,102,241,0.15);">
-        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:5px; font-size:12px; color:var(--color-muted);">
+      <div id="focus-dfactor-row"
+        style="display:none; margin-top:10px; padding: 8px 12px; background: rgba(99,102,241,0.07); border-radius:10px; border:1px solid rgba(99,102,241,0.15);">
+        <div
+          style="display:flex; align-items:center; justify-content:space-between; margin-bottom:5px; font-size:12px; color:var(--color-muted);">
           <span>↗ Đi: <strong id="focus-dfactor-di-pct" style="color:#6366f1;">—</strong></span>
           <span style="font-weight:600; color:var(--color-muted); font-size:11px;">D-Factor (tỷ lệ chiều chủ đạo)</span>
           <span>↘ Về: <strong id="focus-dfactor-ve-pct" style="color:#10b981;">—</strong></span>
@@ -214,7 +225,8 @@
           <div id="focus-dfactor-bar-ve" style="background:#10b981; width:50%; transition:width 0.5s ease;"></div>
         </div>
         <div style="margin-top:6px; font-size:11px; text-align:center; color:var(--color-muted);">
-          LOS: <span id="focus-los-badge" style="font-weight:700; padding:1px 7px; border-radius:5px; background:#e5e7eb; color:#374151;">—</span>
+          LOS: <span id="focus-los-badge"
+            style="font-weight:700; padding:1px 7px; border-radius:5px; background:#e5e7eb; color:#374151;">—</span>
           &nbsp;|&nbsp; PCE/giờ: <strong id="focus-pce">—</strong>
         </div>
       </div>
@@ -247,38 +259,26 @@
         </div>
 
         <div class="monitor-operator-actions">
-          <a
-            id="edit-roi-link"
-            href="/monitoring/edit-roi-for-video?path={{ first_video.path|urlencode }}"
-            class="btn btn-outline"
-          >Chỉnh ROI</a>
-          <button
-            id="start-live-btn"
-            type="button"
-            class="btn btn-live"
-            title="Stream video trực tiếp với YOLO detect"
-          >▶ Xem trực tiếp</button>
-          <button
-            id="stop-live-btn"
-            type="button"
-            class="btn btn-outline btn-stop-live"
-            title="Dừng stream trực tiếp"
-            hidden
-          >■ Dừng trực tiếp</button>
+          <a id="edit-roi-link" href="/monitoring/edit-roi-for-video?path={{ first_video.path|urlencode }}"
+            class="btn btn-outline">Chỉnh ROI</a>
+          <button id="start-live-btn" type="button" class="btn btn-live"
+            title="Stream video trực tiếp với YOLO detect">▶ Xem trực tiếp</button>
+          <button id="stop-live-btn" type="button" class="btn btn-outline btn-stop-live" title="Dừng stream trực tiếp"
+            hidden>■ Dừng trực tiếp</button>
         </div>
 
         <!-- ── Bộ lọc loại xe (hiện khi đang live stream) ─── -->
         <div id="class-filter-panel" class="monitor-class-filter" hidden>
           <div class="monitor-class-filter-label">Bộ lọc đếm xe</div>
           <div class="monitor-class-filter-btns">
-            <button type="button" class="class-filter-btn is-active" data-class="car"
-              title="Bật/tắt đếm ô tô">🚗 Ô tô</button>
+            <button type="button" class="class-filter-btn is-active" data-class="car" title="Bật/tắt đếm ô tô">🚗 Ô
+              tô</button>
             <button type="button" class="class-filter-btn is-active" data-class="motorcycle"
               title="Bật/tắt đếm xe máy">🏍 Xe máy</button>
-            <button type="button" class="class-filter-btn is-active" data-class="bus"
-              title="Bật/tắt đếm xe buýt">🚌 Xe buýt</button>
-            <button type="button" class="class-filter-btn is-active" data-class="truck"
-              title="Bật/tắt đếm xe tải">🚛 Xe tải</button>
+            <button type="button" class="class-filter-btn is-active" data-class="bus" title="Bật/tắt đếm xe buýt">🚌 Xe
+              buýt</button>
+            <button type="button" class="class-filter-btn is-active" data-class="truck" title="Bật/tắt đếm xe tải">🚛 Xe
+              tải</button>
           </div>
           <button type="button" id="class-filter-all-btn" class="class-filter-reset-btn">
             ✓ Đếm tất cả
@@ -338,17 +338,20 @@
             </div>
           </div>
           <!-- D-Factor + LOS (kết quả panel) -->
-          <div id="result-dfactor-row" style="display:none; margin: 8px 0; padding:8px 10px; background:rgba(16,185,129,0.07); border-radius:9px; border:1px solid rgba(16,185,129,0.15); font-size:12px;">
+          <div id="result-dfactor-row"
+            style="display:none; margin: 8px 0; padding:8px 10px; background:rgba(16,185,129,0.07); border-radius:9px; border:1px solid rgba(16,185,129,0.15); font-size:12px;">
             <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
               <span style="color:var(--color-muted);">Chiều chủ đạo</span>
               <strong id="latest-dominant-dir" style="color:#6366f1;">—</strong>
             </div>
-            <div style="display:flex; height:6px; border-radius:5px; overflow:hidden; background:#e5e7eb; margin-bottom:6px;">
+            <div
+              style="display:flex; height:6px; border-radius:5px; overflow:hidden; background:#e5e7eb; margin-bottom:6px;">
               <div id="result-dfactor-bar-di" style="background:#6366f1; width:50%; transition:width 0.5s ease;"></div>
               <div id="result-dfactor-bar-ve" style="background:#10b981; width:50%;"></div>
             </div>
             <div style="display:flex; justify-content:space-between;">
-              <span>LOS: <strong id="result-los-badge" style="padding:1px 6px; border-radius:4px; background:#e5e7eb;">—</strong></span>
+              <span>LOS: <strong id="result-los-badge"
+                  style="padding:1px 6px; border-radius:4px; background:#e5e7eb;">—</strong></span>
               <span>PCE/giờ: <strong id="result-pce">—</strong></span>
             </div>
           </div>
@@ -357,15 +360,23 @@
         <!-- Panel phân tích nhanh (chỉ hiện khi đang LIVE stream) -->
         <div id="live-analytics-panel" style="display:none;">
           <!-- Bộ đếm thời gian -->
-          <div style="display:flex; align-items:center; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--color-border); margin-bottom:10px;">
+          <div
+            style="display:flex; align-items:center; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--color-border); margin-bottom:10px;">
             <span style="font-size:12px; color:var(--color-muted);">Thời gian giám sát</span>
-            <strong id="live-elapsed-timer" style="font-size:16px; font-variant-numeric:tabular-nums; color:#6366f1;">00:00</strong>
+            <strong id="live-elapsed-timer"
+              style="font-size:16px; font-variant-numeric:tabular-nums; color:#6366f1;">00:00</strong>
           </div>
           <!-- LOS nổi bật -->
-          <div style="text-align:center; padding:12px 0; border-bottom:1px solid var(--color-border); margin-bottom:10px;">
-            <div style="font-size:11px; color:var(--color-muted); margin-bottom:6px; text-transform:uppercase; letter-spacing:0.05em;">Mức phục vụ (LOS)</div>
-            <div id="live-los-big" style="display:inline-block; font-size:36px; font-weight:900; width:56px; height:56px; line-height:56px; border-radius:14px; background:#e5e7eb; color:#374151; margin-bottom:6px;">—</div>
-            <div id="live-los-desc" style="font-size:12px; color:var(--color-muted); font-style:italic;">Đang thu thập dữ liệu...</div>
+          <div
+            style="text-align:center; padding:12px 0; border-bottom:1px solid var(--color-border); margin-bottom:10px;">
+            <div
+              style="font-size:11px; color:var(--color-muted); margin-bottom:6px; text-transform:uppercase; letter-spacing:0.05em;">
+              Mức phục vụ (LOS)</div>
+            <div id="live-los-big"
+              style="display:inline-block; font-size:36px; font-weight:900; width:56px; height:56px; line-height:56px; border-radius:14px; background:#e5e7eb; color:#374151; margin-bottom:6px;">
+              —</div>
+            <div id="live-los-desc" style="font-size:12px; color:var(--color-muted); font-style:italic;">Đang thu thập
+              dữ liệu...</div>
           </div>
           <!-- Chiều chủ đạo -->
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
@@ -395,6 +406,189 @@
     </aside>
   </section>
 
+  <!-- ============================================================ -->
+  <!-- MULTI-STREAM GRID — Shows all active streams simultaneously  -->
+  <!-- ============================================================ -->
+  <section class="card" id="multi-stream-section">
+    <div class="monitor-header-row" style="margin-bottom: 14px;">
+      <div>
+        <h3>📡 Đa luồng giám sát</h3>
+      </div>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span class="pill" id="multi-stream-counter"
+          style="font-size: 11px; background: rgba(99,102,241,0.1); color: #6366f1;">0 / {{ detected_videos|length }}
+          luồng</span>
+        <button type="button" class="btn btn-primary" id="start-all-streams-btn"
+          style="font-size: 12px; padding: 6px 14px; white-space: nowrap;">
+          ▶ Chạy tất cả có ROI
+        </button>
+        <button type="button" class="btn btn-outline" id="stop-all-streams-btn"
+          style="font-size: 12px; padding: 6px 14px; white-space: nowrap; display: none; border-color: #ef4444; color: #ef4444;">
+          ■ Dừng tất cả
+        </button>
+      </div>
+    </div>
+
+    <!-- Grid: filled dynamically via JS -->
+    <div id="multi-stream-grid" style="
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+      gap: 16px;
+    ">
+      <div id="multi-stream-empty"
+        style="grid-column: 1/-1; text-align: center; padding: 32px; color: var(--color-muted);">
+        <p style="font-size: 14px;">Chưa có luồng nào đang chạy. Chọn cam ở trên và bấm <strong>▶ Xem trực
+            tiếp</strong>, hoặc bấm <strong>▶ Chạy tất cả có ROI</strong>.</p>
+      </div>
+    </div>
+
+    <!-- Aggregate footer -->
+    <div id="multi-stream-footer"
+      style="display: none; margin-top: 14px; padding: 12px 16px; background: rgba(99,102,241,0.05); border-radius: 10px; border: 1px solid rgba(99,102,241,0.1);">
+      <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+        <div style="display: flex; align-items: center; gap: 16px;">
+          <span style="font-size: 13px; color: var(--color-muted);">Tổng hệ thống:</span>
+          <strong id="multi-agg-total" style="font-size: 20px; color: #6366f1;">0</strong>
+          <span style="font-size: 12px; color: var(--color-muted);">phương tiện</span>
+        </div>
+        <div style="display: flex; gap: 16px; font-size: 13px;">
+          <span>🚗 <strong id="multi-agg-car">0</strong></span>
+          <span>🏍️ <strong id="multi-agg-moto">0</strong></span>
+          <span>🚛 <strong id="multi-agg-truck">0</strong></span>
+          <span>🚌 <strong id="multi-agg-bus">0</strong></span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <style>
+    .ms-card {
+      background: #fff;
+      border: 1px solid var(--color-border);
+      border-radius: 14px;
+      overflow: hidden;
+      animation: msFadeIn 0.4s ease;
+      transition: box-shadow 0.2s ease;
+    }
+
+    .ms-card:hover {
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    }
+
+    .ms-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    .ms-card-header-name {
+      font-weight: 600;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .ms-live-dot {
+      width: 8px;
+      height: 8px;
+      background: #ef4444;
+      border-radius: 50%;
+      animation: msPulse 1.5s ease-in-out infinite;
+    }
+
+    .ms-card-video {
+      width: 100%;
+      aspect-ratio: 16/9;
+      object-fit: contain;
+      background: #111827;
+      display: block;
+    }
+
+    .ms-card-stats {
+      display: flex;
+      gap: 12px;
+      padding: 10px 14px;
+      font-size: 12px;
+      flex-wrap: wrap;
+      border-top: 1px solid var(--color-border);
+    }
+
+    .ms-stat {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 50px;
+    }
+
+    .ms-stat-value {
+      font-size: 18px;
+      font-weight: 700;
+      color: #1e1b4b;
+    }
+
+    .ms-stat-label {
+      font-size: 10px;
+      color: var(--color-muted);
+    }
+
+    .ms-card-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 14px;
+    }
+
+    .ms-stop-btn {
+      background: rgba(239, 68, 68, 0.1);
+      color: #ef4444;
+      border: 1px solid rgba(239, 68, 68, 0.2);
+      border-radius: 8px;
+      padding: 5px 14px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .ms-stop-btn:hover {
+      background: #ef4444;
+      color: #fff;
+    }
+
+    .ms-elapsed {
+      font-size: 11px;
+      color: var(--color-muted);
+      font-variant-numeric: tabular-nums;
+    }
+
+    @keyframes msFadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes msPulse {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.4;
+      }
+    }
+  </style>
+
+
   {% if detected_videos|length > 5 %}
   <section class="card monitor-library-card">
     <div class="monitor-header-row">
@@ -405,20 +599,17 @@
     </div>
     <div class="monitor-library-list">
       {% for v in detected_videos %}
-      <button
-        type="button"
-        class="monitor-library-item"
-        data-video-path="{{ v.path }}"
-        data-video-url="{{ v.preview_url }}"
-        data-video-name="{{ v.name }}"
-        data-video-roi="{{ 'yes' if v.roi_ready else 'no' }}"
-        data-source-id="{{ v.source_id if v.source_id else '' }}"
-        data-source-type="{{ v.source_type|default('video') }}"
-        data-cam-index="{{ loop.index }}"
-      >
+      <button type="button" class="monitor-library-item" data-video-path="{{ v.path }}"
+        data-video-url="{{ v.preview_url }}" data-video-name="{{ v.name }}"
+        data-video-roi="{{ 'yes' if v.roi_ready else 'no' }}" data-source-id="{{ v.source_id if v.source_id else '' }}"
+        data-source-type="{{ v.source_type|default('video') }}" data-cam-index="{{ loop.index }}">
         <span class="monitor-library-cam">
           {% if v.source_type == 'stream' %}
-          <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align: -1px; margin-right: 2px;"><circle cx="12" cy="12" r="3"/><path d="M16.24 7.76a6 6 0 010 8.49m-8.48-.01a6 6 0 010-8.49"/></svg>
+          <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
+            style="vertical-align: -1px; margin-right: 2px;">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M16.24 7.76a6 6 0 010 8.49m-8.48-.01a6 6 0 010-8.49" />
+          </svg>
           {% endif %}
           CAM {{ loop.index }}
         </span>
@@ -434,1046 +625,1326 @@
 </div>
 
 <script>
-(function () {
-  // ========== LIVE STREAM VARIABLES ==========
-  var liveStreamImg = document.getElementById("live-stream-img");
-  var liveBadge = document.getElementById("live-badge");
-  var startLiveBtn = document.getElementById("start-live-btn");
-  var stopLiveBtn = document.getElementById("stop-live-btn");
-  var isLiveStreaming = false;
-  var liveStreamSourceId = null;
-  var liveStatsPollTimer = null;
-  var streamRetryCount = 0;
-  var streamRetryMax = 8;
-  var streamRetryTimer = null;
-  var focusPlayer = document.getElementById("focus-player");
-  var selectedVideoName = document.getElementById("selected-video-name");
-  var selectedRoiStatus = document.getElementById("selected-roi-status");
-  var editRoiLink = document.getElementById("edit-roi-link");
-  var latestSessionStatus = document.getElementById("latest-session-status");
-  var latestSessionSource = document.getElementById("latest-session-source");
-  var latestResultNote = document.getElementById("latest-result-note");
-  var latestTotalCount = document.getElementById("latest-total-count");
-  var latestCarCount = document.getElementById("latest-car-count");
-  var latestMotorcycleCount = document.getElementById("latest-motorcycle-count");
-  var focusTotalCount = document.getElementById("focus-total-count");
-  var focusCarCount = document.getElementById("focus-car-count");
-  var focusMotorcycleCount = document.getElementById("focus-motorcycle-count");
-  var tiles = Array.prototype.slice.call(document.querySelectorAll(".monitor-video-tile"));
-  var libraryItems = Array.prototype.slice.call(document.querySelectorAll(".monitor-library-item"));
-  var isProcessedView = false;
-  var currentInputVideoUrl = "";
-  var currentVideoName = "";
-  var currentSourceId = null;
-  var liveStatePollTimer = null;
-  var lastCompleted = null;
-  var liveElapsedTimerInterval = null;  // Bộ đếm giờ stream
-  var liveStreamStartTime = null;       // Thời điểm bắt đầu stream
+  (function () {
+    // ========== LIVE STREAM VARIABLES ==========
+    var liveStreamImg = document.getElementById("live-stream-img");
+    var liveBadge = document.getElementById("live-badge");
+    var startLiveBtn = document.getElementById("start-live-btn");
+    var stopLiveBtn = document.getElementById("stop-live-btn");
+    var isLiveStreaming = false;
+    var liveStreamSourceId = null;
+    var liveStatsPollTimer = null;
+    var streamRetryCount = 0;
+    var streamRetryMax = 8;
+    var streamRetryTimer = null;
+    var focusPlayer = document.getElementById("focus-player");
+    var selectedVideoName = document.getElementById("selected-video-name");
+    var selectedRoiStatus = document.getElementById("selected-roi-status");
+    var editRoiLink = document.getElementById("edit-roi-link");
+    var latestSessionStatus = document.getElementById("latest-session-status");
+    var latestSessionSource = document.getElementById("latest-session-source");
+    var latestResultNote = document.getElementById("latest-result-note");
+    var latestTotalCount = document.getElementById("latest-total-count");
+    var latestCarCount = document.getElementById("latest-car-count");
+    var latestMotorcycleCount = document.getElementById("latest-motorcycle-count");
+    var focusTotalCount = document.getElementById("focus-total-count");
+    var focusCarCount = document.getElementById("focus-car-count");
+    var focusMotorcycleCount = document.getElementById("focus-motorcycle-count");
+    var tiles = Array.prototype.slice.call(document.querySelectorAll(".monitor-video-tile"));
+    var libraryItems = Array.prototype.slice.call(document.querySelectorAll(".monitor-library-item"));
+    var isProcessedView = false;
+    var currentInputVideoUrl = "";
+    var currentVideoName = "";
+    var currentSourceId = null;
+    var liveStatePollTimer = null;
+    var lastCompleted = null;
+    var liveElapsedTimerInterval = null;  // Bộ đếm giờ stream
+    var liveStreamStartTime = null;       // Thời điểm bắt đầu stream
 
-  // ========== LIVE ANALYTICS PANEL HELPERS ==========
-  var LOS_DESC = {
-    'A': 'Dòng xe thông thoáng',
-    'B': 'Dòng xe ổn định',
-    'C': 'Tốc độ bị hạn chế',
-    'D': 'Gần bão hòa',
-    'E': 'Tắc nghẽ́n',
-    'F': 'Quá tải'
-  };
-
-  function _showLiveAnalytics() {
-    var staticPanel  = document.getElementById('result-static-panel');
-    var livePanel    = document.getElementById('live-analytics-panel');
-    var statusCard   = document.getElementById('result-status-card');
-    var title        = document.getElementById('result-panel-title');
-    if (staticPanel)  staticPanel.style.display  = 'none';
-    if (livePanel)    livePanel.style.display     = '';
-    if (statusCard)   statusCard.style.display    = 'none';  // Ẩn trạng thái khi LIVE
-    if (title)        title.textContent = 'Phân tích nhanh';
-    // Khởi động bộ đếm thời gian
-    liveStreamStartTime = Date.now();
-    if (liveElapsedTimerInterval) clearInterval(liveElapsedTimerInterval);
-    liveElapsedTimerInterval = setInterval(function() {
-      var sec = Math.floor((Date.now() - liveStreamStartTime) / 1000);
-      var mm  = String(Math.floor(sec / 60)).padStart(2, '0');
-      var ss  = String(sec % 60).padStart(2, '0');
-      var el = document.getElementById('live-elapsed-timer');
-      if (el) el.textContent = mm + ':' + ss;
-    }, 1000);
-  }
-
-  function _hideLiveAnalytics() {
-    var staticPanel  = document.getElementById('result-static-panel');
-    var livePanel    = document.getElementById('live-analytics-panel');
-    var statusCard   = document.getElementById('result-status-card');
-    var title        = document.getElementById('result-panel-title');
-    if (staticPanel)  staticPanel.style.display  = '';
-    if (livePanel)    livePanel.style.display     = 'none';
-    if (statusCard)   statusCard.style.display    = '';  // Hiện lại khi dừng
-    if (title)        title.textContent = 'Kết quả mới nhất';
-    if (liveElapsedTimerInterval) {
-      clearInterval(liveElapsedTimerInterval);
-      liveElapsedTimerInterval = null;
-    }
-    var timerEl = document.getElementById('live-elapsed-timer');
-    if (timerEl) timerEl.textContent = '00:00';
-  }
-
-  // ========== TRAFFIC DENSITY TRACKER ==========
-  var densityHistory = [];        // array of {timestamp, total}
-  var DENSITY_WINDOW_MS = 5000;   // 5-second sliding window
-  var DENSITY_THRESH_LOW = 2;     // < 2 vehicles/5s = Thưa thớt
-  var DENSITY_THRESH_HIGH = 5;    // > 5 vehicles/5s = Đông phương tiện
-
-  function updateTrafficDensity(currentTotal) {
-    var now = Date.now();
-    densityHistory.push({ timestamp: now, total: currentTotal });
-    // Purge old entries outside the sliding window
-    while (densityHistory.length > 0 && densityHistory[0].timestamp < now - DENSITY_WINDOW_MS) {
-      densityHistory.shift();
-    }
-    var indicator = document.getElementById("traffic-density-indicator");
-    var textEl = document.getElementById("traffic-density-text");
-    if (!indicator || !textEl) return;
-
-    if (densityHistory.length < 2) {
-      // Not enough data yet
-      indicator.className = "traffic-density analyzing";
-      textEl.textContent = "Đang phân tích...";
-      return;
-    }
-
-    // Calculate rate: vehicles added in the window
-    var oldest = densityHistory[0];
-    var newest = densityHistory[densityHistory.length - 1];
-    var vehiclesInWindow = newest.total - oldest.total;
-    if (vehiclesInWindow < 0) vehiclesInWindow = 0;
-
-    var level, label;
-    if (vehiclesInWindow > DENSITY_THRESH_HIGH) {
-      level = "heavy";
-      label = "🔴 Đông phương tiện";
-    } else if (vehiclesInWindow >= DENSITY_THRESH_LOW) {
-      level = "normal";
-      label = "🟡 Bình thường";
-    } else {
-      level = "light";
-      label = "🟢 Thưa thớt";
-    }
-    indicator.className = "traffic-density " + level;
-    textEl.textContent = label;
-  }
-
-  function resetTrafficDensity() {
-    densityHistory = [];
-    var indicator = document.getElementById("traffic-density-indicator");
-    var textEl = document.getElementById("traffic-density-text");
-    if (indicator) indicator.className = "traffic-density idle";
-    if (textEl) textEl.textContent = "...";
-  }
-
-  function getVehicleSummary(summary) {
-    var perClass = (summary && summary.per_class) || {};
-    var totalFromSummary = (summary && typeof summary.total === "number") ? summary.total : 0;
-    var totalFromPerClass = Object.keys(perClass).reduce(function (acc, key) {
-      return acc + (perClass[key] || 0);
-    }, 0);
-    var total = totalFromSummary || totalFromPerClass;
-    return {
-      total: total,
-      automobile: (perClass.car || 0) + (perClass.truck || 0) + (perClass.bus || 0),
-      motorcycle: perClass.motorcycle || 0
+    // ========== LIVE ANALYTICS PANEL HELPERS ==========
+    var LOS_DESC = {
+      'A': 'Dòng xe thông thoáng',
+      'B': 'Dòng xe ổn định',
+      'C': 'Tốc độ bị hạn chế',
+      'D': 'Gần bão hòa',
+      'E': 'Tắc nghẽ́n',
+      'F': 'Quá tải'
     };
-  }
 
-  function updateFocusCounts(summary) {
-    var counts = getVehicleSummary(summary || {});
-    if (focusTotalCount) focusTotalCount.textContent = counts.total;
-    if (focusCarCount) focusCarCount.textContent = counts.automobile;
-    if (focusMotorcycleCount) focusMotorcycleCount.textContent = counts.motorcycle;
-  }
-
-  function setFocusMode(label, note) {
-    var modeEl = document.getElementById("focus-player-mode");
-    var noteEl = document.getElementById("focus-player-note");
-    if (modeEl) modeEl.textContent = label;
-    if (noteEl) noteEl.textContent = note;
-  }
-
-  function updateResultCounts(summary) {
-    var counts = getVehicleSummary(summary || {});
-    if (latestTotalCount) latestTotalCount.textContent = counts.total;
-    if (latestCarCount) latestCarCount.textContent = counts.automobile;
-    if (latestMotorcycleCount) latestMotorcycleCount.textContent = counts.motorcycle;
-  }
-
-  function setResultMeta(statusText, sourceName, noteText) {
-    if (latestSessionStatus) latestSessionStatus.textContent = statusText;
-    if (latestSessionSource) latestSessionSource.textContent = sourceName || "—";
-    if (latestResultNote) {
-      var noteStrong = latestResultNote.querySelector("strong");
-      if (noteStrong) noteStrong.textContent = noteText;
+    function _showLiveAnalytics() {
+      var staticPanel = document.getElementById('result-static-panel');
+      var livePanel = document.getElementById('live-analytics-panel');
+      var statusCard = document.getElementById('result-status-card');
+      var title = document.getElementById('result-panel-title');
+      if (staticPanel) staticPanel.style.display = 'none';
+      if (livePanel) livePanel.style.display = '';
+      if (statusCard) statusCard.style.display = 'none';  // Ẩn trạng thái khi LIVE
+      if (title) title.textContent = 'Phân tích nhanh';
+      // Khởi động bộ đếm thời gian
+      liveStreamStartTime = Date.now();
+      if (liveElapsedTimerInterval) clearInterval(liveElapsedTimerInterval);
+      liveElapsedTimerInterval = setInterval(function () {
+        var sec = Math.floor((Date.now() - liveStreamStartTime) / 1000);
+        var mm = String(Math.floor(sec / 60)).padStart(2, '0');
+        var ss = String(sec % 60).padStart(2, '0');
+        var el = document.getElementById('live-elapsed-timer');
+        if (el) el.textContent = mm + ':' + ss;
+      }, 1000);
     }
-  }
 
-  function resetToInputView() {
-    isProcessedView = false;
-    if (focusPlayer && currentInputVideoUrl) {
-      focusPlayer.hidden = false;
-      focusPlayer.style.display = "";
-      focusPlayer.src = currentInputVideoUrl;
-      focusPlayer.load();
-      focusPlayer.play().catch(function () {});
-    }
-    setFocusMode("Video gốc", "Chạy phân tích để xem kết quả.");
-    setResultMeta("Chưa xem kết quả", "—", "");
-    updateResultCounts({});
-    resetTrafficDensity();
-  }
-
-  function fetchAndPlayOutputForName(sourceName, fallbackSummary) {
-    if (!sourceName) return;
-    fetch("/api/monitoring/vscode-output?video_name=" + encodeURIComponent(String(sourceName).replace(/\.[^.]+$/, "")), { credentials: "same-origin" })
-      .then(function (r) { return r.json(); })
-      .then(function (out) {
-        if (out && out.has_output && out.video_url) {
-          playOutputVideo({ url: out.video_url, display_name: sourceName, summary: out.summary || fallbackSummary || {} });
-        } else if (fallbackSummary) {
-          updateFocusCounts(fallbackSummary);
-          updateResultCounts(fallbackSummary);
-        }
-      })
-      .catch(function () {
-        if (fallbackSummary) {
-          updateFocusCounts(fallbackSummary);
-          updateResultCounts(fallbackSummary);
-        }
-      });
-  }
-
-  function isEmptySummary(summary) {
-    if (!summary) return true;
-    var perClass = summary.per_class || {};
-    var hasPerClass = Object.keys(perClass).some(function (k) { return (perClass[k] || 0) > 0; });
-    var total = (typeof summary.total === "number") ? summary.total : 0;
-    return total <= 0 && !hasPerClass;
-  }
-
-  function fetchSessionAndPlay(sessionId, fallbackSourceName, fallbackSummary) {
-    if (!sessionId) return;
-    fetch("/api/sessions/" + encodeURIComponent(String(sessionId)), { credentials: "same-origin" })
-      .then(function (r) { return r.json(); })
-      .then(function (sess) {
-        if (!sess || sess.error) throw new Error("no session");
-        var url = sess.media_url;
-        var summary = sess.summary || fallbackSummary || {};
-        var displayName = sess.source_name || fallbackSourceName || currentVideoName;
-        if (url) {
-          playOutputVideo({ url: url, display_name: displayName, summary: summary });
-        } else if (displayName) {
-          fetchAndPlayOutputForName(displayName, summary);
-        } else {
-          updateFocusCounts(summary);
-          updateResultCounts(summary);
-        }
-      })
-      .catch(function () {
-        if (fallbackSourceName) {
-          fetchAndPlayOutputForName(fallbackSourceName, fallbackSummary || {});
-        } else if (fallbackSummary) {
-          updateFocusCounts(fallbackSummary);
-          updateResultCounts(fallbackSummary);
-        }
-      });
-  }
-
-  function updateSelection(videoPath, videoUrl, videoName, roiReady, sourceId, camIndex) {
-    // Stop live stream when switching videos
-    if (isLiveStreaming) {
-      stopLiveStream();
-    }
-    currentInputVideoUrl = videoUrl;
-    currentVideoName = videoName;
-    currentSourceId = sourceId ? parseInt(sourceId, 10) : null;
-    if (lastCompleted && lastCompleted.source_id && currentSourceId === lastCompleted.source_id) {
-      fetchAndPlayOutputForName(lastCompleted.source_name || videoName, lastCompleted.summary || {});
-    } else {
-      resetToInputView();
-    }
-    // Update CAM label
-    var camLabel = document.getElementById("selected-cam-label");
-    if (camLabel) camLabel.textContent = "CAM " + (camIndex || "1");
-    if (selectedVideoName) selectedVideoName.textContent = videoName;
-    if (selectedRoiStatus) {
-      selectedRoiStatus.textContent = roiReady === "yes" ? "Đã cấu hình" : "Chưa cấu hình";
-    }
-    if (editRoiLink) editRoiLink.href = "/monitoring/edit-roi-for-video?path=" + encodeURIComponent(videoPath);
-    var runAnalysisBtn = document.getElementById("run-analysis-btn");
-    // Enable live button
-    if (startLiveBtn) startLiveBtn.disabled = roiReady !== "yes" || !currentSourceId;
-    refreshStopButtonState();
-  }
-
-  function refreshStopButtonState() {
-    fetch("/api/monitoring/status", { credentials: "same-origin" })
-      .then(function (r) { return r.json(); })
-      .then(function (data) {
-        var stopBtn = document.getElementById("stop-analysis-btn");
-        if (stopBtn) stopBtn.disabled = !data.active_session_id;
-      })
-      .catch(function () {});
-  }
-
-  function stopLiveStatePoll() {
-    if (liveStatePollTimer) {
-      clearInterval(liveStatePollTimer);
-      liveStatePollTimer = null;
-    }
-  }
-
-  function pollLiveState() {
-    // Left empty here as it's not needed for the live stream view
-  }
-
-  function startAnalysis() {
-    // Left empty
-  }
-
-  function setSelectedTile(tile) {
-    if (!tile || !focusPlayer) return;
-    tiles.forEach(function (item) { item.classList.remove("is-selected"); });
-    tile.classList.add("is-selected");
-    var videoUrl = tile.getAttribute("data-video-url");
-    var videoName = tile.getAttribute("data-video-name");
-    var videoPath = tile.getAttribute("data-video-path");
-    var roiReady = tile.getAttribute("data-video-roi");
-    var sourceId = tile.getAttribute("data-source-id");
-    var camIndex = tile.getAttribute("data-cam-index") || "1";
-    updateSelection(videoPath, videoUrl, videoName, roiReady, sourceId, camIndex);
-  }
-
-  tiles.forEach(function (tile) {
-    tile.addEventListener("click", function () { setSelectedTile(tile); });
-  });
-
-  libraryItems.forEach(function (item) {
-    item.addEventListener("click", function () {
-      var videoPath = item.getAttribute("data-video-path");
-      var videoUrl = item.getAttribute("data-video-url");
-      var videoName = item.getAttribute("data-video-name");
-      var roiReady = item.getAttribute("data-video-roi");
-      var sourceId = item.getAttribute("data-source-id");
-      var camIndex = item.getAttribute("data-cam-index") || "1";
-      updateSelection(videoPath, videoUrl, videoName, roiReady, sourceId, camIndex);
-      var matchingTile = tiles.find(function (t) { return t.getAttribute("data-video-path") === videoPath; });
-      if (matchingTile) {
-        tiles.forEach(function (t) { t.classList.remove("is-selected"); });
-        matchingTile.classList.add("is-selected");
+    function _hideLiveAnalytics() {
+      var staticPanel = document.getElementById('result-static-panel');
+      var livePanel = document.getElementById('live-analytics-panel');
+      var statusCard = document.getElementById('result-status-card');
+      var title = document.getElementById('result-panel-title');
+      if (staticPanel) staticPanel.style.display = '';
+      if (livePanel) livePanel.style.display = 'none';
+      if (statusCard) statusCard.style.display = '';  // Hiện lại khi dừng
+      if (title) title.textContent = 'Kết quả mới nhất';
+      if (liveElapsedTimerInterval) {
+        clearInterval(liveElapsedTimerInterval);
+        liveElapsedTimerInterval = null;
       }
-    });
-  });
-
-  function playOutputVideo(item) {
-    isProcessedView = true;
-    if (focusPlayer) {
-      focusPlayer.hidden = false;
-      focusPlayer.style.display = "";
+      var timerEl = document.getElementById('live-elapsed-timer');
+      if (timerEl) timerEl.textContent = '00:00';
     }
-    focusPlayer.src = item.url;
-    focusPlayer.load();
-    focusPlayer.play().catch(function () {});
-    setFocusMode("Video đã xử lý", "Mỗi xe trên video tương ứng với số đếm bên cạnh.");
-    setResultMeta("Đã hoàn tất", item.display_name, "Đang giữ kết quả đếm cuối cùng. Chỉ reset khi đổi video hoặc refresh trang.");
-    updateFocusCounts(item.summary || {});
-    updateResultCounts(item.summary || {});
-  }
 
-  // ========== DIRECTION / FLOW / D-FACTOR / LOS / PCE HELPERS ==========
+    // ========== TRAFFIC DENSITY TRACKER ==========
+    var densityHistory = [];        // array of {timestamp, total}
+    var DENSITY_WINDOW_MS = 5000;   // 5-second sliding window
+    var DENSITY_THRESH_LOW = 2;     // < 2 vehicles/5s = Thưa thớt
+    var DENSITY_THRESH_HIGH = 5;    // > 5 vehicles/5s = Đông phương tiện
 
-  var LOS_THRESHOLDS = [
-    { max: 600,  grade: 'A', color: '#16a34a', bg: '#dcfce7' },
-    { max: 900,  grade: 'B', color: '#65a30d', bg: '#ecfccb' },
-    { max: 1200, grade: 'C', color: '#ca8a04', bg: '#fef9c3' },
-    { max: 1500, grade: 'D', color: '#ea580c', bg: '#ffedd5' },
-    { max: 1800, grade: 'E', color: '#dc2626', bg: '#fee2e2' },
-    { max: Infinity, grade: 'F', color: '#7f1d1d', bg: '#fca5a5' }
-  ];
-
-  function getLOS(vph) {
-    for (var i = 0; i < LOS_THRESHOLDS.length; i++) {
-      if (vph < LOS_THRESHOLDS[i].max) return LOS_THRESHOLDS[i];
-    }
-    return LOS_THRESHOLDS[LOS_THRESHOLDS.length - 1];
-  }
-
-  function calcPCE(perClass) {
-    var car   = (perClass && perClass.car)        || 0;
-    var moto  = (perClass && perClass.motorcycle)  || 0;
-    var bus   = (perClass && perClass.bus)         || 0;
-    var truck = (perClass && perClass.truck)       || 0;
-    return Math.round(car * 1.0 + moto * 0.5 + bus * 2.5 + truck * 2.0);
-  }
-
-  function _setText(id, val)  { var el = document.getElementById(id); if (el) el.textContent = val; }
-  function _setStyle(id, prop, val) { var el = document.getElementById(id); if (el) el.style[prop] = val; }
-  function _show(id) { _setStyle(id, 'display', ''); }
-  function _hide(id) { _setStyle(id, 'display', 'none'); }
-
-  function updateDirectionCounts(data) {
-    var dirs = data && data.directions;
-    if (!dirs) return;
-    var di = (dirs.di && dirs.di.total) || 0;
-    var ve = (dirs.ve && dirs.ve.total) || 0;
-    _setText('focus-di-count',  di);
-    _setText('focus-ve-count',  ve);
-    _setText('latest-di-count', di);
-    _setText('latest-ve-count', ve);
-    _show('focus-di-stat');   _show('focus-ve-stat');
-    _show('result-di-stat');  _show('result-ve-stat');
-  }
-
-  function updateFlowRate(data) {
-    var vph = data && data.flow_rate_vph;
-    var elapsed = (data && data.elapsed_sec) || 0;
-    _show('focus-flowrate-stat');
-    _show('result-flowrate-stat');
-    if (typeof vph === 'number') {
-      var elapsedMin = Math.round(elapsed / 60);
-      var label = vph + ' xe/giờ';
-      if (elapsedMin >= 1) label += ' (' + elapsedMin + ' phút)';
-      _setText('focus-flowrate',  label);
-      _setText('latest-flowrate', label);
-      _setText('live-vph-summary', label);
-    } else {
-      var remaining = Math.max(0, 60 - elapsed);
-      var waitLabel = 'Đang thu thập... (' + remaining + 's)';
-      _setText('focus-flowrate',  waitLabel);
-      _setText('latest-flowrate', waitLabel);
-      _setText('live-vph-summary', waitLabel);
-    }
-  }
-
-  function updateDFactor(data) {
-    var dirs = data && data.directions;
-    if (!dirs) return;
-    var di = (dirs.di && dirs.di.total) || 0;
-    var ve = (dirs.ve && dirs.ve.total) || 0;
-    var total = di + ve;
-    if (total === 0) return;
-    var diPct = Math.round(di / total * 100);
-    var vePct = 100 - diPct;
-    var dominant = diPct >= vePct ? ('↗ Đi (' + diPct + '%)') : ('↘ Về (' + vePct + '%)');
-    // Focus panel
-    _setText('focus-dfactor-di-pct', diPct + '%');
-    _setText('focus-dfactor-ve-pct', vePct + '%');
-    _setStyle('focus-dfactor-bar-di', 'width', diPct + '%');
-    _setStyle('focus-dfactor-bar-ve', 'width', vePct + '%');
-    _show('focus-dfactor-row');
-    // Result static panel
-    _setText('latest-dominant-dir', dominant);
-    _setStyle('result-dfactor-bar-di', 'width', diPct + '%');
-    _setStyle('result-dfactor-bar-ve', 'width', vePct + '%');
-    _show('result-dfactor-row');
-    // Live analytics panel
-    _setText('live-dominant-dir', dominant);
-  }
-
-  function updateLOS(data) {
-    var vph = data && data.flow_rate_vph;
-    if (typeof vph !== 'number') {
-      _setText('focus-los-badge',  '—');
-      _setText('result-los-badge', '—');
-      _setText('live-los-big',  '—');
-      _setText('live-los-desc', 'Đang thu thập dữ liệu...');
-      return;
-    }
-    var los = getLOS(vph);
-    var desc = LOS_DESC[los.grade] || '';
-    var focusBadge = document.getElementById('focus-los-badge');
-    if (focusBadge) { focusBadge.textContent = los.grade; focusBadge.style.background = los.bg; focusBadge.style.color = los.color; }
-    var resultBadge = document.getElementById('result-los-badge');
-    if (resultBadge) { resultBadge.textContent = los.grade; resultBadge.style.background = los.bg; resultBadge.style.color = los.color; }
-    // Live analytics panel
-    var liveBig = document.getElementById('live-los-big');
-    if (liveBig) { liveBig.textContent = los.grade; liveBig.style.background = los.bg; liveBig.style.color = los.color; }
-    _setText('live-los-desc', desc);
-  }
-
-  function updatePCE(data) {
-    var vph = data && data.flow_rate_vph;
-    if (typeof vph !== 'number') {
-      _setText('focus-pce',  '—');
-      _setText('result-pce', '—');
-      _setText('live-pce-big', '—');
-      return;
-    }
-    var perClass = (data && data.per_class) || {};
-    var pce = calcPCE(perClass);
-    var total = data.total || 1;
-    var pceVph = total > 0 ? Math.round(pce / total * vph) : 0;
-    _setText('focus-pce',    pceVph);
-    _setText('result-pce',   pceVph);
-    _setText('live-pce-big', pceVph);
-  }
-
-  function showDirectionStats() {
-    _show('focus-di-stat');   _show('focus-ve-stat');   _show('focus-flowrate-stat');
-    _show('result-di-stat');  _show('result-ve-stat');  _show('result-flowrate-stat');
-  }
-
-  function hideDirectionStats() {
-    ['focus-di-stat','focus-ve-stat','focus-flowrate-stat','focus-dfactor-row',
-     'result-di-stat','result-ve-stat','result-flowrate-stat','result-dfactor-row'
-    ].forEach(function(id) { _hide(id); });
-    _setText('focus-los-badge',  '—'); _setText('focus-pce',  '—');
-    _setText('result-los-badge', '—'); _setText('result-pce', '—');
-  }
-
-  // ========== LIVE STREAM FUNCTIONS ==========
-  function startLiveStream() {
-    if (!currentSourceId) {
-      alert("Chưa chọn video hoặc video chưa có trong nguồn.");
-      return;
-    }
-    // Stop any running analysis first
-    stopLiveStatePoll();
-
-    liveStreamSourceId = currentSourceId;
-    isLiveStreaming = true;
-
-    // Hide video player, show live stream img
-    if (focusPlayer) {
-      focusPlayer.hidden = true;
-      focusPlayer.style.display = "none";
-    }
-    if (liveStreamImg) {
-      var wrapper = document.getElementById("live-stream-wrapper");
-      var loading = document.getElementById("live-stream-loading");
-      if (wrapper && loading) {
-        // Xoá aspect-ratio cố định — wrapper tự co theo ảnh thực
-        wrapper.style.aspectRatio = "";
-        wrapper.style.display = "block";
-        loading.style.display = "flex";
+    function updateTrafficDensity(currentTotal) {
+      var now = Date.now();
+      densityHistory.push({ timestamp: now, total: currentTotal });
+      // Purge old entries outside the sliding window
+      while (densityHistory.length > 0 && densityHistory[0].timestamp < now - DENSITY_WINDOW_MS) {
+        densityHistory.shift();
       }
-      liveStreamImg.style.opacity = "0";
-      liveStreamImg.onload = function() {
-        this.style.opacity = "1";
-        if (loading) loading.style.display = "none";
-      };
-      
-      // Fallback in case of stream errors
-      liveStreamImg.onerror = function() {
-        if (loading) {
-          loading.innerHTML = '<span style="color:#ef4444; font-weight: 500;">Không thể kết nối. Vui lòng thử lại.</span>';
-        }
-      };
+      var indicator = document.getElementById("traffic-density-indicator");
+      var textEl = document.getElementById("traffic-density-text");
+      if (!indicator || !textEl) return;
 
-      liveStreamImg.src = "/api/stream/" + currentSourceId + "?t=" + Date.now();
+      if (densityHistory.length < 2) {
+        // Not enough data yet
+        indicator.className = "traffic-density analyzing";
+        textEl.textContent = "Đang phân tích...";
+        return;
+      }
+
+      // Calculate rate: vehicles added in the window
+      var oldest = densityHistory[0];
+      var newest = densityHistory[densityHistory.length - 1];
+      var vehiclesInWindow = newest.total - oldest.total;
+      if (vehiclesInWindow < 0) vehiclesInWindow = 0;
+
+      var level, label;
+      if (vehiclesInWindow > DENSITY_THRESH_HIGH) {
+        level = "heavy";
+        label = "🔴 Đông phương tiện";
+      } else if (vehiclesInWindow >= DENSITY_THRESH_LOW) {
+        level = "normal";
+        label = "🟡 Bình thường";
+      } else {
+        level = "light";
+        label = "🟢 Thưa thớt";
+      }
+      indicator.className = "traffic-density " + level;
+      textEl.textContent = label;
     }
-    if (liveBadge) liveBadge.hidden = false;
 
-    // Update buttons
-    if (startLiveBtn) startLiveBtn.hidden = true;
-    if (stopLiveBtn) stopLiveBtn.hidden = false;
+    function resetTrafficDensity() {
+      densityHistory = [];
+      var indicator = document.getElementById("traffic-density-indicator");
+      var textEl = document.getElementById("traffic-density-text");
+      if (indicator) indicator.className = "traffic-density idle";
+      if (textEl) textEl.textContent = "...";
+    }
 
-    // Show vehicle class filter panel
-    var filterPanel = document.getElementById("class-filter-panel");
-    if (filterPanel) filterPanel.hidden = false;
-    // Reset all filters to active
-    document.querySelectorAll(".class-filter-btn").forEach(function(btn) {
-      btn.classList.add("is-active");
-    });
+    function getVehicleSummary(summary) {
+      var perClass = (summary && summary.per_class) || {};
+      var totalFromSummary = (summary && typeof summary.total === "number") ? summary.total : 0;
+      var totalFromPerClass = Object.keys(perClass).reduce(function (acc, key) {
+        return acc + (perClass[key] || 0);
+      }, 0);
+      var total = totalFromSummary || totalFromPerClass;
+      return {
+        total: total,
+        automobile: (perClass.car || 0) + (perClass.truck || 0) + (perClass.bus || 0),
+        motorcycle: perClass.motorcycle || 0
+      };
+    }
 
-    setFocusMode("Trực tiếp (LIVE)", "Đang stream video với YOLO detect real-time.");
-    updateFocusCounts({total: 0, per_class: {}});
-    _showLiveAnalytics();  // Chuyển panel phải sang "Phân tích nhanh"
+    function updateFocusCounts(summary) {
+      var counts = getVehicleSummary(summary || {});
+      if (focusTotalCount) focusTotalCount.textContent = counts.total;
+      if (focusCarCount) focusCarCount.textContent = counts.automobile;
+      if (focusMotorcycleCount) focusMotorcycleCount.textContent = counts.motorcycle;
+    }
 
-    // Poll stats
-    liveStatsPollTimer = setInterval(function () {
-      if (!isLiveStreaming || !liveStreamSourceId) return;
-      fetch("/api/stream/" + liveStreamSourceId + "/stats", { credentials: "same-origin" })
+    function setFocusMode(label, note) {
+      var modeEl = document.getElementById("focus-player-mode");
+      var noteEl = document.getElementById("focus-player-note");
+      if (modeEl) modeEl.textContent = label;
+      if (noteEl) noteEl.textContent = note;
+    }
+
+    function updateResultCounts(summary) {
+      var counts = getVehicleSummary(summary || {});
+      if (latestTotalCount) latestTotalCount.textContent = counts.total;
+      if (latestCarCount) latestCarCount.textContent = counts.automobile;
+      if (latestMotorcycleCount) latestMotorcycleCount.textContent = counts.motorcycle;
+    }
+
+    function setResultMeta(statusText, sourceName, noteText) {
+      if (latestSessionStatus) latestSessionStatus.textContent = statusText;
+      if (latestSessionSource) latestSessionSource.textContent = sourceName || "—";
+      if (latestResultNote) {
+        var noteStrong = latestResultNote.querySelector("strong");
+        if (noteStrong) noteStrong.textContent = noteText;
+      }
+    }
+
+    function resetToInputView() {
+      isProcessedView = false;
+      if (focusPlayer && currentInputVideoUrl) {
+        focusPlayer.hidden = false;
+        focusPlayer.style.display = "";
+        focusPlayer.src = currentInputVideoUrl;
+        focusPlayer.load();
+        focusPlayer.play().catch(function () { });
+      }
+      setFocusMode("Video gốc", "Chạy phân tích để xem kết quả.");
+      setResultMeta("Chưa xem kết quả", "—", "");
+      updateResultCounts({});
+      resetTrafficDensity();
+    }
+
+    function fetchAndPlayOutputForName(sourceName, fallbackSummary) {
+      if (!sourceName) return;
+      fetch("/api/monitoring/vscode-output?video_name=" + encodeURIComponent(String(sourceName).replace(/\.[^.]+$/, "")), { credentials: "same-origin" })
+        .then(function (r) { return r.json(); })
+        .then(function (out) {
+          if (out && out.has_output && out.video_url) {
+            playOutputVideo({ url: out.video_url, display_name: sourceName, summary: out.summary || fallbackSummary || {} });
+          } else if (fallbackSummary) {
+            updateFocusCounts(fallbackSummary);
+            updateResultCounts(fallbackSummary);
+          }
+        })
+        .catch(function () {
+          if (fallbackSummary) {
+            updateFocusCounts(fallbackSummary);
+            updateResultCounts(fallbackSummary);
+          }
+        });
+    }
+
+    function isEmptySummary(summary) {
+      if (!summary) return true;
+      var perClass = summary.per_class || {};
+      var hasPerClass = Object.keys(perClass).some(function (k) { return (perClass[k] || 0) > 0; });
+      var total = (typeof summary.total === "number") ? summary.total : 0;
+      return total <= 0 && !hasPerClass;
+    }
+
+    function fetchSessionAndPlay(sessionId, fallbackSourceName, fallbackSummary) {
+      if (!sessionId) return;
+      fetch("/api/sessions/" + encodeURIComponent(String(sessionId)), { credentials: "same-origin" })
+        .then(function (r) { return r.json(); })
+        .then(function (sess) {
+          if (!sess || sess.error) throw new Error("no session");
+          var url = sess.media_url;
+          var summary = sess.summary || fallbackSummary || {};
+          var displayName = sess.source_name || fallbackSourceName || currentVideoName;
+          if (url) {
+            playOutputVideo({ url: url, display_name: displayName, summary: summary });
+          } else if (displayName) {
+            fetchAndPlayOutputForName(displayName, summary);
+          } else {
+            updateFocusCounts(summary);
+            updateResultCounts(summary);
+          }
+        })
+        .catch(function () {
+          if (fallbackSourceName) {
+            fetchAndPlayOutputForName(fallbackSourceName, fallbackSummary || {});
+          } else if (fallbackSummary) {
+            updateFocusCounts(fallbackSummary);
+            updateResultCounts(fallbackSummary);
+          }
+        });
+    }
+
+    function updateSelection(videoPath, videoUrl, videoName, roiReady, sourceId, camIndex) {
+      // Stop live stream when switching videos
+      if (isLiveStreaming) {
+        stopLiveStream();
+      }
+      currentInputVideoUrl = videoUrl;
+      currentVideoName = videoName;
+      currentSourceId = sourceId ? parseInt(sourceId, 10) : null;
+      if (lastCompleted && lastCompleted.source_id && currentSourceId === lastCompleted.source_id) {
+        fetchAndPlayOutputForName(lastCompleted.source_name || videoName, lastCompleted.summary || {});
+      } else {
+        resetToInputView();
+      }
+      // Update CAM label
+      var camLabel = document.getElementById("selected-cam-label");
+      if (camLabel) camLabel.textContent = "CAM " + (camIndex || "1");
+      if (selectedVideoName) selectedVideoName.textContent = videoName;
+      if (selectedRoiStatus) {
+        selectedRoiStatus.textContent = roiReady === "yes" ? "Đã cấu hình" : "Chưa cấu hình";
+      }
+      if (editRoiLink) editRoiLink.href = "/monitoring/edit-roi-for-video?path=" + encodeURIComponent(videoPath);
+      var runAnalysisBtn = document.getElementById("run-analysis-btn");
+      // Enable live button
+      if (startLiveBtn) startLiveBtn.disabled = roiReady !== "yes" || !currentSourceId;
+      refreshStopButtonState();
+    }
+
+    function refreshStopButtonState() {
+      fetch("/api/monitoring/status", { credentials: "same-origin" })
         .then(function (r) { return r.json(); })
         .then(function (data) {
-          if (data.streaming) {
-            updateFocusCounts(data);
-            updateResultCounts(data);
-            setResultMeta("Đang stream trực tiếp", currentVideoName, "");
-            updateDirectionCounts(data);  // Đi / Về
-            updateFlowRate(data);         // xe/giờ
-            updateDFactor(data);          // tỷ lệ chiều + thanh progress
-            updateLOS(data);              // Level of Service A→F
-            updatePCE(data);              // PCE/giờ
-            var counts = getVehicleSummary(data);
-            updateTrafficDensity(counts.total);
-          }
+          var stopBtn = document.getElementById("stop-analysis-btn");
+          if (stopBtn) stopBtn.disabled = !data.active_session_id;
         })
-        .catch(function () {});
-    }, 1000);
-  }
-
-  function stopLiveStream() {
-    if (liveStatsPollTimer) {
-      clearInterval(liveStatsPollTimer);
-      liveStatsPollTimer = null;
+        .catch(function () { });
     }
 
-    if (liveStreamSourceId) {
-      fetch("/api/stream/" + liveStreamSourceId + "/stop", {
-        method: "POST",
-        credentials: "same-origin"
-      }).catch(function () {});
+    function stopLiveStatePoll() {
+      if (liveStatePollTimer) {
+        clearInterval(liveStatePollTimer);
+        liveStatePollTimer = null;
+      }
     }
 
-    isLiveStreaming = false;
-    liveStreamSourceId = null;
-
-    // Show video player, hide live stream
-    if (liveStreamImg) {
-      var wrapper = document.getElementById("live-stream-wrapper");
-      if (wrapper) wrapper.style.display = "none";
-      liveStreamImg.src = "";
-    }
-    if (liveBadge) liveBadge.hidden = true;
-    if (focusPlayer) {
-      focusPlayer.hidden = false;
-      focusPlayer.style.display = "";
+    function pollLiveState() {
+      // Left empty here as it's not needed for the live stream view
     }
 
-    // Update buttons
-    if (startLiveBtn) startLiveBtn.hidden = false;
-    if (stopLiveBtn) stopLiveBtn.hidden = true;
+    function startAnalysis() {
+      // Left empty
+    }
 
-    // Hide vehicle class filter panel
-    var filterPanel = document.getElementById("class-filter-panel");
-    if (filterPanel) filterPanel.hidden = true;
+    function setSelectedTile(tile) {
+      if (!tile || !focusPlayer) return;
+      tiles.forEach(function (item) { item.classList.remove("is-selected"); });
+      tile.classList.add("is-selected");
+      var videoUrl = tile.getAttribute("data-video-url");
+      var videoName = tile.getAttribute("data-video-name");
+      var videoPath = tile.getAttribute("data-video-path");
+      var roiReady = tile.getAttribute("data-video-roi");
+      var sourceId = tile.getAttribute("data-source-id");
+      var camIndex = tile.getAttribute("data-cam-index") || "1";
+      updateSelection(videoPath, videoUrl, videoName, roiReady, sourceId, camIndex);
+    }
 
-    setFocusMode("Video gốc", "Chạy phân tích để xem kết quả.");
-    resetTrafficDensity();
-    hideDirectionStats();
-    _hideLiveAnalytics();  // Quảy lại panel "Kết quả mới nhất"
-  }
-
-  if (startLiveBtn) {
-    startLiveBtn.addEventListener("click", function () { startLiveStream(); });
-  }
-  if (stopLiveBtn) {
-    stopLiveBtn.addEventListener("click", function () { stopLiveStream(); });
-  }
-
-  // ========== VEHICLE CLASS FILTER ==========
-  function applyClassFilter() {
-    if (!isLiveStreaming || !liveStreamSourceId) return;
-    var activeBtns = document.querySelectorAll(".class-filter-btn.is-active");
-    var classes = [];
-    activeBtns.forEach(function(btn) {
-      classes.push(btn.getAttribute("data-class"));
+    tiles.forEach(function (tile) {
+      tile.addEventListener("click", function () { setSelectedTile(tile); });
     });
-    // null means count all (all selected = same as no filter)
-    var allBtns = document.querySelectorAll(".class-filter-btn");
-    var payload = (classes.length === allBtns.length) ? { classes: [] } : { classes: classes };
-    fetch("/api/stream/" + liveStreamSourceId + "/set-classes", {
-      method: "POST",
-      credentials: "same-origin",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    }).catch(function() {});
-  }
 
-  document.querySelectorAll(".class-filter-btn").forEach(function(btn) {
-    btn.addEventListener("click", function() {
-      btn.classList.toggle("is-active");
-      // Ensure at least 1 type is selected
-      var anyActive = document.querySelectorAll(".class-filter-btn.is-active").length > 0;
-      if (!anyActive) btn.classList.add("is-active"); // revert if all deselected
-      applyClassFilter();
+    libraryItems.forEach(function (item) {
+      item.addEventListener("click", function () {
+        var videoPath = item.getAttribute("data-video-path");
+        var videoUrl = item.getAttribute("data-video-url");
+        var videoName = item.getAttribute("data-video-name");
+        var roiReady = item.getAttribute("data-video-roi");
+        var sourceId = item.getAttribute("data-source-id");
+        var camIndex = item.getAttribute("data-cam-index") || "1";
+        updateSelection(videoPath, videoUrl, videoName, roiReady, sourceId, camIndex);
+        var matchingTile = tiles.find(function (t) { return t.getAttribute("data-video-path") === videoPath; });
+        if (matchingTile) {
+          tiles.forEach(function (t) { t.classList.remove("is-selected"); });
+          matchingTile.classList.add("is-selected");
+        }
+      });
     });
-  });
 
-  var classFilterAllBtn = document.getElementById("class-filter-all-btn");
-  if (classFilterAllBtn) {
-    classFilterAllBtn.addEventListener("click", function() {
-      document.querySelectorAll(".class-filter-btn").forEach(function(btn) {
+    function playOutputVideo(item) {
+      isProcessedView = true;
+      if (focusPlayer) {
+        focusPlayer.hidden = false;
+        focusPlayer.style.display = "";
+      }
+      focusPlayer.src = item.url;
+      focusPlayer.load();
+      focusPlayer.play().catch(function () { });
+      setFocusMode("Video đã xử lý", "Mỗi xe trên video tương ứng với số đếm bên cạnh.");
+      setResultMeta("Đã hoàn tất", item.display_name, "Đang giữ kết quả đếm cuối cùng. Chỉ reset khi đổi video hoặc refresh trang.");
+      updateFocusCounts(item.summary || {});
+      updateResultCounts(item.summary || {});
+    }
+
+    // ========== DIRECTION / FLOW / D-FACTOR / LOS / PCE HELPERS ==========
+
+    var LOS_THRESHOLDS = [
+      { max: 600, grade: 'A', color: '#16a34a', bg: '#dcfce7' },
+      { max: 900, grade: 'B', color: '#65a30d', bg: '#ecfccb' },
+      { max: 1200, grade: 'C', color: '#ca8a04', bg: '#fef9c3' },
+      { max: 1500, grade: 'D', color: '#ea580c', bg: '#ffedd5' },
+      { max: 1800, grade: 'E', color: '#dc2626', bg: '#fee2e2' },
+      { max: Infinity, grade: 'F', color: '#7f1d1d', bg: '#fca5a5' }
+    ];
+
+    function getLOS(vph) {
+      for (var i = 0; i < LOS_THRESHOLDS.length; i++) {
+        if (vph < LOS_THRESHOLDS[i].max) return LOS_THRESHOLDS[i];
+      }
+      return LOS_THRESHOLDS[LOS_THRESHOLDS.length - 1];
+    }
+
+    function calcPCE(perClass) {
+      var car = (perClass && perClass.car) || 0;
+      var moto = (perClass && perClass.motorcycle) || 0;
+      var bus = (perClass && perClass.bus) || 0;
+      var truck = (perClass && perClass.truck) || 0;
+      return Math.round(car * 1.0 + moto * 0.5 + bus * 2.5 + truck * 2.0);
+    }
+
+    function _setText(id, val) { var el = document.getElementById(id); if (el) el.textContent = val; }
+    function _setStyle(id, prop, val) { var el = document.getElementById(id); if (el) el.style[prop] = val; }
+    function _show(id) { _setStyle(id, 'display', ''); }
+    function _hide(id) { _setStyle(id, 'display', 'none'); }
+
+    function updateDirectionCounts(data) {
+      var dirs = data && data.directions;
+      if (!dirs) return;
+      var di = (dirs.di && dirs.di.total) || 0;
+      var ve = (dirs.ve && dirs.ve.total) || 0;
+      _setText('focus-di-count', di);
+      _setText('focus-ve-count', ve);
+      _setText('latest-di-count', di);
+      _setText('latest-ve-count', ve);
+      _show('focus-di-stat'); _show('focus-ve-stat');
+      _show('result-di-stat'); _show('result-ve-stat');
+    }
+
+    function updateFlowRate(data) {
+      var vph = data && data.flow_rate_vph;
+      var elapsed = (data && data.elapsed_sec) || 0;
+      _show('focus-flowrate-stat');
+      _show('result-flowrate-stat');
+      if (typeof vph === 'number') {
+        var elapsedMin = Math.round(elapsed / 60);
+        var label = vph + ' xe/giờ';
+        if (elapsedMin >= 1) label += ' (' + elapsedMin + ' phút)';
+        _setText('focus-flowrate', label);
+        _setText('latest-flowrate', label);
+        _setText('live-vph-summary', label);
+      } else {
+        var remaining = Math.max(0, 60 - elapsed);
+        var waitLabel = 'Đang thu thập... (' + remaining + 's)';
+        _setText('focus-flowrate', waitLabel);
+        _setText('latest-flowrate', waitLabel);
+        _setText('live-vph-summary', waitLabel);
+      }
+    }
+
+    function updateDFactor(data) {
+      var dirs = data && data.directions;
+      if (!dirs) return;
+      var di = (dirs.di && dirs.di.total) || 0;
+      var ve = (dirs.ve && dirs.ve.total) || 0;
+      var total = di + ve;
+      if (total === 0) return;
+      var diPct = Math.round(di / total * 100);
+      var vePct = 100 - diPct;
+      var dominant = diPct >= vePct ? ('↗ Đi (' + diPct + '%)') : ('↘ Về (' + vePct + '%)');
+      // Focus panel
+      _setText('focus-dfactor-di-pct', diPct + '%');
+      _setText('focus-dfactor-ve-pct', vePct + '%');
+      _setStyle('focus-dfactor-bar-di', 'width', diPct + '%');
+      _setStyle('focus-dfactor-bar-ve', 'width', vePct + '%');
+      _show('focus-dfactor-row');
+      // Result static panel
+      _setText('latest-dominant-dir', dominant);
+      _setStyle('result-dfactor-bar-di', 'width', diPct + '%');
+      _setStyle('result-dfactor-bar-ve', 'width', vePct + '%');
+      _show('result-dfactor-row');
+      // Live analytics panel
+      _setText('live-dominant-dir', dominant);
+    }
+
+    function updateLOS(data) {
+      var vph = data && data.flow_rate_vph;
+      if (typeof vph !== 'number') {
+        _setText('focus-los-badge', '—');
+        _setText('result-los-badge', '—');
+        _setText('live-los-big', '—');
+        _setText('live-los-desc', 'Đang thu thập dữ liệu...');
+        return;
+      }
+      var los = getLOS(vph);
+      var desc = LOS_DESC[los.grade] || '';
+      var focusBadge = document.getElementById('focus-los-badge');
+      if (focusBadge) { focusBadge.textContent = los.grade; focusBadge.style.background = los.bg; focusBadge.style.color = los.color; }
+      var resultBadge = document.getElementById('result-los-badge');
+      if (resultBadge) { resultBadge.textContent = los.grade; resultBadge.style.background = los.bg; resultBadge.style.color = los.color; }
+      // Live analytics panel
+      var liveBig = document.getElementById('live-los-big');
+      if (liveBig) { liveBig.textContent = los.grade; liveBig.style.background = los.bg; liveBig.style.color = los.color; }
+      _setText('live-los-desc', desc);
+    }
+
+    function updatePCE(data) {
+      var vph = data && data.flow_rate_vph;
+      if (typeof vph !== 'number') {
+        _setText('focus-pce', '—');
+        _setText('result-pce', '—');
+        _setText('live-pce-big', '—');
+        return;
+      }
+      var perClass = (data && data.per_class) || {};
+      var pce = calcPCE(perClass);
+      var total = data.total || 1;
+      var pceVph = total > 0 ? Math.round(pce / total * vph) : 0;
+      _setText('focus-pce', pceVph);
+      _setText('result-pce', pceVph);
+      _setText('live-pce-big', pceVph);
+    }
+
+    function showDirectionStats() {
+      _show('focus-di-stat'); _show('focus-ve-stat'); _show('focus-flowrate-stat');
+      _show('result-di-stat'); _show('result-ve-stat'); _show('result-flowrate-stat');
+    }
+
+    function hideDirectionStats() {
+      ['focus-di-stat', 'focus-ve-stat', 'focus-flowrate-stat', 'focus-dfactor-row',
+        'result-di-stat', 'result-ve-stat', 'result-flowrate-stat', 'result-dfactor-row'
+      ].forEach(function (id) { _hide(id); });
+      _setText('focus-los-badge', '—'); _setText('focus-pce', '—');
+      _setText('result-los-badge', '—'); _setText('result-pce', '—');
+    }
+
+    // ========== LIVE STREAM FUNCTIONS ==========
+    function startLiveStream() {
+      if (!currentSourceId) {
+        alert("Chưa chọn video hoặc video chưa có trong nguồn.");
+        return;
+      }
+      // Stop any running analysis first
+      stopLiveStatePoll();
+
+      liveStreamSourceId = currentSourceId;
+      isLiveStreaming = true;
+
+      // Hide video player, show live stream img
+      if (focusPlayer) {
+        focusPlayer.hidden = true;
+        focusPlayer.style.display = "none";
+      }
+      if (liveStreamImg) {
+        var wrapper = document.getElementById("live-stream-wrapper");
+        var loading = document.getElementById("live-stream-loading");
+        if (wrapper && loading) {
+          // Xoá aspect-ratio cố định — wrapper tự co theo ảnh thực
+          wrapper.style.aspectRatio = "";
+          wrapper.style.display = "block";
+          loading.style.display = "flex";
+        }
+        liveStreamImg.style.opacity = "0";
+        liveStreamImg.onload = function () {
+          this.style.opacity = "1";
+          if (loading) loading.style.display = "none";
+        };
+
+        // Fallback in case of stream errors
+        liveStreamImg.onerror = function () {
+          if (loading) {
+            loading.innerHTML = '<span style="color:#ef4444; font-weight: 500;">Không thể kết nối. Vui lòng thử lại.</span>';
+          }
+        };
+
+        liveStreamImg.src = "/api/stream/" + currentSourceId + "?t=" + Date.now();
+      }
+      if (liveBadge) liveBadge.hidden = false;
+
+      // Update buttons
+      if (startLiveBtn) startLiveBtn.hidden = true;
+      if (stopLiveBtn) stopLiveBtn.hidden = false;
+
+      // Show vehicle class filter panel
+      var filterPanel = document.getElementById("class-filter-panel");
+      if (filterPanel) filterPanel.hidden = false;
+      // Reset all filters to active
+      document.querySelectorAll(".class-filter-btn").forEach(function (btn) {
         btn.classList.add("is-active");
       });
-      applyClassFilter();
-    });
-  }
 
-  var stopAnalysisBtn = document.getElementById("stop-analysis-btn");
-  if (stopAnalysisBtn) {
-    stopAnalysisBtn.addEventListener("click", function () {
-      stopAnalysisBtn.disabled = true;
-      fetch("/api/monitoring/stop", { method: "POST", credentials: "same-origin" })
-        .then(function (r) { return r.json(); })
-        .then(function () {
-          stopLiveStatePoll();
-          refreshStopButtonState();
-          setResultMeta("Đã dừng phân tích", currentVideoName, "Phiên đã dừng. Bạn có thể chạy lại khi cần.");
-        })
-        .catch(function () { refreshStopButtonState(); });
-    });
-  }
+      setFocusMode("Trực tiếp (LIVE)", "Đang stream video với YOLO detect real-time.");
+      updateFocusCounts({ total: 0, per_class: {} });
+      _showLiveAnalytics();  // Chuyển panel phải sang "Phân tích nhanh"
 
-  refreshStopButtonState();
-
-  function hydrateFromLiveState() {
-    // Fetch BOTH headless analysis state AND active MJPEG streams in parallel
-    var pLiveState = fetch("/api/monitoring/live-state", { credentials: "same-origin" })
-      .then(function (r) { return r.json(); })
-      .catch(function () { return {}; });
-    var pActiveStreams = fetch("/api/stream/active-stats", { credentials: "same-origin" })
-      .then(function (r) { return r.json(); })
-      .catch(function () { return {}; });
-
-    Promise.all([pLiveState, pActiveStreams]).then(function (results) {
-      var data = results[0] || {};
-      var streamData = results[1] || {};
-      var live = data.live_state || null;
-      var activeId = data.active_session_id;
-      var headlessActive = false;
-
-      // ---- 1. Handle headless analysis state (existing logic) ----
-      if (live) {
-        var status = live.status || "";
-        var summary = live.summary || {};
-        var sourceName = live.source_name || currentVideoName || "Phiên đang chạy";
-
-        var matchingTile = null;
-        if (typeof live.source_id === "number") {
-          matchingTile = tiles.find(function (t) {
-            var sid = t.getAttribute("data-source-id");
-            return sid && parseInt(sid, 10) === live.source_id;
-          }) || null;
-        }
-        if (!matchingTile && live.source_name) {
-          matchingTile = tiles.find(function (t) {
-            return t.getAttribute("data-video-name") === live.source_name;
-          }) || null;
-        }
-        if (matchingTile) {
-          setSelectedTile(matchingTile);
-        } else if (!currentVideoName && !activeId && tiles.length) {
-          setSelectedTile(tiles[0]);
-        }
-
-        if (activeId && (status === "running" || status === "queued")) {
-          headlessActive = true;
-          var stopBtn = document.getElementById("stop-analysis-btn");
-          if (stopBtn) {
-            stopBtn.disabled = false;
-          }
-          updateFocusCounts(summary);
-          updateResultCounts(summary);
-          setResultMeta("Đang chạy phân tích", sourceName, "Đang xử lý video, vui lòng đợi.");
-          if (!liveStatePollTimer) {
-            liveStatePollTimer = setInterval(pollLiveState, 800);
-          }
-        } else if (status === "completed") {
-          updateFocusCounts(summary);
-          updateResultCounts(summary);
-          setResultMeta("Phân tích hoàn thành", sourceName, "Phân tích xong. Kết quả hiển thị bên dưới.");
-          lastCompleted = {
-            source_id: live.source_id,
-            source_name: sourceName,
-            summary: summary
-          };
-          if (live.session_id) {
-            fetchSessionAndPlay(live.session_id, sourceName, summary);
-          } else if (!isEmptySummary(summary)) {
-            fetchAndPlayOutputForName(sourceName, summary);
-          } else {
-            // Fallback: ask server for latest sessions and pick the newest completed
-            fetch("/api/sessions?limit=5", { credentials: "same-origin" })
-              .then(function (r) { return r.json(); })
-              .then(function (payload) {
-                var sessions = (payload && payload.sessions) || [];
-                var match = sessions.find(function (s) {
-                  return s.status === "completed" && (typeof live.source_id === "number" ? s.source_id === live.source_id : true);
-                }) || sessions.find(function (s) { return s.status === "completed"; }) || null;
-                if (match && match.media_url) {
-                  playOutputVideo({ url: match.media_url, display_name: match.source_name || sourceName, summary: match.summary || {} });
-                } else if (match) {
-                  fetchAndPlayOutputForName(match.source_name || sourceName, match.summary || {});
-                }
-              })
-              .catch(function () {});
-          }
-        } else if (status === "stopped" || status === "cancelled") {
-          updateFocusCounts(summary);
-          updateResultCounts(summary);
-          setResultMeta("Đã dừng phân tích", sourceName, "Phiên đã dừng. Bạn có thể chạy lại khi cần.");
-        } else if (status === "failed") {
-          updateFocusCounts(summary);
-          updateResultCounts(summary);
-          setResultMeta("Đã dừng phân tích", sourceName, live.error_message || "Phiên gặp lỗi và đã dừng.");
-        }
-      }
-
-      // ---- 2. Reconnect to active MJPEG stream (NEW) ----
-      // If no headless analysis is running AND there's an active MJPEG stream,
-      // automatically reconnect to it so the user sees live view restored.
-      if (!headlessActive && !isLiveStreaming && streamData.has_active_stream && streamData.streams && streamData.streams.length > 0) {
-        var activeStream = streamData.streams[0];
-        var streamSourceId = activeStream.source_id;
-
-        var streamTile = tiles.find(function (t) {
-          var sid = t.getAttribute("data-source-id");
-          return sid && parseInt(sid, 10) === streamSourceId;
-        }) || null;
-
-        if (streamTile) {
-          // Select the tile manually (without calling updateSelection which would reset state)
-          tiles.forEach(function (item) { item.classList.remove("is-selected"); });
-          streamTile.classList.add("is-selected");
-
-          var videoPath = streamTile.getAttribute("data-video-path");
-          var videoName = streamTile.getAttribute("data-video-name");
-          var roiReady = streamTile.getAttribute("data-video-roi");
-          var sourceId = streamTile.getAttribute("data-source-id");
-          var camIndex = streamTile.getAttribute("data-cam-index") || "1";
-
-          currentInputVideoUrl = streamTile.getAttribute("data-video-url");
-          currentVideoName = videoName;
-          currentSourceId = parseInt(sourceId, 10);
-
-          // Update side panel labels
-          var camLabel = document.getElementById("selected-cam-label");
-          if (camLabel) camLabel.textContent = "CAM " + camIndex;
-          if (selectedVideoName) selectedVideoName.textContent = videoName;
-          if (selectedRoiStatus) selectedRoiStatus.textContent = roiReady === "yes" ? "Đã cấu hình" : "Chưa cấu hình";
-          if (editRoiLink) editRoiLink.href = "/monitoring/edit-roi-for-video?path=" + encodeURIComponent(videoPath);
-
-          // Reconnect to the live MJPEG stream
-          startLiveStream();
-
-          // Immediately restore counts from the active stream data (instead of showing 0)
-          updateFocusCounts(activeStream);
-          updateResultCounts(activeStream);
-          setResultMeta("Đang stream trực tiếp", videoName, "");
-        }
-      }
-
-      // ---- 3. Default: select first tile if nothing else was handled ----
-      if (!live && !isLiveStreaming && !currentVideoName && tiles.length) {
-        setSelectedTile(tiles[0]);
-      }
-    });
-  }
-
-  hydrateFromLiveState();
-
-  function uploadFile(file) {
-    if (!file || !file.name.match(/\.(mp4|avi|mov|mkv)$/i)) {
-      alert("Chỉ hỗ trợ mp4, avi, mov, mkv");
-      return;
+      // Poll stats
+      liveStatsPollTimer = setInterval(function () {
+        if (!isLiveStreaming || !liveStreamSourceId) return;
+        fetch("/api/stream/" + liveStreamSourceId + "/stats", { credentials: "same-origin" })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (data.streaming) {
+              updateFocusCounts(data);
+              updateResultCounts(data);
+              setResultMeta("Đang stream trực tiếp", currentVideoName, "");
+              updateDirectionCounts(data);  // Đi / Về
+              updateFlowRate(data);         // xe/giờ
+              updateDFactor(data);          // tỷ lệ chiều + thanh progress
+              updateLOS(data);              // Level of Service A→F
+              updatePCE(data);              // PCE/giờ
+              var counts = getVehicleSummary(data);
+              updateTrafficDensity(counts.total);
+            }
+          })
+          .catch(function () { });
+      }, 1000);
     }
-    var uploadProgress = document.getElementById("upload-progress");
-    var uploadProgressBar = document.getElementById("upload-progress-bar");
-    var uploadProgressLabel = document.getElementById("upload-progress-label");
-    if (uploadProgress) uploadProgress.hidden = false;
-    if (uploadProgressLabel) uploadProgressLabel.hidden = false;
-    if (uploadProgressBar) uploadProgressBar.style.width = "0%";
-    if (uploadProgressLabel) uploadProgressLabel.textContent = "Đang tải lên...";
-    var xhr = new XMLHttpRequest();
-    xhr.open("POST", "/api/sources/upload");
-    xhr.upload.addEventListener("progress", function (event) {
-      if (!event.lengthComputable) return;
-      var percent = Math.round((event.loaded / event.total) * 100);
-      if (uploadProgressBar) uploadProgressBar.style.width = percent + "%";
-      if (uploadProgressLabel) uploadProgressLabel.textContent = "Đang tải lên " + percent + "%";
-    });
-    xhr.onload = function () {
-      try {
-        var data = JSON.parse(xhr.responseText);
-        if (!data.ok) throw new Error(data.error || "Tải video thất bại.");
-        uploadProgressLabel.textContent = "Tải xong. Đang làm mới giao diện...";
-        window.location.reload();
-      } catch (error) {
-        if (uploadProgress) uploadProgress.hidden = true;
-        if (uploadProgressLabel) uploadProgressLabel.hidden = true;
-        alert(error.message || "Tải video thất bại.");
-      }
-    };
-    xhr.onerror = function () {
-      if (uploadProgress) uploadProgress.hidden = true;
-      if (uploadProgressLabel) uploadProgressLabel.hidden = true;
-      alert("Không thể tải video lên.");
-    };
-    var formData = new FormData();
-    formData.append("file", file);
-    xhr.send(formData);
-  }
 
-  var dropZone = document.getElementById("drop-zone");
-  var fileInput = document.getElementById("file-input");
-  if (dropZone && fileInput) {
-    dropZone.addEventListener("click", function () { fileInput.click(); });
-    dropZone.addEventListener("dragover", function (e) { e.preventDefault(); dropZone.classList.add("is-over"); });
-    dropZone.addEventListener("dragleave", function () { dropZone.classList.remove("is-over"); });
-    dropZone.addEventListener("drop", function (e) {
-      e.preventDefault();
-      dropZone.classList.remove("is-over");
-      if (e.dataTransfer.files.length) uploadFile(e.dataTransfer.files[0]);
-    });
-    fileInput.addEventListener("change", function () {
-      if (fileInput.files.length) uploadFile(fileInput.files[0]);
-    });
-  }
-
-  // ========== RTSP CAMERA CONNECTION ==========
-  var rtspConnectBtn = document.getElementById("rtsp-connect-btn");
-  var rtspCamName = document.getElementById("rtsp-cam-name");
-  var rtspCamUrl = document.getElementById("rtsp-cam-url");
-  var rtspStatus = document.getElementById("rtsp-status");
-  var rtspBtnText = document.getElementById("rtsp-btn-text");
-
-  function setRtspStatus(message, type) {
-    if (!rtspStatus) return;
-    rtspStatus.hidden = false;
-    rtspStatus.textContent = message;
-    rtspStatus.className = "monitor-rtsp-status monitor-rtsp-status--" + type;
-  }
-
-  function setRtspLoading(isLoading) {
-    if (rtspConnectBtn) rtspConnectBtn.disabled = isLoading;
-    if (rtspBtnText) rtspBtnText.textContent = isLoading ? "Đang kết nối..." : "Kết nối";
-    if (isLoading && rtspConnectBtn) rtspConnectBtn.classList.add("is-loading");
-    else if (rtspConnectBtn) rtspConnectBtn.classList.remove("is-loading");
-  }
-
-  if (rtspConnectBtn) {
-    rtspConnectBtn.addEventListener("click", function () {
-      var name = (rtspCamName && rtspCamName.value || "").trim();
-      var url = (rtspCamUrl && rtspCamUrl.value || "").trim();
-
-      if (!name) {
-        setRtspStatus("Vui lòng nhập tên camera.", "error");
-        if (rtspCamName) rtspCamName.focus();
-        return;
-      }
-      if (!url) {
-        setRtspStatus("Vui lòng nhập URL kết nối.", "error");
-        if (rtspCamUrl) rtspCamUrl.focus();
-        return;
-      }
-      if (!url.match(/^(rtsp|http|https|rtmp):\/\//i)) {
-        setRtspStatus("URL phải bắt đầu bằng rtsp://, http://, https:// hoặc rtmp://", "error");
-        if (rtspCamUrl) rtspCamUrl.focus();
-        return;
+    function stopLiveStream() {
+      if (liveStatsPollTimer) {
+        clearInterval(liveStatsPollTimer);
+        liveStatsPollTimer = null;
       }
 
-      setRtspLoading(true);
-      setRtspStatus("Đang kết nối tới camera...", "info");
+      if (liveStreamSourceId) {
+        fetch("/api/stream/" + liveStreamSourceId + "/stop", {
+          method: "POST",
+          credentials: "same-origin"
+        }).catch(function () { });
+      }
 
-      fetch("/api/monitoring/add-stream", {
+      isLiveStreaming = false;
+      liveStreamSourceId = null;
+
+      // Show video player, hide live stream
+      if (liveStreamImg) {
+        var wrapper = document.getElementById("live-stream-wrapper");
+        if (wrapper) wrapper.style.display = "none";
+        liveStreamImg.src = "";
+      }
+      if (liveBadge) liveBadge.hidden = true;
+      if (focusPlayer) {
+        focusPlayer.hidden = false;
+        focusPlayer.style.display = "";
+      }
+
+      // Update buttons
+      if (startLiveBtn) startLiveBtn.hidden = false;
+      if (stopLiveBtn) stopLiveBtn.hidden = true;
+
+      // Hide vehicle class filter panel
+      var filterPanel = document.getElementById("class-filter-panel");
+      if (filterPanel) filterPanel.hidden = true;
+
+      setFocusMode("Video gốc", "Chạy phân tích để xem kết quả.");
+      resetTrafficDensity();
+      hideDirectionStats();
+      _hideLiveAnalytics();  // Quảy lại panel "Kết quả mới nhất"
+    }
+
+    if (startLiveBtn) {
+      startLiveBtn.addEventListener("click", function () { startLiveStream(); });
+    }
+    if (stopLiveBtn) {
+      stopLiveBtn.addEventListener("click", function () { stopLiveStream(); });
+    }
+
+    // ========== VEHICLE CLASS FILTER ==========
+    function applyClassFilter() {
+      if (!isLiveStreaming || !liveStreamSourceId) return;
+      var activeBtns = document.querySelectorAll(".class-filter-btn.is-active");
+      var classes = [];
+      activeBtns.forEach(function (btn) {
+        classes.push(btn.getAttribute("data-class"));
+      });
+      // null means count all (all selected = same as no filter)
+      var allBtns = document.querySelectorAll(".class-filter-btn");
+      var payload = (classes.length === allBtns.length) ? { classes: [] } : { classes: classes };
+      fetch("/api/stream/" + liveStreamSourceId + "/set-classes", {
         method: "POST",
         credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name, url: url })
-      })
-      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
-      .then(function (result) {
-        setRtspLoading(false);
-        if (result.ok && result.data.ok) {
-          setRtspStatus("✓ " + (result.data.message || "Thêm camera thành công!"), "success");
-          // Clear inputs
-          if (rtspCamName) rtspCamName.value = "";
-          if (rtspCamUrl) rtspCamUrl.value = "";
-          // Reload after short delay so user sees success message
-          setTimeout(function () { window.location.reload(); }, 1200);
-        } else {
-          setRtspStatus("✗ " + (result.data.error || "Không thể kết nối camera."), "error");
-        }
-      })
-      .catch(function (err) {
-        setRtspLoading(false);
-        setRtspStatus("✗ Lỗi kết nối: " + (err.message || "Không thể kết nối tới máy chủ."), "error");
+        body: JSON.stringify(payload)
+      }).catch(function () { });
+    }
+
+    document.querySelectorAll(".class-filter-btn").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        btn.classList.toggle("is-active");
+        // Ensure at least 1 type is selected
+        var anyActive = document.querySelectorAll(".class-filter-btn.is-active").length > 0;
+        if (!anyActive) btn.classList.add("is-active"); // revert if all deselected
+        applyClassFilter();
       });
     });
 
-    // Allow Enter key to submit
-    [rtspCamName, rtspCamUrl].forEach(function (input) {
-      if (input) {
-        input.addEventListener("keydown", function (e) {
-          if (e.key === "Enter") {
-            e.preventDefault();
-            rtspConnectBtn.click();
-          }
+    var classFilterAllBtn = document.getElementById("class-filter-all-btn");
+    if (classFilterAllBtn) {
+      classFilterAllBtn.addEventListener("click", function () {
+        document.querySelectorAll(".class-filter-btn").forEach(function (btn) {
+          btn.classList.add("is-active");
         });
+        applyClassFilter();
+      });
+    }
+
+    var stopAnalysisBtn = document.getElementById("stop-analysis-btn");
+    if (stopAnalysisBtn) {
+      stopAnalysisBtn.addEventListener("click", function () {
+        stopAnalysisBtn.disabled = true;
+        fetch("/api/monitoring/stop", { method: "POST", credentials: "same-origin" })
+          .then(function (r) { return r.json(); })
+          .then(function () {
+            stopLiveStatePoll();
+            refreshStopButtonState();
+            setResultMeta("Đã dừng phân tích", currentVideoName, "Phiên đã dừng. Bạn có thể chạy lại khi cần.");
+          })
+          .catch(function () { refreshStopButtonState(); });
+      });
+    }
+
+    refreshStopButtonState();
+
+    function hydrateFromLiveState() {
+      // Fetch BOTH headless analysis state AND active MJPEG streams in parallel
+      var pLiveState = fetch("/api/monitoring/live-state", { credentials: "same-origin" })
+        .then(function (r) { return r.json(); })
+        .catch(function () { return {}; });
+      var pActiveStreams = fetch("/api/stream/active-stats", { credentials: "same-origin" })
+        .then(function (r) { return r.json(); })
+        .catch(function () { return {}; });
+
+      Promise.all([pLiveState, pActiveStreams]).then(function (results) {
+        var data = results[0] || {};
+        var streamData = results[1] || {};
+        var live = data.live_state || null;
+        var activeId = data.active_session_id;
+        var headlessActive = false;
+
+        // ---- 1. Handle headless analysis state (existing logic) ----
+        if (live) {
+          var status = live.status || "";
+          var summary = live.summary || {};
+          var sourceName = live.source_name || currentVideoName || "Phiên đang chạy";
+
+          var matchingTile = null;
+          if (typeof live.source_id === "number") {
+            matchingTile = tiles.find(function (t) {
+              var sid = t.getAttribute("data-source-id");
+              return sid && parseInt(sid, 10) === live.source_id;
+            }) || null;
+          }
+          if (!matchingTile && live.source_name) {
+            matchingTile = tiles.find(function (t) {
+              return t.getAttribute("data-video-name") === live.source_name;
+            }) || null;
+          }
+          if (matchingTile) {
+            setSelectedTile(matchingTile);
+          } else if (!currentVideoName && !activeId && tiles.length) {
+            setSelectedTile(tiles[0]);
+          }
+
+          if (activeId && (status === "running" || status === "queued")) {
+            headlessActive = true;
+            var stopBtn = document.getElementById("stop-analysis-btn");
+            if (stopBtn) {
+              stopBtn.disabled = false;
+            }
+            updateFocusCounts(summary);
+            updateResultCounts(summary);
+            setResultMeta("Đang chạy phân tích", sourceName, "Đang xử lý video, vui lòng đợi.");
+            if (!liveStatePollTimer) {
+              liveStatePollTimer = setInterval(pollLiveState, 800);
+            }
+          } else if (status === "completed") {
+            updateFocusCounts(summary);
+            updateResultCounts(summary);
+            setResultMeta("Phân tích hoàn thành", sourceName, "Phân tích xong. Kết quả hiển thị bên dưới.");
+            lastCompleted = {
+              source_id: live.source_id,
+              source_name: sourceName,
+              summary: summary
+            };
+            if (live.session_id) {
+              fetchSessionAndPlay(live.session_id, sourceName, summary);
+            } else if (!isEmptySummary(summary)) {
+              fetchAndPlayOutputForName(sourceName, summary);
+            } else {
+              // Fallback: ask server for latest sessions and pick the newest completed
+              fetch("/api/sessions?limit=5", { credentials: "same-origin" })
+                .then(function (r) { return r.json(); })
+                .then(function (payload) {
+                  var sessions = (payload && payload.sessions) || [];
+                  var match = sessions.find(function (s) {
+                    return s.status === "completed" && (typeof live.source_id === "number" ? s.source_id === live.source_id : true);
+                  }) || sessions.find(function (s) { return s.status === "completed"; }) || null;
+                  if (match && match.media_url) {
+                    playOutputVideo({ url: match.media_url, display_name: match.source_name || sourceName, summary: match.summary || {} });
+                  } else if (match) {
+                    fetchAndPlayOutputForName(match.source_name || sourceName, match.summary || {});
+                  }
+                })
+                .catch(function () { });
+            }
+          } else if (status === "stopped" || status === "cancelled") {
+            updateFocusCounts(summary);
+            updateResultCounts(summary);
+            setResultMeta("Đã dừng phân tích", sourceName, "Phiên đã dừng. Bạn có thể chạy lại khi cần.");
+          } else if (status === "failed") {
+            updateFocusCounts(summary);
+            updateResultCounts(summary);
+            setResultMeta("Đã dừng phân tích", sourceName, live.error_message || "Phiên gặp lỗi và đã dừng.");
+          }
+        }
+
+        // ---- 2. Reconnect to active MJPEG stream (NEW) ----
+        // If no headless analysis is running AND there's an active MJPEG stream,
+        // automatically reconnect to it so the user sees live view restored.
+        if (!headlessActive && !isLiveStreaming && streamData.has_active_stream && streamData.streams && streamData.streams.length > 0) {
+          var activeStream = streamData.streams[0];
+          var streamSourceId = activeStream.source_id;
+
+          var streamTile = tiles.find(function (t) {
+            var sid = t.getAttribute("data-source-id");
+            return sid && parseInt(sid, 10) === streamSourceId;
+          }) || null;
+
+          if (streamTile) {
+            // Select the tile manually (without calling updateSelection which would reset state)
+            tiles.forEach(function (item) { item.classList.remove("is-selected"); });
+            streamTile.classList.add("is-selected");
+
+            var videoPath = streamTile.getAttribute("data-video-path");
+            var videoName = streamTile.getAttribute("data-video-name");
+            var roiReady = streamTile.getAttribute("data-video-roi");
+            var sourceId = streamTile.getAttribute("data-source-id");
+            var camIndex = streamTile.getAttribute("data-cam-index") || "1";
+
+            currentInputVideoUrl = streamTile.getAttribute("data-video-url");
+            currentVideoName = videoName;
+            currentSourceId = parseInt(sourceId, 10);
+
+            // Update side panel labels
+            var camLabel = document.getElementById("selected-cam-label");
+            if (camLabel) camLabel.textContent = "CAM " + camIndex;
+            if (selectedVideoName) selectedVideoName.textContent = videoName;
+            if (selectedRoiStatus) selectedRoiStatus.textContent = roiReady === "yes" ? "Đã cấu hình" : "Chưa cấu hình";
+            if (editRoiLink) editRoiLink.href = "/monitoring/edit-roi-for-video?path=" + encodeURIComponent(videoPath);
+
+            // Reconnect to the live MJPEG stream
+            startLiveStream();
+
+            // Immediately restore counts from the active stream data (instead of showing 0)
+            updateFocusCounts(activeStream);
+            updateResultCounts(activeStream);
+            setResultMeta("Đang stream trực tiếp", videoName, "");
+          }
+        }
+
+        // ---- 3. Default: select first tile if nothing else was handled ----
+        if (!live && !isLiveStreaming && !currentVideoName && tiles.length) {
+          setSelectedTile(tiles[0]);
+        }
+      });
+    }
+
+    hydrateFromLiveState();
+
+    function uploadFile(file) {
+      if (!file || !file.name.match(/\.(mp4|avi|mov|mkv)$/i)) {
+        alert("Chỉ hỗ trợ mp4, avi, mov, mkv");
+        return;
       }
-    });
-  }
-})();
+      var uploadProgress = document.getElementById("upload-progress");
+      var uploadProgressBar = document.getElementById("upload-progress-bar");
+      var uploadProgressLabel = document.getElementById("upload-progress-label");
+      if (uploadProgress) uploadProgress.hidden = false;
+      if (uploadProgressLabel) uploadProgressLabel.hidden = false;
+      if (uploadProgressBar) uploadProgressBar.style.width = "0%";
+      if (uploadProgressLabel) uploadProgressLabel.textContent = "Đang tải lên...";
+      var xhr = new XMLHttpRequest();
+      xhr.open("POST", "/api/sources/upload");
+      xhr.upload.addEventListener("progress", function (event) {
+        if (!event.lengthComputable) return;
+        var percent = Math.round((event.loaded / event.total) * 100);
+        if (uploadProgressBar) uploadProgressBar.style.width = percent + "%";
+        if (uploadProgressLabel) uploadProgressLabel.textContent = "Đang tải lên " + percent + "%";
+      });
+      xhr.onload = function () {
+        try {
+          var data = JSON.parse(xhr.responseText);
+          if (!data.ok) throw new Error(data.error || "Tải video thất bại.");
+          uploadProgressLabel.textContent = "Tải xong. Đang làm mới giao diện...";
+          window.location.reload();
+        } catch (error) {
+          if (uploadProgress) uploadProgress.hidden = true;
+          if (uploadProgressLabel) uploadProgressLabel.hidden = true;
+          alert(error.message || "Tải video thất bại.");
+        }
+      };
+      xhr.onerror = function () {
+        if (uploadProgress) uploadProgress.hidden = true;
+        if (uploadProgressLabel) uploadProgressLabel.hidden = true;
+        alert("Không thể tải video lên.");
+      };
+      var formData = new FormData();
+      formData.append("file", file);
+      xhr.send(formData);
+    }
+
+    var dropZone = document.getElementById("drop-zone");
+    var fileInput = document.getElementById("file-input");
+    if (dropZone && fileInput) {
+      dropZone.addEventListener("click", function () { fileInput.click(); });
+      dropZone.addEventListener("dragover", function (e) { e.preventDefault(); dropZone.classList.add("is-over"); });
+      dropZone.addEventListener("dragleave", function () { dropZone.classList.remove("is-over"); });
+      dropZone.addEventListener("drop", function (e) {
+        e.preventDefault();
+        dropZone.classList.remove("is-over");
+        if (e.dataTransfer.files.length) uploadFile(e.dataTransfer.files[0]);
+      });
+      fileInput.addEventListener("change", function () {
+        if (fileInput.files.length) uploadFile(fileInput.files[0]);
+      });
+    }
+
+    // ========== RTSP CAMERA CONNECTION ==========
+    var rtspConnectBtn = document.getElementById("rtsp-connect-btn");
+    var rtspCamName = document.getElementById("rtsp-cam-name");
+    var rtspCamUrl = document.getElementById("rtsp-cam-url");
+    var rtspStatus = document.getElementById("rtsp-status");
+    var rtspBtnText = document.getElementById("rtsp-btn-text");
+
+    function setRtspStatus(message, type) {
+      if (!rtspStatus) return;
+      rtspStatus.hidden = false;
+      rtspStatus.textContent = message;
+      rtspStatus.className = "monitor-rtsp-status monitor-rtsp-status--" + type;
+    }
+
+    function setRtspLoading(isLoading) {
+      if (rtspConnectBtn) rtspConnectBtn.disabled = isLoading;
+      if (rtspBtnText) rtspBtnText.textContent = isLoading ? "Đang kết nối..." : "Kết nối";
+      if (isLoading && rtspConnectBtn) rtspConnectBtn.classList.add("is-loading");
+      else if (rtspConnectBtn) rtspConnectBtn.classList.remove("is-loading");
+    }
+
+    if (rtspConnectBtn) {
+      rtspConnectBtn.addEventListener("click", function () {
+        var name = (rtspCamName && rtspCamName.value || "").trim();
+        var url = (rtspCamUrl && rtspCamUrl.value || "").trim();
+
+        if (!name) {
+          setRtspStatus("Vui lòng nhập tên camera.", "error");
+          if (rtspCamName) rtspCamName.focus();
+          return;
+        }
+        if (!url) {
+          setRtspStatus("Vui lòng nhập URL kết nối.", "error");
+          if (rtspCamUrl) rtspCamUrl.focus();
+          return;
+        }
+        if (!url.match(/^(rtsp|http|https|rtmp):\/\//i)) {
+          setRtspStatus("URL phải bắt đầu bằng rtsp://, http://, https:// hoặc rtmp://", "error");
+          if (rtspCamUrl) rtspCamUrl.focus();
+          return;
+        }
+
+        setRtspLoading(true);
+        setRtspStatus("Đang kết nối tới camera...", "info");
+
+        fetch("/api/monitoring/add-stream", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: name, url: url })
+        })
+          .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+          .then(function (result) {
+            setRtspLoading(false);
+            if (result.ok && result.data.ok) {
+              setRtspStatus("✓ " + (result.data.message || "Thêm camera thành công!"), "success");
+              // Clear inputs
+              if (rtspCamName) rtspCamName.value = "";
+              if (rtspCamUrl) rtspCamUrl.value = "";
+              // Reload after short delay so user sees success message
+              setTimeout(function () { window.location.reload(); }, 1200);
+            } else {
+              setRtspStatus("✗ " + (result.data.error || "Không thể kết nối camera."), "error");
+            }
+          })
+          .catch(function (err) {
+            setRtspLoading(false);
+            setRtspStatus("✗ Lỗi kết nối: " + (err.message || "Không thể kết nối tới máy chủ."), "error");
+          });
+      });
+
+      // Allow Enter key to submit
+      [rtspCamName, rtspCamUrl].forEach(function (input) {
+        if (input) {
+          input.addEventListener("keydown", function (e) {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              rtspConnectBtn.click();
+            }
+          });
+        }
+      });
+    }
+  })();
 </script>
 
+<script>
+  // ============================================================
+  // MULTI-STREAM GRID CONTROLLER
+  // ============================================================
+  (function () {
+    var grid = document.getElementById('multi-stream-grid');
+    var emptyMsg = document.getElementById('multi-stream-empty');
+    var footer = document.getElementById('multi-stream-footer');
+    var counterPill = document.getElementById('multi-stream-counter');
+    var startAllBtn = document.getElementById('start-all-streams-btn');
+    var stopAllBtn = document.getElementById('stop-all-streams-btn');
+    if (!grid) return;
+
+    // Known active source IDs in the grid
+    var gridCards = {}; // source_id -> DOM element
+    var cardTimers = {}; // source_id -> start timestamp
+
+    // All available sources from page tiles (for "start all")
+    var allTiles = Array.prototype.slice.call(document.querySelectorAll('.monitor-video-tile'));
+    var allLibItems = Array.prototype.slice.call(document.querySelectorAll('.monitor-library-item'));
+    var allSources = [];
+    allTiles.concat(allLibItems).forEach(function (t) {
+      var sid = t.getAttribute('data-source-id');
+      var roi = t.getAttribute('data-video-roi');
+      var name = t.getAttribute('data-video-name');
+      if (sid && roi === 'yes') {
+        // Avoid duplicates
+        var exists = allSources.some(function (s) { return s.id === parseInt(sid, 10); });
+        if (!exists) {
+          allSources.push({ id: parseInt(sid, 10), name: name });
+        }
+      }
+    });
+
+    function fmtTime(sec) {
+      var mm = String(Math.floor(sec / 60)).padStart(2, '0');
+      var ss = String(sec % 60).padStart(2, '0');
+      return mm + ':' + ss;
+    }
+
+    function createStreamCard(stream) {
+      var sid = stream.source_id;
+      var card = document.createElement('div');
+      card.className = 'ms-card';
+      card.id = 'ms-card-' + sid;
+      card.innerHTML =
+        '<div class="ms-card-header">' +
+        '<div class="ms-card-header-name">' +
+        '<span class="ms-live-dot"></span>' +
+        '<span>' + (stream.source_name || 'Source ' + sid) + '</span>' +
+        '</div>' +
+        '<span class="ms-elapsed" id="ms-elapsed-' + sid + '">00:00</span>' +
+        '</div>' +
+        '<img class="ms-card-video" id="ms-video-' + sid + '" src="/api/stream/' + sid + '" alt="Stream ' + sid + '">' +
+        '<div class="ms-card-stats">' +
+        '<div class="ms-stat"><span class="ms-stat-value" id="ms-total-' + sid + '">0</span><span class="ms-stat-label">Tổng</span></div>' +
+        '<div class="ms-stat"><span class="ms-stat-value" id="ms-car-' + sid + '" style="color:#6366f1;">0</span><span class="ms-stat-label">🚗 Ô tô</span></div>' +
+        '<div class="ms-stat"><span class="ms-stat-value" id="ms-moto-' + sid + '" style="color:#f59e0b;">0</span><span class="ms-stat-label">🏍 Xe máy</span></div>' +
+        '<div class="ms-stat"><span class="ms-stat-value" id="ms-truck-' + sid + '" style="color:#ef4444;">0</span><span class="ms-stat-label">🚛 Tải+Bus</span></div>' +
+        '</div>' +
+        '<div class="ms-card-actions">' +
+        '<span style="font-size:11px;color:var(--color-muted);">Source #' + sid + '</span>' +
+        '<button class="ms-stop-btn" id="ms-stop-' + sid + '">■ Dừng</button>' +
+        '</div>';
+      grid.appendChild(card);
+      gridCards[sid] = card;
+      cardTimers[sid] = Date.now();
+
+      // Stop button
+      var stopBtn = document.getElementById('ms-stop-' + sid);
+      if (stopBtn) {
+        stopBtn.addEventListener('click', function () {
+          fetch('/api/stream/' + sid + '/stop', { method: 'POST', credentials: 'same-origin' })
+            .then(function () { removeStreamCard(sid); })
+            .catch(function () { });
+        });
+      }
+    }
+
+    function removeStreamCard(sid) {
+      var card = gridCards[sid];
+      if (card) {
+        card.style.opacity = '0';
+        card.style.transform = 'scale(0.95)';
+        card.style.transition = 'all 0.3s ease';
+        setTimeout(function () {
+          if (card.parentNode) card.parentNode.removeChild(card);
+        }, 300);
+        delete gridCards[sid];
+        delete cardTimers[sid];
+      }
+      updateGridUI();
+    }
+
+    function updateStreamCard(stream) {
+      var sid = stream.source_id;
+      var pc = stream.per_class || {};
+      var el;
+      el = document.getElementById('ms-total-' + sid); if (el) el.textContent = stream.total || 0;
+      el = document.getElementById('ms-car-' + sid); if (el) el.textContent = pc.car || 0;
+      el = document.getElementById('ms-moto-' + sid); if (el) el.textContent = pc.motorcycle || 0;
+      el = document.getElementById('ms-truck-' + sid); if (el) el.textContent = (pc.truck || 0) + (pc.bus || 0);
+      el = document.getElementById('ms-elapsed-' + sid); if (el) el.textContent = fmtTime(stream.elapsed_sec || 0);
+    }
+
+    function updateGridUI() {
+      var count = Object.keys(gridCards).length;
+      if (emptyMsg) emptyMsg.style.display = count > 0 ? 'none' : '';
+      if (footer) footer.style.display = count > 0 ? '' : 'none';
+      if (stopAllBtn) stopAllBtn.style.display = count > 0 ? '' : 'none';
+      if (counterPill) counterPill.textContent = count + ' / ' + allSources.length + ' luồng';
+    }
+
+    function updateAggregateFooter(data) {
+      var el;
+      el = document.getElementById('multi-agg-total'); if (el) el.textContent = data.total || 0;
+      var pc = data.per_class || {};
+      el = document.getElementById('multi-agg-car'); if (el) el.textContent = pc.car || 0;
+      el = document.getElementById('multi-agg-moto'); if (el) el.textContent = pc.motorcycle || 0;
+      el = document.getElementById('multi-agg-truck'); if (el) el.textContent = pc.truck || 0;
+      el = document.getElementById('multi-agg-bus'); if (el) el.textContent = pc.bus || 0;
+    }
+
+    function refreshMultiGrid() {
+      fetch('/api/stream/active-stats', { credentials: 'same-origin' })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          var activeIds = {};
+          var streams = data.streams || [];
+
+          streams.forEach(function (stream) {
+            var sid = stream.source_id;
+            activeIds[sid] = true;
+            if (!gridCards[sid]) {
+              createStreamCard(stream);
+            }
+            updateStreamCard(stream);
+          });
+
+          // Remove cards for streams that no longer exist
+          Object.keys(gridCards).forEach(function (sid) {
+            if (!activeIds[parseInt(sid, 10)]) {
+              removeStreamCard(parseInt(sid, 10));
+            }
+          });
+
+          updateGridUI();
+          updateAggregateFooter(data);
+        })
+        .catch(function () { });
+    }
+
+    // Poll active streams every 2 seconds
+    setInterval(refreshMultiGrid, 2000);
+    // Initial load
+    refreshMultiGrid();
+
+    // ========== START ALL BUTTON ==========
+    if (startAllBtn) {
+      startAllBtn.addEventListener('click', function () {
+        startAllBtn.disabled = true;
+        startAllBtn.textContent = '⏳ Đang khởi động...';
+
+        var promises = allSources.map(function (src) {
+          // Trigger stream by loading the MJPEG endpoint (which auto-starts)
+          return fetch('/api/stream/' + src.id, { credentials: 'same-origin', method: 'GET' })
+            .then(function (r) {
+              if (r.status === 429) {
+                return r.json().then(function (d) { throw new Error(d.error || 'GPU limit'); });
+              }
+              // We don't need the actual stream data, just triggering start
+              r.body.cancel().catch(function () { });
+              return { ok: true, id: src.id };
+            })
+            .catch(function (err) {
+              return { ok: false, id: src.id, error: err.message };
+            });
+        });
+
+        Promise.all(promises).then(function (results) {
+          startAllBtn.disabled = false;
+          startAllBtn.textContent = '▶ Chạy tất cả có ROI';
+          var failed = results.filter(function (r) { return !r.ok; });
+          if (failed.length > 0) {
+            alert('⚠️ ' + failed.length + ' luồng không thể khởi động:\n' + failed.map(function (f) { return 'Source #' + f.id + ': ' + f.error; }).join('\n'));
+          }
+          setTimeout(refreshMultiGrid, 1000);
+        });
+      });
+    }
+
+    // ========== STOP ALL BUTTON ==========
+    if (stopAllBtn) {
+      stopAllBtn.addEventListener('click', function () {
+        var sids = Object.keys(gridCards);
+        sids.forEach(function (sid) {
+          fetch('/api/stream/' + sid + '/stop', { method: 'POST', credentials: 'same-origin' }).catch(function () { });
+        });
+        setTimeout(function () {
+          Object.keys(gridCards).forEach(function (sid) {
+            removeStreamCard(parseInt(sid, 10));
+          });
+          updateGridUI();
+        }, 500);
+      });
+    }
+  })();
+</script>
+
+
 <style>
-/* ── Vehicle Class Filter Panel ───────────────────────────── */
-.monitor-class-filter {
-  margin-top: 12px;
-  padding: 12px 14px;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.09);
-  border-radius: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
+  /* ── Vehicle Class Filter Panel ───────────────────────────── */
+  .monitor-class-filter {
+    margin-top: 12px;
+    padding: 12px 14px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
 
-.monitor-class-filter-label {
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--text-muted, #8899aa);
-}
+  .monitor-class-filter-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted, #8899aa);
+  }
 
-.monitor-class-filter-btns {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
+  .monitor-class-filter-btns {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
 
-.class-filter-btn {
-  padding: 5px 12px;
-  border-radius: 20px;
-  border: 1.5px solid rgba(255,255,255,0.15);
-  background: rgba(255,255,255,0.05);
-  color: var(--text-muted, #8899aa);
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.18s ease;
-  white-space: nowrap;
-}
+  .class-filter-btn {
+    padding: 5px 12px;
+    border-radius: 20px;
+    border: 1.5px solid rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-muted, #8899aa);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.18s ease;
+    white-space: nowrap;
+  }
 
-.class-filter-btn:hover {
-  border-color: rgba(255,255,255,0.3);
-  background: rgba(255,255,255,0.1);
-  color: #fff;
-}
+  .class-filter-btn:hover {
+    border-color: rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+  }
 
-.class-filter-btn.is-active {
-  background: rgba(34, 197, 94, 0.18);
-  border-color: rgba(34, 197, 94, 0.55);
-  color: #4ade80;
-  font-weight: 600;
-}
+  .class-filter-btn.is-active {
+    background: rgba(34, 197, 94, 0.18);
+    border-color: rgba(34, 197, 94, 0.55);
+    color: #4ade80;
+    font-weight: 600;
+  }
 
-.class-filter-reset-btn {
-  align-self: flex-start;
-  padding: 4px 12px;
-  border-radius: 8px;
-  border: 1px solid rgba(255,255,255,0.1);
-  background: transparent;
-  color: var(--text-muted, #8899aa);
-  font-size: 11px;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
+  .class-filter-reset-btn {
+    align-self: flex-start;
+    padding: 4px 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: transparent;
+    color: var(--text-muted, #8899aa);
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
 
-.class-filter-reset-btn:hover {
-  background: rgba(255,255,255,0.06);
-  color: #fff;
-}
+  .class-filter-reset-btn:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: #fff;
+  }
+
+  /* ── Delete Button for Camera Tiles ───────────────────────────── */
+  .tile-delete-btn {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.6);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    cursor: pointer;
+    opacity: 0;
+    transition: all 0.2s ease;
+    z-index: 10;
+  }
+  .monitor-tile-wrapper:hover .tile-delete-btn {
+    opacity: 1;
+  }
+  .tile-delete-btn:hover {
+    background: #ef4444;
+    border-color: #ef4444;
+    transform: scale(1.1);
+  }
 </style>
+
+<script>
+  (function () {
+    var deleteBtns = document.querySelectorAll(".tile-delete-btn");
+    deleteBtns.forEach(function (btn) {
+      btn.addEventListener("click", function (e) {
+        e.stopPropagation(); // Ngăn click lan xuống tile
+        var sourceId = this.getAttribute("data-source-id");
+        var sourceName = this.getAttribute("data-source-name");
+        
+        if (!confirm("Bạn có chắc chắn muốn xóa luồng '" + sourceName + "'?\nĐiều này sẽ dừng luồng, xóa kết quả đếm, vùng ROI đã cấu hình, và xóa video khỏi hệ thống.")) {
+          return;
+        }
+        
+        var originalText = this.textContent;
+        this.textContent = "...";
+        this.disabled = true;
+        
+        fetch("/api/sources/" + sourceId, {
+          method: "DELETE",
+          credentials: "same-origin"
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (data.ok) {
+            window.location.reload();
+          } else {
+            alert(data.error || "Không thể xóa luồng.");
+            btn.textContent = originalText;
+            btn.disabled = false;
+          }
+        })
+        .catch(function(err) {
+          alert("Lỗi khi xóa luồng.");
+          btn.textContent = originalText;
+          btn.disabled = false;
+        });
+      });
+    });
+  })();
+</script>
 
 {% endblock %}

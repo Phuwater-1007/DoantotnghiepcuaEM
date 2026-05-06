@@ -566,6 +566,50 @@ def build_router() -> APIRouter:
             "live_state": live_state,
         }
 
+    # ------------------------------------------------------------------
+    # Multi-Headless Queue
+    # ------------------------------------------------------------------
+    @router.post("/monitoring/queue")
+    async def api_queue_session(request: Request):
+        """Add a source to the headless analysis queue."""
+        auth_err = _require_auth(request)
+        if auth_err is not None:
+            return auth_err
+        try:
+            body = await request.json()
+        except Exception:
+            return JSONResponse(status_code=400, content={"error": "Invalid JSON"})
+        source_id = body.get("source_id")
+        if not source_id:
+            return JSONResponse(status_code=400, content={"error": "source_id required"})
+        container = get_container(request)
+        user = get_current_user(request)
+        user_id = user.id if user else 1
+        try:
+            result = container.monitoring_service.queue_session(int(source_id), user_id)
+            return result
+        except (ValueError, RuntimeError) as exc:
+            return JSONResponse(status_code=400, content={"error": str(exc)})
+
+    @router.get("/monitoring/queue")
+    def api_get_queue(request: Request):
+        """Get current queue status."""
+        auth_err = _require_auth(request)
+        if auth_err is not None:
+            return auth_err
+        container = get_container(request)
+        return container.monitoring_service.get_queue()
+
+    @router.delete("/monitoring/queue/{source_id}")
+    def api_remove_from_queue(request: Request, source_id: int):
+        """Remove a source from the queue."""
+        auth_err = _require_auth(request)
+        if auth_err is not None:
+            return auth_err
+        container = get_container(request)
+        removed = container.monitoring_service.remove_from_queue(source_id)
+        return {"ok": removed, "source_id": source_id}
+
     @router.get("/monitoring/job-status")
     def api_job_status(request: Request, video_name: str = ""):
         """Trạng thái xử lý: waiting / running / complete / error. video_name = stem (vd: Test3)."""
