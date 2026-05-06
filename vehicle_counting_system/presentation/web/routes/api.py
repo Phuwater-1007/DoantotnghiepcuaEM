@@ -68,8 +68,12 @@ def build_router() -> APIRouter:
         # in-tab navigation. Shutdown is handled by web_main.py using a short grace window.
         return {"ok": True, "enabled": True, "active_tabs": snap.active_tabs, "last_seen_ts": snap.last_seen_ts}
 
+    # ------------------------------------------------------------------
+    # Dashboard data — single source of truth from vehicle_counts
+    # ------------------------------------------------------------------
     @router.get("/dashboard")
     def api_dashboard(request: Request):
+        """Full dashboard data for real-time sync via JS polling/WS."""
         auth_err = _require_auth(request)
         if auth_err is not None:
             return auth_err
@@ -159,6 +163,87 @@ def build_router() -> APIRouter:
         container = get_container(request)
         reports = container.report_service.list_reports()
         return {"reports": reports}
+
+    # ------------------------------------------------------------------
+    # Vehicle Counts — chi tiết từng xe đếm được (persist qua restart)
+    # ------------------------------------------------------------------
+    @router.get("/vehicle-counts")
+    def api_vehicle_counts(request: Request, limit: int = 50, offset: int = 0, class_name: str = ""):
+        """Danh sách xe đếm được với phân trang và bộ lọc."""
+        auth_err = _require_auth(request)
+        if auth_err is not None:
+            return auth_err
+        container = get_container(request)
+        cps = container.counting_persistence_service
+        limit = min(limit, 200)
+
+        # Build WHERE clause
+        where_parts = []
+        params = []
+        if class_name:
+            where_parts.append("vc.class_name = ?")
+            params.append(class_name)
+
+        where_sql = ("WHERE " + " AND ".join(where_parts)) if where_parts else ""
+
+        # Count total (for pagination UI)
+        count_sql = f"SELECT COUNT(*) AS cnt FROM vehicle_counts vc {where_sql}"
+        row = container.db.fetchone(count_sql, tuple(params))
+        total_count = int(row["cnt"]) if row else 0
+
+        # Fetch page
+        data_sql = f"""
+            SELECT vc.id, vc.session_id, vc.track_id, vc.class_name, vc.confidence,
+                   vc.direction, datetime(vc.counted_at, '+7 hours') AS counted_at, src.name AS source_name
+            FROM vehicle_counts vc
+            LEFT JOIN sources src ON src.id = vc.source_id
+            {where_sql}
+            ORDER BY vc.id DESC
+            LIMIT ? OFFSET ?
+        """
+        params.extend([limit, offset])
+        rows = container.db.fetchall(data_sql, tuple(params))
+        counts = [
+            {
+                "id": int(r["id"]),
+                "session_id": int(r["session_id"]),
+                "track_id": int(r["track_id"]),
+                "class_name": str(r["class_name"]),
+                "confidence": round(float(r["confidence"]), 2),
+                "direction": str(r["direction"]),
+                "counted_at": str(r["counted_at"]),
+                "source_name": str(r["source_name"] or ""),
+            }
+            for r in rows
+        ]
+        summary = cps.get_total_counts()
+        return {
+            "counts": counts,
+            "summary": summary,
+            "total_count": total_count,
+            "limit": limit,
+            "offset": offset,
+            "has_more": (offset + limit) < total_count,
+        }
+
+    @router.get("/vehicle-counts/summary")
+    def api_vehicle_counts_summary(request: Request):
+        """Tổng hợp vehicle counts tất cả phiên."""
+        auth_err = _require_auth(request)
+        if auth_err is not None:
+            return auth_err
+        container = get_container(request)
+        return container.counting_persistence_service.get_total_counts()
+
+    @router.get("/sessions/{session_id}/vehicle-counts")
+    def api_session_vehicle_counts(request: Request, session_id: int, limit: int = 500):
+        """Chi tiết từng xe đếm được trong 1 phiên cụ thể."""
+        auth_err = _require_auth(request)
+        if auth_err is not None:
+            return auth_err
+        container = get_container(request)
+        counts = container.counting_persistence_service.get_counts_for_session(session_id, min(limit, 1000))
+        return {"session_id": session_id, "counts": counts, "total": len(counts)}
 
     @router.post("/sources/upload")
     async def api_upload_video(request: Request, file: UploadFile = File(...)):

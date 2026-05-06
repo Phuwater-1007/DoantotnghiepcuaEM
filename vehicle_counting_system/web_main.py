@@ -100,11 +100,8 @@ def main() -> int:
     controller = ShutdownController()
     app.state.shutdown_controller = controller
 
-    # Reset session numbering for each web start (demo behavior).
-    try:
-        app.state.container.monitoring_service.reset_sessions_only()
-    except Exception:
-        pass
+    # Giữ nguyên dữ liệu lịch sử qua các lần restart server.
+    # Dùng nút "Reset" trong trang Admin nếu cần xóa thủ công.
 
     cfg = AutoShutdownConfig(
         enabled=auto_shutdown,

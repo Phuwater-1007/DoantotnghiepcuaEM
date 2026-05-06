@@ -153,6 +153,7 @@ class _StreamSession:
         *,
         db=None,
         report_service=None,
+        counting_persistence=None,
         source_name: str = "",
     ):
         self.source_id = source_id
@@ -164,8 +165,10 @@ class _StreamSession:
         # DB persistence
         self.db = db
         self.report_service = report_service
+        self.counting_persistence = counting_persistence
         self.source_name = source_name
         self.started_at = datetime.now()
+        self.db_session_id: int | None = None  # ID phíen trong analysis_sessions
 
         # Lifecycle
         self.stop_event = threading.Event()
@@ -491,11 +494,36 @@ def _process_video(session: _StreamSession) -> None:
     to the appropriate processing routine based on stream type.
     """
     detector = _get_shared_yolo_detector()
+
+    # Tạo session trong DB ngay khi stream bắt đầu (để vehicle_counts có session_id).
+    if session.db is not None:
+        try:
+            session_id = session.db.execute_and_get_id(
+                """
+                INSERT INTO analysis_sessions (source_id, started_by, status, summary_json)
+                VALUES (?, ?, ?, ?)
+                """,
+                (session.source_id, 1, "running", "{}"),
+            )
+            session.db_session_id = session_id
+            # Bind persistence service to this session.
+            if session.counting_persistence is not None:
+                session.counting_persistence.bind_session(session_id, session.source_id)
+            logger.info("Stream DB session created: #%s for source %s", session_id, session.source_id)
+        except Exception:
+            logger.exception("Failed to create DB session for stream %s", session.source_id)
+
+    # Wire counting persistence callback.
+    persistence_cb = None
+    if session.counting_persistence is not None:
+        persistence_cb = session.counting_persistence.record
+
     processor = FrameProcessor(
         detector=detector,
         tracker=ByteTrackTracker(),
         counting_lines_path=session.config_path,
         frame_size=session.frame_size,
+        counting_persistence_callback=persistence_cb,
     )
 
     # Fix #4: Open with RTSP-optimised settings
@@ -566,7 +594,14 @@ def _process_video(session: _StreamSession) -> None:
 # ---------------------------------------------------------------------------
 
 def _save_stream_results_to_db(session: _StreamSession) -> None:
-    """Persist final stream stats as an analysis_session + report_snapshot."""
+    """Persist final stream stats — update the session created at start."""
+    # Flush & unbind counting persistence service.
+    if session.counting_persistence is not None:
+        try:
+            session.counting_persistence.unbind()
+        except Exception:
+            logger.exception("Failed to unbind counting persistence for source %s", session.source_id)
+
     if session.db is None:
         return
 
@@ -575,31 +610,45 @@ def _save_stream_results_to_db(session: _StreamSession) -> None:
 
     total = final_stats.get("total", 0)
     per_class = final_stats.get("per_class", {})
+    summary = json.dumps({"total": total, "per_class": per_class}, ensure_ascii=False)
 
-    if total == 0:
-        return
+    session_id = session.db_session_id
 
     try:
-        summary = json.dumps({"total": total, "per_class": per_class}, ensure_ascii=False)
+        if session_id is not None:
+            # Update session đã tạo lúc bắt đầu stream.
+            finished_status = "completed" if total > 0 else "stopped"
+            session.db.execute(
+                """
+                UPDATE analysis_sessions
+                SET status = ?, finished_at = CURRENT_TIMESTAMP, summary_json = ?
+                WHERE id = ?
+                """,
+                (finished_status, summary, session_id),
+            )
+        else:
+            # Fallback: tạo mới nếu chưa có (cho tương thích ngược).
+            if total == 0:
+                return
+            session_id = session.db.execute_and_get_id(
+                """
+                INSERT INTO analysis_sessions (source_id, started_by, status, started_at, finished_at, summary_json)
+                VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, ?)
+                """,
+                (
+                    session.source_id,
+                    1,
+                    "completed",
+                    session.started_at.strftime("%Y-%m-%d %H:%M:%S"),
+                    summary,
+                ),
+            )
 
-        session_id = session.db.execute_and_get_id(
-            """
-            INSERT INTO analysis_sessions (source_id, started_by, status, started_at, finished_at, summary_json)
-            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, ?)
-            """,
-            (
-                session.source_id,
-                1,  # system user
-                "completed",
-                session.started_at.strftime("%Y-%m-%d %H:%M:%S"),
-                summary,
-            ),
-        )
-
-        if session.report_service and session_id:
+        if session.report_service and session_id and total > 0:
+            VN_TZ = "+7 hours"
             session_row = session.db.fetchone(
-                "SELECT datetime(finished_at, 'localtime') AS finished_at FROM analysis_sessions WHERE id = ?",
-                (session_id,),
+                "SELECT datetime(finished_at, ?) AS finished_at FROM analysis_sessions WHERE id = ?",
+                (VN_TZ, session_id),
             )
             finished_at = (
                 str(session_row["finished_at"])
@@ -633,6 +682,7 @@ def _ensure_stream(
     *,
     db=None,
     report_service=None,
+    counting_persistence=None,
     source_name: str = "",
 ) -> _StreamSession:
     """Get existing stream or create a new one. Never restarts a running stream."""
@@ -647,6 +697,7 @@ def _ensure_stream(
         frame_size=frame_size,
         db=db,
         report_service=report_service,
+        counting_persistence=counting_persistence,
         source_name=source_name,
     )
 
@@ -753,6 +804,7 @@ def build_router() -> APIRouter:
             source_id, video_path, config_path, info.frame_size,
             db=container.db,
             report_service=container.report_service,
+            counting_persistence=container.counting_persistence_service,
             source_name=source.name,
         )
 

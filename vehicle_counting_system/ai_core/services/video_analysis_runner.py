@@ -64,6 +64,7 @@ def analyze_video_source(
     stop_event: Event | None = None,
     vid_stride: int | None = None,
     progress_callback: Callable[[object, object | None, int, int], None] | None = None,
+    counting_persistence_callback=None,
 ) -> dict:
     """
     Phân tích video: detect -> track -> count -> ghi output.
@@ -90,6 +91,7 @@ def analyze_video_source(
         tracker=ByteTrackTracker(),
         counting_lines_path=counting_lines_path,
         frame_size=info.frame_size,
+        counting_persistence_callback=counting_persistence_callback,
     )
     writer = VideoWriter(str(output_path), "mp4v", info.fps, info.frame_size)
     if not writer.is_open:

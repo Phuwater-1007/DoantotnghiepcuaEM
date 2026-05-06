@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import time
+
 from fastapi import APIRouter, Request
 
 from vehicle_counting_system.presentation.web.dependencies import base_context, get_container, require_login
@@ -22,6 +24,7 @@ def build_router(templates) -> APIRouter:
                 request,
                 page_title="Bảng điều khiển",
                 dashboard=dashboard_data,
+                cache_bust=int(time.time()),
             ),
         )
 

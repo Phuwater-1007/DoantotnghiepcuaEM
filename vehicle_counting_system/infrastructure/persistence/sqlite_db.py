@@ -101,6 +101,26 @@ class SQLiteDatabase:
 
                 CREATE UNIQUE INDEX IF NOT EXISTS idx_sources_uri ON sources(source_uri);
 
+                CREATE TABLE IF NOT EXISTS vehicle_counts (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    session_id INTEGER NOT NULL,
+                    source_id INTEGER NOT NULL,
+                    track_id INTEGER NOT NULL,
+                    class_name TEXT NOT NULL,
+                    confidence REAL NOT NULL DEFAULT 0,
+                    direction TEXT NOT NULL DEFAULT 'unknown',
+                    line_index INTEGER NOT NULL DEFAULT 0,
+                    anchor_x REAL,
+                    anchor_y REAL,
+                    counted_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY(session_id) REFERENCES analysis_sessions(id),
+                    FOREIGN KEY(source_id) REFERENCES sources(id)
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_vc_session ON vehicle_counts(session_id);
+                CREATE INDEX IF NOT EXISTS idx_vc_source ON vehicle_counts(source_id);
+                CREATE INDEX IF NOT EXISTS idx_vc_counted_at ON vehicle_counts(counted_at);
+
                 CREATE TABLE IF NOT EXISTS activity_logs (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     user_id INTEGER,
@@ -162,21 +182,98 @@ class SQLiteDatabase:
                 )
 
     def recover_stale_sessions(self) -> int:
-        """Mark any 'running' or 'queued' sessions as 'failed' (server restarted)."""
+        """Recover sessions interrupted by server restart / crash / power outage.
+
+        For each stale 'running'/'queued' session:
+        - If vehicle_counts exist → reconstruct summary, mark 'completed', create report_snapshot
+        - If no vehicle_counts → mark 'failed'
+
+        This ensures data is preserved even after sudden power loss.
+        """
         stale = self.fetchall(
-            "SELECT id FROM analysis_sessions WHERE status IN ('running', 'queued')"
+            "SELECT id, source_id FROM analysis_sessions WHERE status IN ('running', 'queued')"
         )
         if not stale:
             return 0
-        self.execute(
-            """
-            UPDATE analysis_sessions
-            SET status = 'failed',
-                finished_at = CURRENT_TIMESTAMP,
-                error_message = 'Server restarted – phiên bị gián đoạn.'
-            WHERE status IN ('running', 'queued')
-            """
-        )
+
+        recovered = 0
+        for row in stale:
+            session_id = int(row["id"])
+            source_id = int(row["source_id"])
+
+            # Check if we have vehicle_counts for this session.
+            count_row = self.fetchone(
+                "SELECT COUNT(*) AS cnt FROM vehicle_counts WHERE session_id = ?",
+                (session_id,),
+            )
+            total = int(count_row["cnt"]) if count_row else 0
+
+            if total > 0:
+                # Reconstruct per_class from vehicle_counts.
+                class_rows = self.fetchall(
+                    """
+                    SELECT class_name, COUNT(*) AS cnt
+                    FROM vehicle_counts
+                    WHERE session_id = ?
+                    GROUP BY class_name
+                    """,
+                    (session_id,),
+                )
+                per_class = {str(r["class_name"]): int(r["cnt"]) for r in class_rows}
+
+                import json
+                summary = json.dumps({"total": total, "per_class": per_class}, ensure_ascii=False)
+
+                # Mark as completed (recovered) with reconstructed data.
+                self.execute(
+                    """
+                    UPDATE analysis_sessions
+                    SET status = 'completed',
+                        finished_at = CURRENT_TIMESTAMP,
+                        summary_json = ?,
+                        error_message = NULL
+                    WHERE id = ?
+                    """,
+                    (summary, session_id),
+                )
+
+                # Create report_snapshot so dashboard charts work.
+                existing_report = self.fetchone(
+                    "SELECT id FROM report_snapshots WHERE session_id = ?",
+                    (session_id,),
+                )
+                if not existing_report:
+                    # Get the finished_at with VN timezone for report_date.
+                    ts_row = self.fetchone(
+                        "SELECT datetime(finished_at, '+7 hours') AS finished_at FROM analysis_sessions WHERE id = ?",
+                        (session_id,),
+                    )
+                    finished_at = str(ts_row["finished_at"]) if ts_row and ts_row["finished_at"] else ""
+                    report_date = finished_at[:10] if len(finished_at) >= 10 else "N/A"
+                    peak_hour = finished_at[11:13] + ":00" if len(finished_at) >= 13 else "N/A"
+
+                    self.execute(
+                        """
+                        INSERT INTO report_snapshots (session_id, report_date, total, per_class_json, peak_hour_label)
+                        VALUES (?, ?, ?, ?, ?)
+                        """,
+                        (session_id, report_date, total, json.dumps(per_class, ensure_ascii=False), peak_hour),
+                    )
+
+                recovered += 1
+            else:
+                # No data → mark as failed.
+                self.execute(
+                    """
+                    UPDATE analysis_sessions
+                    SET status = 'failed',
+                        finished_at = CURRENT_TIMESTAMP,
+                        error_message = 'Server restarted – phiên bị gián đoạn, không có dữ liệu.'
+                    WHERE id = ?
+                    """,
+                    (session_id,),
+                )
+
         return len(stale)
 
     def fix_report_timezone_data(self) -> int:

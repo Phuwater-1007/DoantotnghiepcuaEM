@@ -19,10 +19,11 @@ VN_SQLITE_TZ_MOD = "+7 hours"
 
 
 class MonitoringService:
-    def __init__(self, db, source_service, report_service):
+    def __init__(self, db, source_service, report_service, counting_persistence_service=None):
         self.db = db
         self.source_service = source_service
         self.report_service = report_service
+        self.counting_persistence_service = counting_persistence_service
         self._lock = threading.Lock()
         self._active_session_id: int | None = None
         self._stop_event: threading.Event | None = None
@@ -251,6 +252,10 @@ class MonitoringService:
                     frame_index=frame_index,
                 )
 
+            # Bind counting persistence cho phiên này.
+            if self.counting_persistence_service is not None:
+                self.counting_persistence_service.bind_session(session_id, source_id)
+
             output_path = OUTPUT_VIDEOS_DIR / f"session_{session_id}_result.mp4"
             result = analyze_video_source(
                 video_path,
@@ -258,6 +263,10 @@ class MonitoringService:
                 counting_lines_path=config_path,
                 stop_event=stop_event,
                 progress_callback=_progress_callback,
+                counting_persistence_callback=(
+                    self.counting_persistence_service.record
+                    if self.counting_persistence_service else None
+                ),
             )
             finished_status = result["status"]
             summary = {
@@ -319,6 +328,12 @@ class MonitoringService:
             logger.exception("Analysis session failed: %s", exc)
             self._mark_failed(session_id, str(exc))
         finally:
+            # Flush & unbind counting persistence.
+            if self.counting_persistence_service is not None:
+                try:
+                    self.counting_persistence_service.unbind()
+                except Exception:
+                    pass
             with self._lock:
                 self._active_session_id = None
                 self._stop_event = None

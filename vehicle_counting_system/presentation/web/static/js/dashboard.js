@@ -117,6 +117,96 @@
     });
   }
 
+  // Shared chart config factory for the hourly bar chart
+  function _hourlyChartConfig(ctx, labels, values) {
+    // Gradient for bars
+    var barGradient = ctx.createLinearGradient(0, 0, 0, 220);
+    barGradient.addColorStop(0, 'rgba(99, 102, 241, 0.95)');
+    barGradient.addColorStop(0.5, 'rgba(129, 140, 248, 0.75)');
+    barGradient.addColorStop(1, 'rgba(165, 180, 252, 0.45)');
+
+    // Hover gradient
+    var hoverGradient = ctx.createLinearGradient(0, 0, 0, 220);
+    hoverGradient.addColorStop(0, 'rgba(79, 70, 229, 1)');
+    hoverGradient.addColorStop(0.5, 'rgba(99, 102, 241, 0.9)');
+    hoverGradient.addColorStop(1, 'rgba(129, 140, 248, 0.6)');
+
+    // Smart Y-axis step: avoid showing too many ticks
+    var maxVal = Math.max.apply(null, values) || 1;
+    var yStep;
+    if (maxVal <= 10) yStep = 2;
+    else if (maxVal <= 50) yStep = 10;
+    else if (maxVal <= 200) yStep = 25;
+    else if (maxVal <= 500) yStep = 50;
+    else yStep = Math.ceil(maxVal / 8 / 10) * 10;
+
+    return {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Phương tiện',
+          data: values,
+          backgroundColor: barGradient,
+          hoverBackgroundColor: hoverGradient,
+          borderRadius: 6,
+          borderSkipped: false,
+          barPercentage: 0.65,
+          categoryPercentage: 0.7,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { intersect: false, mode: 'index' },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: 'rgba(30, 27, 75, 0.94)',
+            titleFont: { size: 13, weight: '600', family: 'Inter, system-ui, sans-serif' },
+            bodyFont: { size: 12, family: 'Inter, system-ui, sans-serif' },
+            padding: { top: 10, bottom: 10, left: 14, right: 14 },
+            cornerRadius: 10,
+            displayColors: false,
+            filter: function (item) { return item.raw > 0; },
+            callbacks: {
+              title: function (items) { return '🕐 ' + items[0].label; },
+              label: function (c) {
+                return c.raw + ' phương tiện qua lại';
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            grid: { display: false },
+            border: { display: false },
+            ticks: {
+              font: { size: 10, family: 'Inter, system-ui, sans-serif' },
+              color: '#9ca3af',
+              maxRotation: 0,
+              autoSkip: true,
+              maxTicksLimit: 9,
+            }
+          },
+          y: {
+            beginAtZero: true,
+            grid: { color: 'rgba(0,0,0,0.04)', drawBorder: false },
+            border: { display: false },
+            ticks: {
+              font: { size: 11, family: 'Inter, system-ui, sans-serif' },
+              color: '#9ca3af',
+              stepSize: yStep,
+              padding: 8,
+              callback: function (val) { return Number.isInteger(val) ? val : ''; }
+            }
+          }
+        },
+        animation: { duration: 700, easing: 'easeOutQuart' }
+      }
+    };
+  }
+
   function initHourlyChart() {
     var canvas = document.getElementById('hourly-chart');
     if (!canvas) return;
@@ -132,86 +222,7 @@
       allValues.push(serverData[key] || 0);
     }
 
-    var gradient = ctx.createLinearGradient(0, 0, 0, 220);
-    gradient.addColorStop(0, 'rgba(99, 102, 241, 0.3)');
-    gradient.addColorStop(0.6, 'rgba(99, 102, 241, 0.08)');
-    gradient.addColorStop(1, 'rgba(99, 102, 241, 0)');
-
-    hourlyChart = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: allLabels,
-        datasets: [{
-          label: 'Phương tiện',
-          data: allValues,
-          borderColor: '#6366f1',
-          backgroundColor: gradient,
-          borderWidth: 2.5,
-          fill: true,
-          tension: 0.35,
-          pointBackgroundColor: function (context) {
-            return context.raw > 0 ? '#6366f1' : 'transparent';
-          },
-          pointBorderColor: function (context) {
-            return context.raw > 0 ? '#fff' : 'transparent';
-          },
-          pointBorderWidth: 2,
-          pointRadius: function (context) {
-            return context.raw > 0 ? 4 : 0;
-          },
-          pointHoverRadius: 7,
-          pointHoverBackgroundColor: '#4f46e5',
-          pointHoverBorderColor: '#fff',
-          pointHoverBorderWidth: 2,
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        interaction: { intersect: false, mode: 'index' },
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            backgroundColor: 'rgba(30, 27, 75, 0.92)',
-            titleFont: { size: 13, weight: '600' },
-            bodyFont: { size: 12 },
-            padding: { top: 8, bottom: 8, left: 12, right: 12 },
-            cornerRadius: 8,
-            displayColors: false,
-            filter: function (item) { return item.raw > 0; },
-            callbacks: {
-              title: function (items) { return '🕐 ' + items[0].label; },
-              label: function (ctx) { return ctx.raw + ' phương tiện qua lại'; }
-            }
-          }
-        },
-        scales: {
-          x: {
-            grid: { display: false },
-            ticks: {
-              font: { size: 10 },
-              color: '#9ca3af',
-              maxRotation: 0,
-              autoSkip: true,
-              maxTicksLimit: 9,
-            }
-          },
-          y: {
-            beginAtZero: true,
-            grid: { color: 'rgba(0,0,0,0.04)', drawBorder: false },
-            border: { display: false },
-            ticks: {
-              font: { size: 11 },
-              color: '#9ca3af',
-              stepSize: 1,
-              padding: 8,
-              callback: function (val) { return Number.isInteger(val) ? val : ''; }
-            }
-          }
-        },
-        animation: { duration: 800, easing: 'easeOutQuart' }
-      }
-    });
+    hourlyChart = new Chart(ctx, _hourlyChartConfig(ctx, allLabels, allValues));
   }
 
   // Initialize charts on page load if canvas exists
@@ -294,87 +305,7 @@
     var canvas = document.getElementById('hourly-chart');
     if (!canvas) return;
     var ctx = canvas.getContext('2d');
-
-    var gradient = ctx.createLinearGradient(0, 0, 0, 220);
-    gradient.addColorStop(0, 'rgba(99, 102, 241, 0.3)');
-    gradient.addColorStop(0.6, 'rgba(99, 102, 241, 0.08)');
-    gradient.addColorStop(1, 'rgba(99, 102, 241, 0)');
-
-    hourlyChart = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: labels,
-        datasets: [{
-          label: 'Phương tiện',
-          data: values,
-          borderColor: '#6366f1',
-          backgroundColor: gradient,
-          borderWidth: 2.5,
-          fill: true,
-          tension: 0.35,
-          pointBackgroundColor: function (context) {
-            return context.raw > 0 ? '#6366f1' : 'transparent';
-          },
-          pointBorderColor: function (context) {
-            return context.raw > 0 ? '#fff' : 'transparent';
-          },
-          pointBorderWidth: 2,
-          pointRadius: function (context) {
-            return context.raw > 0 ? 4 : 0;
-          },
-          pointHoverRadius: 7,
-          pointHoverBackgroundColor: '#4f46e5',
-          pointHoverBorderColor: '#fff',
-          pointHoverBorderWidth: 2,
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        interaction: { intersect: false, mode: 'index' },
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            backgroundColor: 'rgba(30, 27, 75, 0.92)',
-            titleFont: { size: 13, weight: '600' },
-            bodyFont: { size: 12 },
-            padding: { top: 8, bottom: 8, left: 12, right: 12 },
-            cornerRadius: 8,
-            displayColors: false,
-            filter: function (item) { return item.raw > 0; },
-            callbacks: {
-              title: function (items) { return '🕐 ' + items[0].label; },
-              label: function (ctx) { return ctx.raw + ' phương tiện qua lại'; }
-            }
-          }
-        },
-        scales: {
-          x: {
-            grid: { display: false },
-            ticks: {
-              font: { size: 10 },
-              color: '#9ca3af',
-              maxRotation: 0,
-              autoSkip: true,
-              maxTicksLimit: 9,
-            }
-          },
-          y: {
-            beginAtZero: true,
-            grid: { color: 'rgba(0,0,0,0.04)', drawBorder: false },
-            border: { display: false },
-            ticks: {
-              font: { size: 11 },
-              color: '#9ca3af',
-              stepSize: 1,
-              padding: 8,
-              callback: function (val) { return Number.isInteger(val) ? val : ''; }
-            }
-          }
-        },
-        animation: { duration: 800, easing: 'easeOutQuart' }
-      }
-    });
+    hourlyChart = new Chart(ctx, _hourlyChartConfig(ctx, labels, values));
   }
 
   function updateHourlyActivity(hourlyData, maxCount) {
@@ -668,7 +599,7 @@
       .catch(function () {});
   }
 
-  function _processPollResults(headless, stream) {
+  function _processPollResults(headless, stream, dbData) {
       var headlessActive = false;
       var streamActive = false;
       var livePerClass = {};
@@ -694,12 +625,8 @@
       if (stream && stream.has_active_stream) {
         streamActive = true;
         if (headlessActive) {
-          liveTotal += stream.total || 0;
-          livePerClass = mergePerClass(livePerClass, stream.per_class || {});
           bannerDetail = "Đang chạy phân tích + stream trực tiếp";
         } else {
-          livePerClass = stream.per_class || {};
-          liveTotal = stream.total || 0;
           bannerTitle = "🎥 Stream trực tiếp đang chạy";
           bannerDetail = stream.stream_count + " luồng camera — dữ liệu cập nhật real-time";
 
@@ -710,58 +637,98 @@
 
       var isAnyActive = headlessActive || streamActive;
 
-      if (isAnyActive) {
-        var mergedPerClass = mergePerClass(dbPerClass, livePerClass);
-        var mergedMix = getVehicleMix(mergedPerClass);
-        var mergedTotal = dbTodayTotal + liveTotal;
+      // ============================================================
+      // Always use DB data for stat cards (single source of truth)
+      // ============================================================
+      if (dbData) {
+        var todayTotal = dbData.db_today_total || 0;
+        var todayPerClass = dbData.db_today_per_class || {};
+        var todayMix = getVehicleMix(todayPerClass);
 
-        updateStatCards(mergedTotal, mergedMix);
-        setStatCardLive(true);
+        // Update today stat cards
+        updateStatCards(todayTotal, todayMix);
+        setStatCardLive(isAnyActive);
 
-        updateVehicleMixPanel(mergedPerClass, mergedMix);
+        // Update donut chart + legend
+        updateVehicleMixPanel(todayPerClass, todayMix);
 
-        var currentHour = new Date().getHours().toString().padStart(2, "0");
-        var hourLabel = currentHour + ":00";
-
-        if (hourlyChart) {
-          var labels = hourlyChart.data.labels;
-          var dset = hourlyChart.data.datasets[0].data;
-          var idx = labels.indexOf(hourLabel);
-          if (idx >= 0) {
-            hourlyChart.data.datasets[0]['_bases'] = hourlyChart.data.datasets[0]['_bases'] || {};
-            if (typeof hourlyChart.data.datasets[0]['_bases'][idx] === 'undefined') {
-              hourlyChart.data.datasets[0]['_bases'][idx] = dset[idx];
-            }
-            var baseVal = hourlyChart.data.datasets[0]['_bases'][idx] || 0;
-            dset[idx] = baseVal + liveTotal;
-          } else if (liveTotal > 0) {
-            labels.push(hourLabel);
-            dset.push(liveTotal);
-            hourlyChart.data.datasets[0]['_bases'] = hourlyChart.data.datasets[0]['_bases'] || {};
-            hourlyChart.data.datasets[0]['_bases'][labels.length - 1] = 0;
-          }
-          hourlyChart.update('none');
-        } else if (liveTotal > 0) {
-          ensureHourlyChartPanel();
-          var allLabels = [];
-          var allValues = [];
+        // Update hourly chart
+        var hourlyData = dbData.db_hourly_activity || [];
+        if (hourlyData.length > 0) {
+          // Build full labels 06-23
+          var fullLabels = [];
+          var fullValues = [];
+          var hourMap = {};
+          hourlyData.forEach(function (item) { hourMap[item.hour] = item.count; });
           for (var h = 6; h <= 23; h++) {
             var hkey = h.toString().padStart(2, '0');
-            allLabels.push(hkey + ':00');
-            allValues.push(hkey === currentHour ? liveTotal : 0);
+            fullLabels.push(hkey + ':00');
+            fullValues.push(hourMap[hkey] || 0);
           }
-          initHourlyChartWithData(allLabels, allValues);
+
           if (hourlyChart) {
-            var newIdx = allLabels.indexOf(hourLabel);
-            if (newIdx >= 0) {
-              hourlyChart.data.datasets[0]['_bases'] = {};
-              hourlyChart.data.datasets[0]['_bases'][newIdx] = 0;
+            hourlyChart.data.labels = fullLabels;
+            hourlyChart.data.datasets[0].data = fullValues;
+            hourlyChart.update('none');
+          } else {
+            ensureHourlyChartPanel();
+            initHourlyChartWithData(fullLabels, fullValues);
+          }
+
+          // Update peak hour text
+          var peakHour = '';
+          var peakCount = 0;
+          hourlyData.forEach(function (item) {
+            if (item.count > peakCount) { peakCount = item.count; peakHour = item.hour + ':00'; }
+          });
+          var peakEl = document.getElementById('peak-hour-text');
+          if (peakEl && peakHour) {
+            peakEl.textContent = 'Khung giờ cao điểm hôm nay: ' + peakHour;
+          }
+        }
+
+        // Update all-time stat cards
+        var alltimeTotal = dbData.db_alltime_total || 0;
+        var alltimePerClass = dbData.db_alltime_per_class || {};
+        var alltimeMix = getVehicleMix(alltimePerClass);
+        var el;
+        el = document.getElementById("stat-alltime-total"); if (el) el.textContent = alltimeTotal;
+        // Update all-time class cards (the gradient cards)
+        var alltimeCards = document.querySelectorAll('.card-grid .stat-card');
+        // We have 4 alltime cards — try to update by index if they exist in the alltime section
+        var alltimeSection = document.getElementById('stat-alltime-total');
+        if (alltimeSection) {
+          var parent = alltimeSection.closest('.card-grid');
+          if (parent) {
+            var cards = parent.querySelectorAll('.stat-value');
+            if (cards.length >= 4) {
+              cards[0].textContent = alltimeTotal;
+              cards[1].textContent = alltimeMix.car || 0;
+              cards[2].textContent = alltimeMix.motorcycle || 0;
+              cards[3].textContent = (alltimeMix.truck || 0) + (alltimeMix.bus || 0);
             }
           }
         }
 
-        showLiveBanner(bannerTitle, bannerDetail, mergedTotal, mergedMix.automobile, mergedMix.motorcycle);
-        processLiveFeed(livePerClass, liveTotal, true);
+        // Update sessions count
+        var sessEl = document.getElementById("stat-sessions-today");
+        // Keep it as-is (no DB data for this in WS, it's less critical)
+      }
+
+      if (isAnyActive) {
+        // Merge live per_class for feed detection (live stream + headless)
+        var mergedLive = {};
+        if (headlessActive) mergedLive = mergePerClass(mergedLive, livePerClass);
+        if (streamActive && stream) mergedLive = mergePerClass(mergedLive, stream.per_class || {});
+
+        var liveT = (headlessActive ? liveTotal : 0) + (streamActive && stream ? (stream.total || 0) : 0);
+
+        showLiveBanner(bannerTitle, bannerDetail,
+          dbData ? (dbData.db_today_total || 0) : liveT,
+          dbData ? getVehicleMix(dbData.db_today_per_class || {}).automobile : 0,
+          dbData ? getVehicleMix(dbData.db_today_per_class || {}).motorcycle : 0
+        );
+        processLiveFeed(mergedLive, liveT, true);
 
       } else {
         hideLiveBanner();
@@ -769,8 +736,8 @@
         processLiveFeed({}, 0, false);
 
         if (wasHeadlessRunning || wasStreamActive) {
-          setTimeout(refreshDashboardFromDB, 3000);
-          setTimeout(refreshDashboardFromDB, 7000);
+          // After stopping, do a full DB refresh to get latest session etc.
+          setTimeout(refreshDashboardFromDB, 2000);
         }
       }
 
@@ -778,12 +745,25 @@
       wasStreamActive = streamActive;
   }
 
+
   function pollAll() {
     var pHeadless = fetch("/api/monitoring/live-state", { credentials: "same-origin" }).then(function (r) { return r.json(); }).catch(function () { return null; });
     var pStream = fetch("/api/stream/active-stats", { credentials: "same-origin" }).then(function (r) { return r.json(); }).catch(function () { return null; });
+    var pDashboard = fetch("/api/dashboard", { credentials: "same-origin" }).then(function (r) { return r.json(); }).catch(function () { return null; });
 
-    Promise.all([pHeadless, pStream]).then(function (results) {
-      _processPollResults(results[0], results[1]);
+    Promise.all([pHeadless, pStream, pDashboard]).then(function (results) {
+      var dashData = results[2];
+      var dbData = null;
+      if (dashData) {
+        dbData = {
+          db_today_total: dashData.today_total || 0,
+          db_today_per_class: dashData.per_class || {},
+          db_alltime_total: dashData.alltime_total || 0,
+          db_alltime_per_class: dashData.alltime_per_class || {},
+          db_hourly_activity: dashData.hourly_activity || [],
+        };
+      }
+      _processPollResults(results[0], results[1], dbData);
     });
   }
 
@@ -806,8 +786,16 @@
       streamPayload = data.stream_stats;
     }
 
-    // Re-use the existing pollAll() logic
-    _processPollResults(headlessPayload, streamPayload);
+    // Pass DB data from WS payload
+    var dbData = {
+      db_today_total: data.db_today_total || 0,
+      db_today_per_class: data.db_today_per_class || {},
+      db_alltime_total: data.db_alltime_total || 0,
+      db_alltime_per_class: data.db_alltime_per_class || {},
+      db_hourly_activity: data.db_hourly_activity || [],
+    };
+
+    _processPollResults(headlessPayload, streamPayload, dbData);
   }
 
   function connectDashboardWS() {
@@ -829,9 +817,11 @@
     ws.onerror = function () { ws.close(); };
   }
 
-  // Start polling (initial data on page load + WebSocket ongoing)
+  // Start polling (initial data on page load + WebSocket + periodic fallback)
   if (document.getElementById('dashboard-stats')) {
     pollAll();   // one-time initial load
     connectDashboardWS();
+    // Periodic fallback: poll every 2s to ensure sync even if WS drops
+    setInterval(pollAll, 2000);
   }
 })();

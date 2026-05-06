@@ -55,6 +55,7 @@ class FrameProcessor:
         tracker,
         counting_lines_path: Optional[str] = None,
         frame_size: Optional[Tuple[int, int]] = None,
+        counting_persistence_callback=None,
     ):
         # Detector/tracker được inject từ ngoài để giữ module này độc lập.
         self.detector = detector
@@ -93,6 +94,7 @@ class FrameProcessor:
         self._last_ts = time.perf_counter()
         self._fps_ema: float | None = None
         self._smoothed_bbox: dict[int, Tuple[float, float, float, float]] = {}
+        self._counting_persistence_callback = counting_persistence_callback
 
     def _filter_by_roi(self, detections: List[Detection]) -> List[Detection]:
         if not self.roi_polygon:
@@ -118,6 +120,14 @@ class FrameProcessor:
         tracks: List[TrackedObject] = self.tracker.update(detections)
         tracks = self.classifier.classify(tracks)
         stats = self.counter.process(tracks)
+        # Forward counting events to persistence layer (nếu có).
+        if self._counting_persistence_callback and self.counter.pending_events:
+            for event in self.counter.pending_events:
+                try:
+                    self._counting_persistence_callback(event)
+                except Exception:
+                    pass
+            self.counter.pending_events.clear()
         self.last_stats = stats
         return tracks, stats
 

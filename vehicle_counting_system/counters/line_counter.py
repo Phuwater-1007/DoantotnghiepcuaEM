@@ -2,12 +2,27 @@
 """Count objects crossing configured lines using bottom-center trajectory."""
 
 import math
+from dataclasses import dataclass, field
+import time
 from typing import Dict, List, Tuple
 
 from vehicle_counting_system.counters.base_counter import BaseCounter
 from vehicle_counting_system.models.tracked_object import TrackedObject
 from vehicle_counting_system.configs.settings import settings
 from vehicle_counting_system.utils.math_utils import line_intersection
+
+
+@dataclass
+class CountEvent:
+    """Sự kiện xe vừa được đếm qua counting line."""
+    track_id: int
+    class_name: str
+    confidence: float
+    direction: str
+    line_index: int
+    anchor_x: float
+    anchor_y: float
+    timestamp: float = field(default_factory=time.time)
 
 
 class LineCounter(BaseCounter):
@@ -30,6 +45,8 @@ class LineCounter(BaseCounter):
         self._frame_id = 0
         # Chống đếm 2 lần khi xe nháy/đổi ID lúc qua line: (x, y, frame_id)
         self._recent_positions: List[Tuple[float, float, int]] = []
+        # Danh sách sự kiện đếm mới — FrameProcessor sẽ đọc và clear sau mỗi frame.
+        self.pending_events: List[CountEvent] = []
 
     def process(self, tracks: List[TrackedObject]):
         self._frame_id += 1
@@ -80,6 +97,16 @@ class LineCounter(BaseCounter):
                         self.stats.increment_direction(tr.class_name, cross_dir)
                         self._counted.add(key)
                         self._recent_positions.append((cx, cy, self._frame_id))
+                        # Emit event để persistence layer ghi vào DB.
+                        self.pending_events.append(CountEvent(
+                            track_id=track_id,
+                            class_name=tr.class_name,
+                            confidence=tr.confidence,
+                            direction=cross_dir,
+                            line_index=idx,
+                            anchor_x=cx,
+                            anchor_y=cy,
+                        ))
             self._last_anchors[track_id] = current
         return self.stats
 
@@ -89,6 +116,7 @@ class LineCounter(BaseCounter):
         self._last_side = {}
         self._counted = set()
         self._recent_positions = []
+        self.pending_events = []
 
     def _crossing(
         self,

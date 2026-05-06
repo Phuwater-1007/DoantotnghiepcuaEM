@@ -88,6 +88,9 @@ class AdminService:
         row = self.db.fetchone("SELECT COUNT(*) AS cnt FROM activity_logs")
         total_logs = int(row["cnt"]) if row else 0
 
+        row = self.db.fetchone("SELECT COUNT(*) AS cnt FROM vehicle_counts")
+        total_vehicle_counts = int(row["cnt"]) if row else 0
+
         # File stats
         video_extensions = {".mp4", ".avi", ".mov", ".mkv", ".wmv", ".flv"}
         input_video_count = self._count_files(INPUT_VIDEOS_DIR, video_extensions)
@@ -107,6 +110,7 @@ class AdminService:
             "failed_sessions": failed_sessions,
             "total_reports": total_reports,
             "total_logs": total_logs,
+            "total_vehicle_counts": total_vehicle_counts,
             "input_video_count": input_video_count,
             "output_video_count": output_video_count,
             "input_dir_size": input_dir_size,
@@ -119,19 +123,23 @@ class AdminService:
         }
 
     def clear_sessions_and_reports(self) -> dict[str, int]:
-        """Xóa toàn bộ phiên phân tích và báo cáo (reset demo)."""
+        """Xóa toàn bộ phiên phân tích, báo cáo và chi tiết xe đếm (reset thủ công)."""
         if self.monitoring_service.get_active_session_id() is not None:
             raise RuntimeError("Đang có phiên phân tích chạy. Vui lòng dừng trước khi xóa.")
 
         r1 = self.db.fetchone("SELECT COUNT(*) AS cnt FROM report_snapshots")
         r2 = self.db.fetchone("SELECT COUNT(*) AS cnt FROM analysis_sessions")
 
+        # Đếm vehicle_counts trước khi xóa.
+        r3 = self.db.fetchone("SELECT COUNT(*) AS cnt FROM vehicle_counts")
+
+        self.db.execute("DELETE FROM vehicle_counts")
         self.db.execute("DELETE FROM report_snapshots")
         self.db.execute("DELETE FROM analysis_sessions")
 
         try:
             self.db.execute(
-                "DELETE FROM sqlite_sequence WHERE name IN ('analysis_sessions', 'report_snapshots')"
+                "DELETE FROM sqlite_sequence WHERE name IN ('analysis_sessions', 'report_snapshots', 'vehicle_counts')"
             )
         except Exception:
             pass
@@ -139,6 +147,7 @@ class AdminService:
         return {
             "reports_deleted": int(r1["cnt"]) if r1 else 0,
             "sessions_deleted": int(r2["cnt"]) if r2 else 0,
+            "vehicle_counts_deleted": int(r3["cnt"]) if r3 else 0,
         }
 
     def clear_output_videos(self) -> dict[str, int]:

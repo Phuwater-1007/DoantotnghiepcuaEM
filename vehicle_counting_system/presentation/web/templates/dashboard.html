@@ -70,6 +70,32 @@
   </div>
 </section>
 
+<!-- All-time stats (persist qua restart) -->
+<section class="card" style="margin-bottom: 0;">
+  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+    <h2 style="margin: 0;">📊 Tổng xe đã đếm (Toàn bộ lịch sử)</h2>
+    <span class="pill" style="background: var(--color-primary); color: #fff; font-size: 11px;">Persist qua restart</span>
+  </div>
+  <div class="card-grid" style="margin-bottom: 0;">
+    <div class="card stat-card">
+      <div class="stat-label">Tổng tất cả</div>
+      <div class="stat-value" id="stat-alltime-total">{{ dashboard.alltime_total }}</div>
+    </div>
+    <div class="card stat-card">
+      <div class="stat-label">Ô tô</div>
+      <div class="stat-value">{{ dashboard.alltime_vehicle_mix.car }}</div>
+    </div>
+    <div class="card stat-card">
+      <div class="stat-label">Xe máy</div>
+      <div class="stat-value">{{ dashboard.alltime_vehicle_mix.motorcycle }}</div>
+    </div>
+    <div class="card stat-card">
+      <div class="stat-label">Xe tải + Bus</div>
+      <div class="stat-value">{{ dashboard.alltime_vehicle_mix.truck + dashboard.alltime_vehicle_mix.bus }}</div>
+    </div>
+  </div>
+</section>
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 
 <section class="two-column">
@@ -255,7 +281,54 @@
   </div>
 </section>
 
+<!-- Recent Vehicle Log (chi tiết từng xe đếm được, persist trong DB) -->
+<section class="card" id="vehicle-log-card">
+  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+    <h2 style="margin: 0;">🚗 Lịch sử xe đếm được</h2>
+    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+      <!-- Class filter pills -->
+      <div id="vehicle-log-filters" style="display: flex; gap: 4px;">
+        <button class="pill vehicle-filter-btn active" data-class="" style="cursor: pointer; border: none; font-size: 11px; padding: 3px 10px;">Tất cả</button>
+        <button class="pill vehicle-filter-btn" data-class="car" style="cursor: pointer; border: none; font-size: 11px; padding: 3px 10px; background: rgba(99,102,241,0.1); color: #6366f1;">🚗 Ô tô</button>
+        <button class="pill vehicle-filter-btn" data-class="motorcycle" style="cursor: pointer; border: none; font-size: 11px; padding: 3px 10px; background: rgba(245,158,11,0.1); color: #f59e0b;">🏍️ Xe máy</button>
+        <button class="pill vehicle-filter-btn" data-class="truck" style="cursor: pointer; border: none; font-size: 11px; padding: 3px 10px; background: rgba(239,68,68,0.1); color: #ef4444;">🚛 Xe tải</button>
+        <button class="pill vehicle-filter-btn" data-class="bus" style="cursor: pointer; border: none; font-size: 11px; padding: 3px 10px; background: rgba(16,185,129,0.1); color: #10b981;">🚌 Xe buýt</button>
+      </div>
+      <span class="muted" style="font-size: 12px;" id="vehicle-log-counter">Đang tải...</span>
+    </div>
+  </div>
+  <div style="overflow-x: auto;">
+    <table class="data-table" style="width: 100%; font-size: 13px;">
+      <thead>
+        <tr>
+          <th style="width: 50px;">#</th>
+          <th>Loại xe</th>
+          <th>Chiều</th>
+          <th>Độ tin cậy</th>
+          <th>Nguồn</th>
+          <th>Thời gian</th>
+        </tr>
+      </thead>
+      <tbody id="vehicle-log-tbody">
+        <tr><td colspan="6" style="text-align: center; padding: 24px; color: var(--color-muted);">Đang tải dữ liệu...</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div id="vehicle-log-actions" style="display: flex; justify-content: center; gap: 12px; margin-top: 12px;">
+    <button id="vehicle-log-load-more" class="btn" style="display: none; padding: 8px 24px; font-size: 13px; border-radius: 8px; cursor: pointer; background: var(--color-primary); color: #fff; border: none;">
+      ↓ Tải thêm
+    </button>
+  </div>
+</section>
 
+<style>
+  .vehicle-filter-btn { transition: all 0.2s ease; opacity: 0.7; }
+  .vehicle-filter-btn:hover { opacity: 1; transform: scale(1.05); }
+  .vehicle-filter-btn.active { opacity: 1; font-weight: 600; box-shadow: 0 2px 8px rgba(99,102,241,0.2); }
+  #vehicle-log-load-more:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(99,102,241,0.3); }
+  @keyframes fadeInRow { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+  .vehicle-log-row-new { animation: fadeInRow 0.3s ease; }
+</style>
 
 <script>
   window.DashboardData = {
@@ -275,5 +348,128 @@
     }
   };
 </script>
-<script src="/static/js/dashboard.js"></script>
+
+<script>
+// ============================================================
+// Vehicle Log — Interactive pagination + filter
+// ============================================================
+(function() {
+  var PAGE_SIZE = 30;
+  var currentOffset = 0;
+  var currentFilter = '';
+  var totalCount = 0;
+  var tbody = document.getElementById('vehicle-log-tbody');
+  var counter = document.getElementById('vehicle-log-counter');
+  var loadMoreBtn = document.getElementById('vehicle-log-load-more');
+
+  var CLASS_META = {
+    car:        { label: 'Ô tô',   bg: 'rgba(99,102,241,0.15)',  color: '#6366f1' },
+    motorcycle: { label: 'Xe máy',  bg: 'rgba(245,158,11,0.15)',  color: '#f59e0b' },
+    truck:      { label: 'Xe tải',  bg: 'rgba(239,68,68,0.15)',   color: '#ef4444' },
+    bus:        { label: 'Xe buýt', bg: 'rgba(16,185,129,0.15)',  color: '#10b981' },
+  };
+
+  function renderRow(vc, animate) {
+    var meta = CLASS_META[vc.class_name] || { label: vc.class_name, bg: 'rgba(107,114,128,0.15)', color: '#6b7280' };
+    var dirHtml = '—';
+    if (vc.direction === 'p1_to_p2') dirHtml = '<span style="color:#10b981;">↗ Đi</span>';
+    else if (vc.direction === 'p2_to_p1') dirHtml = '<span style="color:#f59e0b;">↙ Về</span>';
+
+    var confPct = Math.round(vc.confidence * 100);
+    var confColor = confPct >= 80 ? '#10b981' : (confPct >= 50 ? '#f59e0b' : '#ef4444');
+
+    var tr = document.createElement('tr');
+    if (animate) tr.className = 'vehicle-log-row-new';
+    tr.innerHTML =
+      '<td style="color:var(--color-muted);">#' + vc.track_id + '</td>' +
+      '<td><span class="pill" style="background:' + meta.bg + ';color:' + meta.color + ';font-size:11px;padding:2px 8px;">' + meta.label + '</span></td>' +
+      '<td>' + dirHtml + '</td>' +
+      '<td><span style="color:' + confColor + ';">' + confPct + '%</span></td>' +
+      '<td style="color:var(--color-muted);font-size:12px;">' + (vc.source_name || '—') + '</td>' +
+      '<td style="color:var(--color-muted);font-size:12px;">' + vc.counted_at + '</td>';
+    return tr;
+  }
+
+  function updateCounter(shown) {
+    if (counter) {
+      if (totalCount === 0) counter.textContent = 'Chưa có dữ liệu';
+      else counter.textContent = 'Hiện ' + shown + ' / ' + totalCount + ' bản ghi';
+    }
+  }
+
+  function fetchPage(append) {
+    var url = '/api/vehicle-counts?limit=' + PAGE_SIZE + '&offset=' + currentOffset;
+    if (currentFilter) url += '&class_name=' + encodeURIComponent(currentFilter);
+
+    fetch(url, { credentials: 'same-origin' })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        totalCount = data.total_count || 0;
+        var counts = data.counts || [];
+
+        if (!append) {
+          tbody.innerHTML = '';
+        }
+
+        if (counts.length === 0 && currentOffset === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--color-muted);">Không có bản ghi nào' + (currentFilter ? ' cho loại xe này' : '') + '.</td></tr>';
+          loadMoreBtn.style.display = 'none';
+          updateCounter(0);
+          return;
+        }
+
+        counts.forEach(function(vc) {
+          tbody.appendChild(renderRow(vc, append));
+        });
+
+        var shown = tbody.querySelectorAll('tr').length;
+        updateCounter(shown);
+
+        if (data.has_more) {
+          loadMoreBtn.style.display = '';
+          loadMoreBtn.textContent = '↓ Tải thêm (' + (totalCount - shown) + ' bản ghi còn lại)';
+        } else {
+          loadMoreBtn.style.display = 'none';
+        }
+      })
+      .catch(function() {
+        if (!append) {
+          tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:#ef4444;">Lỗi tải dữ liệu.</td></tr>';
+        }
+      });
+  }
+
+  // Load More button
+  if (loadMoreBtn) {
+    loadMoreBtn.addEventListener('click', function() {
+      currentOffset += PAGE_SIZE;
+      fetchPage(true);
+    });
+  }
+
+  // Filter buttons
+  var filterBtns = document.querySelectorAll('.vehicle-filter-btn');
+  filterBtns.forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      filterBtns.forEach(function(b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      currentFilter = btn.getAttribute('data-class') || '';
+      currentOffset = 0;
+      fetchPage(false);
+    });
+  });
+
+  // Initial load
+  fetchPage(false);
+
+  // Auto-refresh when new vehicles are detected (every 5s)
+  setInterval(function() {
+    if (currentOffset === 0) {
+      fetchPage(false);
+    }
+  }, 5000);
+})();
+</script>
+
+<script src="/static/js/dashboard.js?v={{ cache_bust }}"></script>
 {% endblock %}

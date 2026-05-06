@@ -89,7 +89,7 @@ def _get_stream_stats() -> dict[str, Any]:
 
 
 def _get_dashboard_payload(container) -> dict[str, Any]:
-    """Build the merged dashboard payload (headless + stream)."""
+    """Build the merged dashboard payload (headless + stream + DB counts)."""
     active_id = container.monitoring_service.get_active_session_id()
     live_state = container.monitoring_service.get_live_state()
     stream_stats = _get_stream_stats()
@@ -100,11 +100,60 @@ def _get_dashboard_payload(container) -> dict[str, Any]:
     if live_state:
         headless_payload = live_state
 
+    # --- DB vehicle_counts (persisted, always up-to-date) ---
+    from datetime import date
+    today = date.today().isoformat()
+    VN_TZ = "+7 hours"
+    db = container.db
+
+    # Today totals from vehicle_counts
+    today_class_rows = db.fetchall(
+        """
+        SELECT class_name, COUNT(*) AS cnt
+        FROM vehicle_counts
+        WHERE date(datetime(counted_at, ?)) = ?
+        GROUP BY class_name
+        """,
+        (VN_TZ, today),
+    )
+    today_per_class = {str(r["class_name"]): int(r["cnt"]) for r in today_class_rows}
+    today_total = sum(today_per_class.values())
+
+    # All-time totals
+    alltime_row = db.fetchone("SELECT COUNT(*) AS cnt FROM vehicle_counts")
+    alltime_total = int(alltime_row["cnt"]) if alltime_row else 0
+    alltime_class_rows = db.fetchall(
+        "SELECT class_name, COUNT(*) AS cnt FROM vehicle_counts GROUP BY class_name"
+    )
+    alltime_per_class = {str(r["class_name"]): int(r["cnt"]) for r in alltime_class_rows}
+
+    # Hourly activity from vehicle_counts (today)
+    hourly_rows = db.fetchall(
+        """
+        SELECT substr(datetime(counted_at, ?), 12, 2) AS hour_label,
+               COUNT(*) AS vehicle_count
+        FROM vehicle_counts
+        WHERE date(datetime(counted_at, ?)) = ?
+        GROUP BY substr(datetime(counted_at, ?), 12, 2)
+        ORDER BY hour_label ASC
+        """,
+        (VN_TZ, VN_TZ, today, VN_TZ),
+    )
+    hourly_activity = [
+        {"hour": str(r["hour_label"]), "count": int(r["vehicle_count"])}
+        for r in hourly_rows
+    ]
+
     return {
         "type": "dashboard",
         "active_session_id": active_id,
         "live_state": headless_payload,
         "stream_stats": stream_stats,
+        "db_today_total": today_total,
+        "db_today_per_class": today_per_class,
+        "db_alltime_total": alltime_total,
+        "db_alltime_per_class": alltime_per_class,
+        "db_hourly_activity": hourly_activity,
         "ts": time.time(),
     }
 

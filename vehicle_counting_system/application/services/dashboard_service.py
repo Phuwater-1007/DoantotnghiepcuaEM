@@ -25,17 +25,22 @@ class DashboardService:
 
     def get_dashboard_data(self) -> dict:
         today = date.today().isoformat()
-        rows = self.db.fetchall(
+
+        # ============================================================
+        # TODAY stats — đọc từ vehicle_counts (đồng bộ với all-time)
+        # ============================================================
+        today_class_rows = self.db.fetchall(
             """
-            SELECT rs.total, rs.per_class_json, s.status, s.name
-            FROM report_snapshots rs
-            JOIN analysis_sessions sess ON sess.id = rs.session_id
-            JOIN sources s ON s.id = sess.source_id
-            WHERE rs.report_date = ?
-              AND sess.status = 'completed'
+            SELECT class_name, COUNT(*) AS cnt
+            FROM vehicle_counts
+            WHERE date(datetime(counted_at, ?)) = ?
+            GROUP BY class_name
+            ORDER BY cnt DESC
             """,
-            (today,),
+            (VN_SQLITE_TZ_MOD, today),
         )
+        per_class: dict[str, int] = {str(r["class_name"]): int(r["cnt"]) for r in today_class_rows}
+        total = sum(per_class.values())
 
         completed_today_rows = self.db.fetchall(
             """
@@ -48,27 +53,21 @@ class DashboardService:
         )
         completed_sessions_today = len(completed_today_rows)
 
-        total = 0
-        per_class: dict[str, int] = {}
-        for row in rows:
-            total += int(row["total"])
-            raw = json.loads(row["per_class_json"] or "{}")
-            for key, value in raw.items():
-                per_class[key] = per_class.get(key, 0) + int(value)
-
+        # ============================================================
+        # HOURLY chart — từ vehicle_counts, group theo giờ đếm
+        # ============================================================
         hourly_rows = self.db.fetchall(
             """
-            SELECT substr(datetime(sess.finished_at, ?), 12, 2) AS hour_label, COALESCE(SUM(rs.total), 0) AS vehicle_count
-            FROM analysis_sessions sess
-            LEFT JOIN report_snapshots rs ON rs.session_id = sess.id
-            WHERE sess.status = 'completed'
-              AND sess.finished_at IS NOT NULL
-              AND date(datetime(sess.finished_at, ?)) = ?
-            GROUP BY substr(datetime(sess.finished_at, ?), 12, 2)
+            SELECT substr(datetime(counted_at, ?), 12, 2) AS hour_label,
+                   COUNT(*) AS vehicle_count
+            FROM vehicle_counts
+            WHERE date(datetime(counted_at, ?)) = ?
+            GROUP BY substr(datetime(counted_at, ?), 12, 2)
             ORDER BY hour_label ASC
             """,
             (VN_SQLITE_TZ_MOD, VN_SQLITE_TZ_MOD, today, VN_SQLITE_TZ_MOD),
         )
+
         sources = self.source_service.list_sources()
         configured_sources = sum(1 for source in sources if source.counting_config_path)
         running_row = self.db.fetchone(
@@ -122,6 +121,40 @@ class DashboardService:
 
         vehicle_mix = self._aggregate_vehicle_mix(per_class)
 
+        # ============================================================
+        # ALL-TIME stats — cũng từ vehicle_counts (luôn đồng bộ)
+        # ============================================================
+        alltime_row = self.db.fetchone("SELECT COUNT(*) AS cnt FROM vehicle_counts")
+        alltime_total = int(alltime_row["cnt"]) if alltime_row else 0
+        alltime_class_rows = self.db.fetchall(
+            "SELECT class_name, COUNT(*) AS cnt FROM vehicle_counts GROUP BY class_name ORDER BY cnt DESC"
+        )
+        alltime_per_class = {str(r["class_name"]): int(r["cnt"]) for r in alltime_class_rows}
+
+        # Recent vehicle counts (last 20)
+        recent_counts = self.db.fetchall(
+            """
+            SELECT vc.id, vc.track_id, vc.class_name, vc.confidence, vc.direction,
+                   datetime(vc.counted_at, '+7 hours') AS counted_at, src.name AS source_name
+            FROM vehicle_counts vc
+            LEFT JOIN sources src ON src.id = vc.source_id
+            ORDER BY vc.id DESC
+            LIMIT 20
+            """
+        )
+        recent_vehicle_list = [
+            {
+                "id": int(r["id"]),
+                "track_id": int(r["track_id"]),
+                "class_name": str(r["class_name"]),
+                "confidence": round(float(r["confidence"]), 2),
+                "direction": str(r["direction"]),
+                "counted_at": str(r["counted_at"]),
+                "source_name": str(r["source_name"] or ""),
+            }
+            for r in recent_counts
+        ]
+
         return {
             "today_total": total,
             "per_class": per_class,
@@ -134,4 +167,8 @@ class DashboardService:
             "sources_total": len(sources),
             "configured_sources": configured_sources,
             "running_session": dict(running_row) if running_row else None,
+            "alltime_total": alltime_total,
+            "alltime_per_class": alltime_per_class,
+            "alltime_vehicle_mix": self._aggregate_vehicle_mix(alltime_per_class),
+            "recent_vehicle_counts": recent_vehicle_list,
         }
