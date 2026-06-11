@@ -332,15 +332,76 @@ def build_router() -> APIRouter:
         if auth_err is not None:
             return auth_err
         container = get_container(request)
+        # Lấy thông tin source trước khi xóa (để trả về cho frontend)
+        source = container.source_service.get_source(source_id)
+        if not source:
+            return JSONResponse(status_code=404, content={"error": "Nguồn không tồn tại."})
+        source_name = source.name
+        source_type = source.source_type
         try:
             success = container.source_service.delete_source(source_id)
             if success:
-                return {"ok": True, "message": "Đã xóa nguồn dữ liệu."}
+                return {
+                    "ok": True,
+                    "message": f"Đã xóa nguồn '{source_name}'.",
+                    "deleted_name": source_name,
+                    "deleted_type": source_type,
+                    "source_id": source_id,
+                }
             else:
                 return JSONResponse(status_code=404, content={"error": "Nguồn không tồn tại."})
         except Exception as e:
             logger.error(f"Error deleting source: {e}", exc_info=True)
             return JSONResponse(status_code=500, content={"error": "Lỗi khi xóa nguồn."})
+
+    @router.delete("/sources/by-path")
+    def api_delete_source_by_path(request: Request, path: str = Body(..., embed=True)):
+        """Xóa video file khỏi ổ đĩa (và xóa DB nếu có). path = relative from PROJECT_ROOT."""
+        import os
+        auth_err = _require_auth(request)
+        if auth_err is not None:
+            return auth_err
+        if not path or not path.strip():
+            return JSONResponse(status_code=400, content={"error": "Thiếu path"})
+
+        # Ngăn path traversal
+        clean_path = path.strip().replace("..", "")
+        p = (PROJECT_ROOT / clean_path).resolve()
+
+        # Chỉ cho phép xóa file trong thư mục input
+        allowed_dirs = [
+            INPUT_VIDEOS_DIR.resolve(),
+            (DATA_DIR / "input").resolve(),
+            (DATA_DIR / "inputs").resolve(),
+        ]
+        in_allowed = False
+        for d in allowed_dirs:
+            if d.exists():
+                try:
+                    p.relative_to(d)
+                    in_allowed = True
+                    break
+                except ValueError:
+                    pass
+        if not in_allowed:
+            return JSONResponse(status_code=403, content={"error": "Không được phép xóa file ngoài thư mục input."})
+
+        if not p.exists() or not p.is_file():
+            return JSONResponse(status_code=404, content={"error": "File không tồn tại."})
+
+        container = get_container(request)
+        try:
+            # Xóa DB record nếu có
+            source = container.source_service.get_source_by_uri(clean_path)
+            if source:
+                container.source_service.delete_source(source.id)
+
+            # Xóa file vật lý
+            os.remove(str(p))
+            return {"ok": True, "message": f"Đã xóa file '{p.name}'."}
+        except Exception as e:
+            logger.error(f"Error deleting video file: {e}", exc_info=True)
+            return JSONResponse(status_code=500, content={"error": "Lỗi khi xóa file."})
 
     @router.get("/video/input")
     def api_input_video(request: Request, path: str = ""):

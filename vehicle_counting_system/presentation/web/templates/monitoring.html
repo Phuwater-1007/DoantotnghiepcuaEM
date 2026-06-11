@@ -78,52 +78,49 @@
     <div class="monitor-tile-row">
       {% for v in detected_videos[:5] %}
       <div class="monitor-tile-wrapper" style="position: relative;">
-      <button type="button" class="monitor-video-tile {% if loop.first %}is-selected{% endif %}"
-        data-video-path="{{ v.path }}" data-video-url="{{ v.preview_url }}" data-video-name="{{ v.name }}"
-        data-video-roi="{{ 'yes' if v.roi_ready else 'no' }}" data-source-id="{{ v.source_id if v.source_id else '' }}"
-        data-source-type="{{ v.source_type|default('video') }}" data-cam-index="{{ loop.index }}">
-        <div class="monitor-video-frame">
-          {% if v.source_type == 'stream' %}
-          <div class="monitor-stream-placeholder">
-            <svg width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round"
-                d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-            </svg>
-            <span>RTSP</span>
-          </div>
-          {% else %}
-          <video muted autoplay loop playsinline preload="metadata">
-            <source src="{{ v.preview_url }}">
-          </video>
-          {% endif %}
-        </div>
-        <div class="monitor-video-info">
-          <span class="monitor-video-cam-label">
+        <button type="button" class="monitor-video-tile {% if loop.first %}is-selected{% endif %}"
+          data-video-path="{{ v.path }}" data-video-url="{{ v.preview_url }}" data-video-name="{{ v.name }}"
+          data-video-roi="{{ 'yes' if v.roi_ready else 'no' }}"
+          data-source-id="{{ v.source_id if v.source_id else '' }}"
+          data-source-type="{{ v.source_type|default('video') }}" data-cam-index="{{ loop.index }}">
+          <div class="monitor-video-frame">
             {% if v.source_type == 'stream' %}
-            <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
-              style="vertical-align: -1px; margin-right: 2px;">
-              <circle cx="12" cy="12" r="3" />
-              <path
-                d="M16.24 7.76a6 6 0 010 8.49m-8.48-.01a6 6 0 010-8.49m11.31-2.82a10 10 0 010 14.14m-14.14 0a10 10 0 010-14.14" />
-            </svg>
+            <div class="monitor-stream-placeholder">
+              <svg width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+              <span>RTSP</span>
+            </div>
+            {% else %}
+            <video muted autoplay loop playsinline preload="metadata">
+              <source src="{{ v.preview_url }}">
+            </video>
             {% endif %}
-            CAM {{ loop.index }}
-          </span>
-          <span class="monitor-video-name">{{ v.name }}</span>
-          <span class="monitor-video-roi {% if v.roi_ready %}is-ready{% else %}is-missing{% endif %}">
-            {% if v.roi_ready %}ROI sẵn sàng{% else %}Chưa có ROI{% endif %}
-          </span>
-        </div>
-      </button>
-      {% if v.source_id %}
-      <button
-        type="button"
-        class="tile-delete-btn"
-        data-source-id="{{ v.source_id }}"
-        data-source-name="{{ v.name }}"
-        title="Xóa luồng {{ v.name }}"
-      >✕</button>
-      {% endif %}
+          </div>
+          <div class="monitor-video-info">
+            <span class="monitor-video-cam-label">
+              {% if v.source_type == 'stream' %}
+              <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
+                style="vertical-align: -1px; margin-right: 2px;">
+                <circle cx="12" cy="12" r="3" />
+                <path
+                  d="M16.24 7.76a6 6 0 010 8.49m-8.48-.01a6 6 0 010-8.49m11.31-2.82a10 10 0 010 14.14m-14.14 0a10 10 0 010-14.14" />
+              </svg>
+              {% endif %}
+              CAM {{ loop.index }}
+            </span>
+            <span class="monitor-video-name">{{ v.name }}</span>
+            <span class="monitor-video-roi {% if v.roi_ready %}is-ready{% else %}is-missing{% endif %}">
+              {% if v.roi_ready %}ROI sẵn sàng{% else %}Chưa có ROI{% endif %}
+            </span>
+          </div>
+        </button>
+        <button type="button" class="tile-delete-btn"
+          data-source-id="{{ v.source_id if v.source_id else '' }}"
+          data-video-path="{{ v.path }}"
+          data-source-name="{{ v.name }}"
+          title="Xóa {{ v.name }}">✕</button>
       </div>
       {% endfor %}
     </div>
@@ -599,25 +596,32 @@
     </div>
     <div class="monitor-library-list">
       {% for v in detected_videos %}
-      <button type="button" class="monitor-library-item" data-video-path="{{ v.path }}"
-        data-video-url="{{ v.preview_url }}" data-video-name="{{ v.name }}"
-        data-video-roi="{{ 'yes' if v.roi_ready else 'no' }}" data-source-id="{{ v.source_id if v.source_id else '' }}"
-        data-source-type="{{ v.source_type|default('video') }}" data-cam-index="{{ loop.index }}">
-        <span class="monitor-library-cam">
-          {% if v.source_type == 'stream' %}
-          <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
-            style="vertical-align: -1px; margin-right: 2px;">
-            <circle cx="12" cy="12" r="3" />
-            <path d="M16.24 7.76a6 6 0 010 8.49m-8.48-.01a6 6 0 010-8.49" />
-          </svg>
-          {% endif %}
-          CAM {{ loop.index }}
-        </span>
-        <span>{{ v.name }}</span>
-        <span class="monitor-video-roi {% if v.roi_ready %}is-ready{% else %}is-missing{% endif %}">
-          {% if v.roi_ready %}ROI sẵn sàng{% else %}Chưa có ROI{% endif %}
-        </span>
-      </button>
+      <div class="monitor-library-item-wrapper" style="position: relative;">
+        <button type="button" class="monitor-library-item" data-video-path="{{ v.path }}"
+          data-video-url="{{ v.preview_url }}" data-video-name="{{ v.name }}"
+          data-video-roi="{{ 'yes' if v.roi_ready else 'no' }}" data-source-id="{{ v.source_id if v.source_id else '' }}"
+          data-source-type="{{ v.source_type|default('video') }}" data-cam-index="{{ loop.index }}">
+          <span class="monitor-library-cam">
+            {% if v.source_type == 'stream' %}
+            <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
+              style="vertical-align: -1px; margin-right: 2px;">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M16.24 7.76a6 6 0 010 8.49m-8.48-.01a6 6 0 010-8.49" />
+            </svg>
+            {% endif %}
+            CAM {{ loop.index }}
+          </span>
+          <span>{{ v.name }}</span>
+          <span class="monitor-video-roi {% if v.roi_ready %}is-ready{% else %}is-missing{% endif %}">
+            {% if v.roi_ready %}ROI sẵn sàng{% else %}Chưa có ROI{% endif %}
+          </span>
+        </button>
+        <button type="button" class="library-delete-btn tile-delete-btn"
+          data-source-id="{{ v.source_id if v.source_id else '' }}"
+          data-video-path="{{ v.path }}"
+          data-source-name="{{ v.name }}"
+          title="Xóa {{ v.name }}">✕</button>
+      </div>
       {% endfor %}
     </div>
   </section>
@@ -1896,54 +1900,227 @@
     transition: all 0.2s ease;
     z-index: 10;
   }
-  .monitor-tile-wrapper:hover .tile-delete-btn {
+
+  .monitor-tile-wrapper:hover .tile-delete-btn,
+  .monitor-library-item-wrapper:hover .tile-delete-btn {
     opacity: 1;
   }
+
   .tile-delete-btn:hover {
     background: #ef4444;
     border-color: #ef4444;
     transform: scale(1.1);
   }
+
+  /* ── Library item wrapper ──────────────────────────────────────── */
+  .monitor-library-item-wrapper {
+    position: relative;
+  }
+  .monitor-library-item-wrapper .tile-delete-btn {
+    top: 50%;
+    right: 10px;
+    transform: translateY(-50%);
+  }
+  .monitor-library-item-wrapper:hover .tile-delete-btn {
+    opacity: 1;
+  }
+  .monitor-library-item-wrapper .tile-delete-btn:hover {
+    background: #ef4444;
+    border-color: #ef4444;
+    transform: translateY(-50%) scale(1.1);
+  }
+
+  /* ── Fade-out animation for deleted items ──────────────────────── */
+  @keyframes fadeOutShrink {
+    0%   { opacity: 1; max-height: 200px; transform: scale(1); }
+    60%  { opacity: 0; transform: scale(0.95); }
+    100% { opacity: 0; max-height: 0; padding: 0; margin: 0; overflow: hidden; }
+  }
+  .deleting-fade-out {
+    animation: fadeOutShrink 0.4s ease forwards;
+    pointer-events: none;
+  }
+
+  /* ── Toast Notification ────────────────────────────────────────── */
+  .toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 99999;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    pointer-events: none;
+  }
+  .toast {
+    pointer-events: auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 20px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #fff;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.18);
+    backdrop-filter: blur(12px);
+    animation: toastIn 0.35s ease;
+    max-width: 400px;
+  }
+  .toast.toast-success { background: rgba(16, 185, 129, 0.95); }
+  .toast.toast-error   { background: rgba(239, 68, 68, 0.95); }
+  .toast.toast-info    { background: rgba(99, 102, 241, 0.95); }
+  .toast-hiding {
+    animation: toastOut 0.3s ease forwards;
+  }
+  @keyframes toastIn {
+    from { opacity: 0; transform: translateX(40px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes toastOut {
+    from { opacity: 1; transform: translateX(0); }
+    to   { opacity: 0; transform: translateX(40px); }
+  }
 </style>
 
+<!-- Toast container -->
+<div class="toast-container" id="toast-container"></div>
+
 <script>
+  /* ── Toast helper ──────────────────────────────────────────────── */
+  function showToast(message, type, duration) {
+    type = type || 'info';
+    duration = duration || 3500;
+    var container = document.getElementById('toast-container');
+    if (!container) return;
+    var toast = document.createElement('div');
+    toast.className = 'toast toast-' + type;
+    toast.innerHTML = '<span>' + message + '</span>';
+    container.appendChild(toast);
+    setTimeout(function () {
+      toast.classList.add('toast-hiding');
+      setTimeout(function () { toast.remove(); }, 350);
+    }, duration);
+  }
+
+  /* ── Update stream counter ────────────────────────────────────── */
+  function updateStreamCounter(delta) {
+    var counterEl = document.querySelector('.monitor-counter');
+    if (!counterEl) return;
+    var text = counterEl.textContent || '';
+    var match = text.match(/(\d+)/);
+    if (match) {
+      var newCount = Math.max(0, parseInt(match[1], 10) + delta);
+      counterEl.textContent = newCount + ' luồng';
+    }
+    // Also update the multi-stream counter if exists
+    var msCounter = document.getElementById('multi-stream-counter');
+    if (msCounter) {
+      var msText = msCounter.textContent || '';
+      var msMatch = msText.match(/(\d+)\s*\/\s*(\d+)/);
+      if (msMatch) {
+        var active = parseInt(msMatch[1], 10);
+        var totalMs = Math.max(0, parseInt(msMatch[2], 10) + delta);
+        msCounter.textContent = active + ' / ' + totalMs + ' luồng';
+      }
+    }
+  }
+
+  /* ── Delete handler for both tiles and library items ──────────── */
   (function () {
-    var deleteBtns = document.querySelectorAll(".tile-delete-btn");
-    deleteBtns.forEach(function (btn) {
-      btn.addEventListener("click", function (e) {
-        e.stopPropagation(); // Ngăn click lan xuống tile
-        var sourceId = this.getAttribute("data-source-id");
-        var sourceName = this.getAttribute("data-source-name");
-        
-        if (!confirm("Bạn có chắc chắn muốn xóa luồng '" + sourceName + "'?\nĐiều này sẽ dừng luồng, xóa kết quả đếm, vùng ROI đã cấu hình, và xóa video khỏi hệ thống.")) {
-          return;
-        }
-        
+    function handleDelete(btn) {
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        e.preventDefault();
+
+        var sourceId = this.getAttribute('data-source-id');
+        var videoPath = this.getAttribute('data-video-path');
+        var sourceName = this.getAttribute('data-source-name');
+
+        var confirmMsg = sourceId
+          ? "Xóa luồng '" + sourceName + "'?\n\nĐiều này sẽ dừng stream, xóa ROI, dữ liệu đếm, và video liên quan."
+          : "Xóa video '" + sourceName + "'?\n\nFile video sẽ bị xóa vĩnh viễn khỏi ổ đĩa.";
+
+        if (!confirm(confirmMsg)) return;
+
+        var self = this;
         var originalText = this.textContent;
-        this.textContent = "...";
+        this.textContent = '...';
         this.disabled = true;
-        
-        fetch("/api/sources/" + sourceId, {
-          method: "DELETE",
-          credentials: "same-origin"
-        })
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-          if (data.ok) {
-            window.location.reload();
-          } else {
-            alert(data.error || "Không thể xóa luồng.");
-            btn.textContent = originalText;
-            btn.disabled = false;
-          }
-        })
-        .catch(function(err) {
-          alert("Lỗi khi xóa luồng.");
-          btn.textContent = originalText;
-          btn.disabled = false;
-        });
+
+        var fetchPromise;
+        if (sourceId && sourceId.trim() !== '') {
+          fetchPromise = fetch('/api/sources/' + sourceId, {
+            method: 'DELETE', credentials: 'same-origin'
+          });
+        } else {
+          fetchPromise = fetch('/api/sources/by-path', {
+            method: 'DELETE', credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path: videoPath })
+          });
+        }
+
+        fetchPromise
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (data.ok) {
+              showToast('✓ ' + (data.message || "Đã xóa '" + sourceName + "'"), 'success');
+
+              // Fade-out tile/wrapper
+              var wrapper = self.closest('.monitor-tile-wrapper') || self.closest('.monitor-library-item-wrapper');
+              if (wrapper) {
+                wrapper.classList.add('deleting-fade-out');
+                setTimeout(function () { wrapper.remove(); }, 450);
+              }
+
+              // Also remove matching items in the other list (tile ↔ library)
+              var allWrappers = document.querySelectorAll(
+                '.monitor-tile-wrapper, .monitor-library-item-wrapper'
+              );
+              allWrappers.forEach(function (w) {
+                var btn2 = w.querySelector('.tile-delete-btn');
+                if (!btn2) return;
+                var sid = btn2.getAttribute('data-source-id');
+                var vp  = btn2.getAttribute('data-video-path');
+                var match = false;
+                if (sourceId && sid === sourceId) match = true;
+                if (!sourceId && vp === videoPath) match = true;
+                if (match && w !== wrapper) {
+                  w.classList.add('deleting-fade-out');
+                  setTimeout(function () { w.remove(); }, 450);
+                }
+              });
+
+              // Update counter
+              updateStreamCounter(-1);
+
+              // Check if library section should be hidden
+              setTimeout(function () {
+                var libraryList = document.querySelector('.monitor-library-list');
+                if (libraryList && libraryList.children.length === 0) {
+                  var libraryCard = libraryList.closest('.monitor-library-card');
+                  if (libraryCard) libraryCard.style.display = 'none';
+                }
+              }, 500);
+
+            } else {
+              showToast('✗ ' + (data.error || 'Không thể xóa.'), 'error');
+              self.textContent = originalText;
+              self.disabled = false;
+            }
+          })
+          .catch(function (err) {
+            showToast('✗ Lỗi kết nối khi xóa.', 'error');
+            self.textContent = originalText;
+            self.disabled = false;
+          });
       });
-    });
+    }
+
+    // Bind to ALL delete buttons (tiles + library)
+    var allDeleteBtns = document.querySelectorAll('.tile-delete-btn');
+    allDeleteBtns.forEach(handleDelete);
   })();
 </script>
 

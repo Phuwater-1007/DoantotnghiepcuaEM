@@ -105,7 +105,11 @@ def get_current_user(request: Request):
     # by ensuring the session belongs to the current server instance.
     session_instance = request.session.get("instance_id")
     if session_instance != request.app.state.instance_id:
+        # Preserve CSRF token so the next POST (e.g. login) still works
+        csrf_token = request.session.get("csrf_token")
         request.session.clear()
+        if csrf_token:
+            request.session["csrf_token"] = csrf_token
         return None
         
     user_id = request.session.get("user_id")

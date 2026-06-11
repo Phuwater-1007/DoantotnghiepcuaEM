@@ -26,6 +26,16 @@ logger = get_logger(__name__)
 def create_app() -> FastAPI:
     import uuid
     app = FastAPI(title="Traffic Monitoring System", version="1.0.0")
+
+    @app.middleware("http")
+    async def add_security_headers(request: Request, call_next):
+        response = await call_next(request)
+        content_type = response.headers.get("content-type", "")
+        if "text/html" in content_type:
+            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+        return response
     
     # Generate a unique ID for this specific server run
     # This forces users to log in again every time the server restarts
@@ -82,7 +92,7 @@ def create_app() -> FastAPI:
 # Lightweight CSRF middleware
 # ---------------------------------------------------------------------------
 _CSRF_SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
-_CSRF_SKIP_PATHS = {"/api/"}  # JSON API uses auth tokens; forms use CSRF
+_CSRF_SKIP_PATHS = {"/api/", "/login", "/logout"}  # Login/logout don't need CSRF; API uses auth tokens
 
 
 class CSRFMiddleware:

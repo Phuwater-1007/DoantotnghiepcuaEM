@@ -248,7 +248,8 @@ def _get_session(source_id: int) -> _StreamSession | None:
         return _active_streams.get(source_id)
 
 
-def _stop_stream(source_id: int) -> None:
+def stop_stream_by_source_id(source_id: int) -> None:
+    """Stop a running stream by source_id. Safe to call even if no stream is active."""
     with _registry_lock:
         session = _active_streams.pop(source_id, None)
     if session is None:
@@ -262,6 +263,10 @@ def _stop_stream(source_id: int) -> None:
         session._frame_cv.notify_all()
     if session.processing_thread and session.processing_thread.is_alive():
         session.processing_thread.join(timeout=3.0)
+
+
+# Backward-compatible alias used internally
+_stop_stream = stop_stream_by_source_id
 
 
 def _stop_all_streams() -> None:

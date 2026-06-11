@@ -227,22 +227,99 @@ class SourceService:
             counting_config_path=row["counting_config_path"],
         )
 
-    def delete_source(self, source_id: int) -> bool:
-        """Xóa source khỏi hệ thống."""
+    def delete_source(self, source_id: int, *, delete_video_file: bool = True) -> bool:
+        """Xóa source khỏi hệ thống — dọn dẹp toàn bộ dữ liệu liên quan.
+
+        1. Dừng stream đang chạy (nếu có)
+        2. Xóa vehicle_counts liên quan
+        3. Xóa report_snapshots liên quan
+        4. Xóa analysis_sessions liên quan
+        5. Xóa config ROI file
+        6. Xóa video file (nếu loại video và nằm trong thư mục inputs)
+        7. Xóa record trong bảng sources
+        """
         source = self.get_source(source_id)
         if not source:
             return False
-            
+
         import os
         from vehicle_counting_system.utils.logger import get_logger
         logger = get_logger(__name__)
-        
+
+        # 1. Dừng stream MJPEG đang chạy (nếu có)
+        try:
+            from vehicle_counting_system.presentation.web.routes.stream import (
+                stop_stream_by_source_id,
+            )
+            stop_stream_by_source_id(source_id)
+            logger.info("Stopped active stream for source %s before deletion", source_id)
+        except Exception as e:
+            logger.warning("Could not stop stream for source %s: %s", source_id, e)
+
+        # 2. Xóa vehicle_counts liên quan (qua session_id hoặc source_id)
+        try:
+            self.db.execute(
+                "DELETE FROM vehicle_counts WHERE source_id = ?", (source_id,)
+            )
+        except Exception as e:
+            logger.warning("Could not delete vehicle_counts for source %s: %s", source_id, e)
+
+        # 3. Xóa report_snapshots liên quan (qua session_id)
+        try:
+            self.db.execute(
+                """DELETE FROM report_snapshots WHERE session_id IN
+                   (SELECT id FROM analysis_sessions WHERE source_id = ?)""",
+                (source_id,),
+            )
+        except Exception as e:
+            logger.warning("Could not delete report_snapshots for source %s: %s", source_id, e)
+
+        # 4. Xóa analysis_sessions
+        try:
+            self.db.execute(
+                "DELETE FROM analysis_sessions WHERE source_id = ?", (source_id,)
+            )
+        except Exception as e:
+            logger.warning("Could not delete analysis_sessions for source %s: %s", source_id, e)
+
+        # 5. Xóa config ROI file
         if source.counting_config_path:
             try:
                 if os.path.exists(source.counting_config_path):
                     os.remove(source.counting_config_path)
             except Exception as e:
-                logger.warning(f"Không thể xóa config file {source.counting_config_path}: {e}")
-                
+                logger.warning("Không thể xóa config file %s: %s", source.counting_config_path, e)
+
+        # 6. Xóa video file vật lý (chỉ khi loại video, nằm trong thư mục inputs)
+        if delete_video_file and source.source_type == "video":
+            try:
+                video_path = Path(source.source_uri)
+                if not video_path.is_absolute():
+                    video_path = PROJECT_ROOT / video_path
+                video_path = video_path.resolve()
+                # Chỉ xóa file nằm trong thư mục data/inputs
+                from vehicle_counting_system.configs.paths import DATA_DIR, INPUT_VIDEOS_DIR
+                allowed_dirs = [
+                    INPUT_VIDEOS_DIR.resolve(),
+                    (DATA_DIR / "input").resolve(),
+                    (DATA_DIR / "inputs").resolve(),
+                ]
+                in_allowed = False
+                for d in allowed_dirs:
+                    if d.exists():
+                        try:
+                            video_path.relative_to(d)
+                            in_allowed = True
+                            break
+                        except ValueError:
+                            pass
+                if in_allowed and video_path.exists() and video_path.is_file():
+                    os.remove(str(video_path))
+                    logger.info("Deleted video file: %s", video_path)
+            except Exception as e:
+                logger.warning("Could not delete video file for source %s: %s", source_id, e)
+
+        # 7. Xóa record trong bảng sources
         self.db.execute("DELETE FROM sources WHERE id = ?", (source_id,))
+        logger.info("Deleted source #%s (%s) successfully", source_id, source.name)
         return True

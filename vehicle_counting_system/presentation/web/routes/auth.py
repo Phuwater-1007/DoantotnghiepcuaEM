@@ -64,7 +64,11 @@ def build_router(templates) -> APIRouter:
                 username=user.username,
                 ip_address=request.client.host if request.client else "",
             )
+        # Clear only authentication keys to keep the CSRF token and prevent cookie deletion issues
+        csrf_token = request.session.get("csrf_token")
         request.session.clear()
+        if csrf_token:
+            request.session["csrf_token"] = csrf_token
         return RedirectResponse("/login", status_code=303)
 
     @router.get("/access-denied")

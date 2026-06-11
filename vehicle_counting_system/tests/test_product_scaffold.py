@@ -1,6 +1,7 @@
 import hashlib
 import tempfile
 import unittest
+import os
 from pathlib import Path
 
 from vehicle_counting_system.application.services.auth_service import AuthService
@@ -9,6 +10,8 @@ from vehicle_counting_system.infrastructure.persistence.sqlite_db import SQLiteD
 
 class TestProductScaffold(unittest.TestCase):
     def test_database_bootstrap_seeds_default_users(self):
+        os.environ["DEMO_MODE"] = "1"
+        os.environ["DEFAULT_ADMIN_PASSWORD"] = "admin123"
         with tempfile.TemporaryDirectory() as tmp_dir:
             db = SQLiteDatabase(Path(tmp_dir) / "app.db")
             auth = AuthService(db)

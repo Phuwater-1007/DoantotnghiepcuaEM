@@ -10,6 +10,9 @@ from vehicle_counting_system.application.services.source_service import SourceSe
 from vehicle_counting_system.application.services.report_service import ReportService
 from vehicle_counting_system.application.services.dashboard_service import DashboardService
 from vehicle_counting_system.application.services.monitoring_service import MonitoringService
+from vehicle_counting_system.application.services.activity_log_service import ActivityLogService
+from vehicle_counting_system.application.services.admin_service import AdminService
+from vehicle_counting_system.application.services.counting_persistence_service import CountingPersistenceService
 from vehicle_counting_system.application.bootstrap import AppContainer
 from vehicle_counting_system.presentation.web.app import create_app
 import vehicle_counting_system.configs.paths as paths
@@ -22,8 +25,12 @@ class TestHardeningIntegration(unittest.TestCase):
         os.environ["WEB_SESSION_SECRET"] = "secret"
         
     def setUp(self):
-        self.tmp = tempfile.TemporaryDirectory()
-        self.tmp_path = Path(self.tmp.name)
+        self.test_dir = paths.PROJECT_ROOT / "data" / "test_run_tmp"
+        if self.test_dir.exists():
+            import shutil
+            shutil.rmtree(self.test_dir, ignore_errors=True)
+        self.test_dir.mkdir(parents=True, exist_ok=True)
+        self.tmp_path = self.test_dir
         
         # Override paths for this test run
         self.orig_db_path = paths.APP_DB_PATH
@@ -32,14 +39,35 @@ class TestHardeningIntegration(unittest.TestCase):
         paths.INPUT_VIDEOS_DIR = self.tmp_path / "inputs"
         paths.INPUT_VIDEOS_DIR.mkdir()
 
+        # Patch module-level imports in FastAPI modules
+        import vehicle_counting_system.presentation.web.routes.api as api_routes
+        import vehicle_counting_system.presentation.web.dependencies as web_deps
+        import vehicle_counting_system.presentation.web.app as web_app
+        
+        self.orig_api_input_dir = api_routes.INPUT_VIDEOS_DIR
+        self.orig_deps_input_dir = web_deps.INPUT_VIDEOS_DIR
+        self.orig_deps_output_dir = web_deps.OUTPUT_VIDEOS_DIR
+        self.orig_app_input_dir = web_app.INPUT_VIDEOS_DIR
+        self.orig_app_output_dir = web_app.OUTPUT_VIDEOS_DIR
+        
+        api_routes.INPUT_VIDEOS_DIR = paths.INPUT_VIDEOS_DIR
+        web_deps.INPUT_VIDEOS_DIR = paths.INPUT_VIDEOS_DIR
+        web_deps.OUTPUT_VIDEOS_DIR = self.tmp_path / "outputs"
+        web_deps.OUTPUT_VIDEOS_DIR.mkdir()
+        web_app.INPUT_VIDEOS_DIR = paths.INPUT_VIDEOS_DIR
+        web_app.OUTPUT_VIDEOS_DIR = web_deps.OUTPUT_VIDEOS_DIR
+
         # Build custom container
         self.db = SQLiteDatabase(paths.APP_DB_PATH)
         self.auth = AuthService(self.db)
         self.source = SourceService(self.db)
         self.report = ReportService(self.db)
         self.dashboard = DashboardService(self.db, self.source)
-        self.monitoring = MonitoringService(self.db, self.source, self.report)
-
+        self.counting_persistence = CountingPersistenceService(self.db)
+        self.monitoring = MonitoringService(self.db, self.source, self.report, self.counting_persistence)
+        self.activity_log = ActivityLogService(self.db)
+        self.admin = AdminService(self.db, self.monitoring)
+        
         self.db.init_schema()
         self.db.seed_defaults(self.auth)
         
@@ -50,6 +78,9 @@ class TestHardeningIntegration(unittest.TestCase):
             dashboard_service=self.dashboard,
             report_service=self.report,
             monitoring_service=self.monitoring,
+            activity_log_service=self.activity_log,
+            admin_service=self.admin,
+            counting_persistence_service=self.counting_persistence,
         )
         
         self.app = create_app()
@@ -59,7 +90,21 @@ class TestHardeningIntegration(unittest.TestCase):
     def tearDown(self):
         paths.APP_DB_PATH = self.orig_db_path
         paths.INPUT_VIDEOS_DIR = self.orig_input_dir
-        self.tmp.cleanup()
+        
+        # Restore module-level paths in FastAPI modules
+        import vehicle_counting_system.presentation.web.routes.api as api_routes
+        import vehicle_counting_system.presentation.web.dependencies as web_deps
+        import vehicle_counting_system.presentation.web.app as web_app
+        
+        api_routes.INPUT_VIDEOS_DIR = self.orig_api_input_dir
+        web_deps.INPUT_VIDEOS_DIR = self.orig_deps_input_dir
+        web_deps.OUTPUT_VIDEOS_DIR = self.orig_deps_output_dir
+        web_app.INPUT_VIDEOS_DIR = self.orig_app_input_dir
+        web_app.OUTPUT_VIDEOS_DIR = self.orig_app_output_dir
+        
+        # Clean up temporary test_dir
+        import shutil
+        shutil.rmtree(self.test_dir, ignore_errors=True)
 
     def _login(self):
         # GET login page to get CSRF token

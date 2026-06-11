@@ -94,7 +94,7 @@ class TestCompletedSessionsToday(unittest.TestCase):
             db.execute(
                 """
                 INSERT INTO analysis_sessions (source_id, started_by, status, started_at, finished_at)
-                VALUES (1, 1, 'stopped', '2026-03-11 23:00:00', '2026-03-12 00:05:00')
+                VALUES (1, 1, 'completed', '2026-03-11 23:00:00', '2026-03-12 00:05:00')
                 """
             )
             db.execute(
