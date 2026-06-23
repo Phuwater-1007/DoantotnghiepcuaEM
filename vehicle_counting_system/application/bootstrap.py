@@ -6,6 +6,7 @@ from vehicle_counting_system.application.services.activity_log_service import Ac
 from vehicle_counting_system.application.services.admin_service import AdminService
 from vehicle_counting_system.application.services.auth_service import AuthService
 from vehicle_counting_system.application.services.counting_persistence_service import CountingPersistenceService
+from vehicle_counting_system.application.services.lpr_persistence_service import LPRPersistenceService
 from vehicle_counting_system.application.services.dashboard_service import DashboardService
 from vehicle_counting_system.application.services.monitoring_service import MonitoringService
 from vehicle_counting_system.application.services.report_service import ReportService
@@ -24,6 +25,7 @@ class AppContainer:
     activity_log_service: ActivityLogService
     admin_service: AdminService
     counting_persistence_service: CountingPersistenceService
+    lpr_persistence_service: LPRPersistenceService
 
 
 def build_container() -> AppContainer:
@@ -33,7 +35,10 @@ def build_container() -> AppContainer:
     report_service = ReportService(db)
     dashboard_service = DashboardService(db, source_service)
     counting_persistence_service = CountingPersistenceService(db)
-    monitoring_service = MonitoringService(db, source_service, report_service, counting_persistence_service)
+    lpr_persistence_service = LPRPersistenceService(db)
+    monitoring_service = MonitoringService(
+        db, source_service, report_service, counting_persistence_service, lpr_persistence_service
+    )
     activity_log_service = ActivityLogService(db)
     admin_service = AdminService(db, monitoring_service)
 
@@ -52,4 +57,5 @@ def build_container() -> AppContainer:
         activity_log_service=activity_log_service,
         admin_service=admin_service,
         counting_persistence_service=counting_persistence_service,
+        lpr_persistence_service=lpr_persistence_service,
     )

@@ -25,6 +25,7 @@ class SaveConfigBody(BaseModel):
     line: dict
     width: float = 0
     height: float = 0
+    lpr_zone: list[list[float]] | None = None
 
 
 class StartWithVideoBody(BaseModel):
@@ -154,6 +155,15 @@ def build_router() -> APIRouter:
             "media_url": to_media_url(row["output_video_path"]),
             "error_message": row["error_message"],
         }
+
+    @router.get("/sessions/{session_id}/lpr-events")
+    def api_session_lpr_events(request: Request, session_id: int, limit: int = 100):
+        auth_err = _require_auth(request)
+        if auth_err is not None:
+            return auth_err
+        container = get_container(request)
+        events = container.lpr_persistence_service.get_events_for_session(session_id, limit=limit)
+        return {"events": events}
 
     @router.get("/reports")
     def api_reports(request: Request):
@@ -499,6 +509,7 @@ def build_router() -> APIRouter:
             "coordinates_mode": (config or {}).get("coordinates_mode", "normalized"),
             "roi": (config or {}).get("roi", []),
             "line": line,
+            "lpr_zone": (config or {}).get("lpr_zone", []),
             "config_path": source.counting_config_path,
         }
 
@@ -530,6 +541,16 @@ def build_router() -> APIRouter:
             "direction": "both",
         }
 
+        # Normalize and validate lpr_zone if provided
+        lpr_zone_norm = None
+        if body.lpr_zone is not None and len(body.lpr_zone) > 0:
+            lpr_zone_norm = [[float(p[0]) / w, float(p[1]) / h] for p in body.lpr_zone]
+            if len(lpr_zone_norm) < 3:
+                return JSONResponse(status_code=400, content={"error": "Vùng nhận diện biển số phải có ít nhất 3 điểm."})
+            for i, pt in enumerate(lpr_zone_norm):
+                if not (0 <= pt[0] <= 1 and 0 <= pt[1] <= 1):
+                    return JSONResponse(status_code=400, content={"error": f"Điểm vùng biển số #{i+1} nằm ngoài khung hình."})
+
         # --- Server-side ROI/line validation (matches runtime requirements) ---
         if len(roi_norm) < 3:
             return JSONResponse(status_code=400, content={"error": "ROI phải có ít nhất 3 điểm."})
@@ -544,7 +565,7 @@ def build_router() -> APIRouter:
             return JSONResponse(status_code=400, content={"error": "Điểm đầu và cuối đường đếm trùng nhau."})
 
         try:
-            path = save_source_config(source_id, roi_norm, line_norm)
+            path = save_source_config(source_id, roi_norm, line_norm, lpr_zone_norm)
         except ValueError as exc:
             return JSONResponse(status_code=400, content={"error": str(exc)})
         container.source_service.update_counting_config(source_id, path)

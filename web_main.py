@@ -5,6 +5,10 @@
 - Khi bạn đóng hết tab web (không còn heartbeat), server tự tắt sau vài giây.
 """
 
+import os
+# Configure PyTorch CUDA memory allocator to reduce fragmentation
+os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "garbage_collection_threshold:0.6,max_split_size_mb:128"
+
 import sys
 from pathlib import Path
 

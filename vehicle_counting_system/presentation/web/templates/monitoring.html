@@ -400,6 +400,39 @@
           </div>
         </div>
       </section>
+
+      <!-- ============================================================ -->
+      <!-- LICENSE PLATE RECOGNITION (LPR) PANEL                       -->
+      <!-- ============================================================ -->
+      <section class="card monitor-lpr-panel" id="monitor-lpr-panel" style="margin-top: 20px;">
+        <div class="monitor-header-row" style="margin-bottom: 12px;">
+          <div>
+            <h3>🔍 Biển số nhận diện</h3>
+            <p style="font-size: 11px; color: var(--color-muted); margin-top: 2px;">Danh sách biển số xe đọc được realtime.</p>
+          </div>
+          <span class="pill" id="lpr-counter" style="font-size: 11px; background: rgba(99,102,241,0.1); color: #6366f1;">0 biển số</span>
+        </div>
+
+        <div class="monitor-lpr-list-wrapper" style="max-height: 320px; overflow-y: auto;">
+          <table class="monitor-lpr-table" style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
+            <thead>
+              <tr style="border-bottom: 2px solid var(--color-border); color: var(--color-muted); font-weight: 600; font-size: 11px;">
+                <th style="padding: 6px 4px; width: 60px;">Ảnh</th>
+                <th style="padding: 6px 4px;">Biển số</th>
+                <th style="padding: 6px 4px;">Loại xe</th>
+                <th style="padding: 6px 4px; width: 70px;">Độ tin cậy</th>
+              </tr>
+            </thead>
+            <tbody id="lpr-events-tbody">
+              <tr id="lpr-empty-row">
+                <td colspan="4" style="text-align: center; padding: 24px; color: var(--color-muted); font-style: italic;">
+                  Chưa phát hiện biển số nào.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
     </aside>
   </section>
 
@@ -823,6 +856,16 @@
       setResultMeta("Chưa xem kết quả", "—", "");
       updateResultCounts({});
       resetTrafficDensity();
+
+      // Clear LPR table
+      var tbody = document.getElementById("lpr-events-tbody");
+      if (tbody) {
+        tbody.innerHTML = '<tr id="lpr-empty-row"><td colspan="4" style="text-align: center; padding: 24px; color: var(--color-muted); font-style: italic;">Chưa phát hiện biển số nào.</td></tr>';
+      }
+      var counterEl = document.getElementById("lpr-counter");
+      if (counterEl) {
+        counterEl.textContent = "0 biển số";
+      }
     }
 
     function fetchAndPlayOutputForName(sourceName, fallbackSummary) {
@@ -1148,15 +1191,34 @@
           wrapper.style.aspectRatio = "";
           wrapper.style.display = "block";
           loading.style.display = "flex";
+          loading.innerHTML = '<div class="spinner"></div><span style="margin-top: 12px; color: #94a3b8;">Đang kết nối luồng phân tích...</span>';
         }
+
+        // Connection timeout - 15 seconds
+        var connectionTimeout = setTimeout(function () {
+          if (loading && loading.style.display !== "none") {
+            loading.innerHTML = '<span style="color:#ef4444; font-weight: 500; text-align: center;">Thời gian kết nối quá hạn.<br><small style="color: #94a3b8;">Vui lòng kiểm tra trạng thái camera hoặc log máy chủ.</small></span>';
+            // Stop the stream session to clean up resources
+            if (liveStreamSourceId) {
+              fetch("/api/stream/" + liveStreamSourceId + "/stop", { method: "POST", credentials: "same-origin" }).catch(function () {});
+            }
+            isLiveStreaming = false;
+            if (liveBadge) liveBadge.hidden = true;
+            if (startLiveBtn) startLiveBtn.hidden = false;
+            if (stopLiveBtn) stopLiveBtn.hidden = true;
+          }
+        }, 15000);
+
         liveStreamImg.style.opacity = "0";
         liveStreamImg.onload = function () {
+          clearTimeout(connectionTimeout);
           this.style.opacity = "1";
           if (loading) loading.style.display = "none";
         };
 
         // Fallback in case of stream errors
         liveStreamImg.onerror = function () {
+          clearTimeout(connectionTimeout);
           if (loading) {
             loading.innerHTML = '<span style="color:#ef4444; font-weight: 500;">Không thể kết nối. Vui lòng thử lại.</span>';
           }
@@ -1310,6 +1372,160 @@
 
     refreshStopButtonState();
 
+    // ========== WEBSOCKET LIVE STATE & LPR REALTIME ==========
+    var _monitoringWS = null;
+    var _wsReconnectTimer = null;
+    var _lastCompletedHandledSessionId = null;
+
+    function updateLPREventsTable(events) {
+      if (!events) return;
+      var tbody = document.getElementById("lpr-events-tbody");
+      var emptyRow = document.getElementById("lpr-empty-row");
+      if (!tbody) return;
+
+      var counterEl = document.getElementById("lpr-counter");
+      if (counterEl) {
+        counterEl.textContent = events.length + " biển số";
+      }
+
+      if (events.length === 0) {
+        if (emptyRow) emptyRow.style.display = "";
+        tbody.innerHTML = '<tr id="lpr-empty-row"><td colspan="4" style="text-align: center; padding: 24px; color: var(--color-muted); font-style: italic;">Chưa phát hiện biển số nào.</td></tr>';
+        return;
+      }
+
+      if (emptyRow) {
+        emptyRow.style.display = "none";
+      }
+
+      var html = "";
+      events.forEach(function (ev) {
+        var timeStr = "";
+        if (ev.created_at) {
+          var parts = ev.created_at.split(" ");
+          timeStr = parts.length > 1 ? parts[1] : ev.created_at;
+        }
+
+        var classLabel = ev.vehicle_class;
+        if (ev.vehicle_class === "car") classLabel = "🚗 Ô tô";
+        else if (ev.vehicle_class === "motorcycle") classLabel = "🏍 Xe máy";
+        else if (ev.vehicle_class === "truck") classLabel = "🚛 Xe tải";
+        else if (ev.vehicle_class === "bus") classLabel = "🚌 Xe buýt";
+
+        var confPercent = Math.round(ev.confidence * 100);
+        var confColor = ev.confidence > 0.8 ? "#10b981" : ev.confidence > 0.5 ? "#f59e0b" : "#ef4444";
+
+        var plateImg = ev.plate_image_path ? "/" + ev.plate_image_path : "";
+        var vehicleImg = ev.vehicle_image_path ? "/" + ev.vehicle_image_path : "";
+
+        html += '<tr style="border-bottom: 1px solid var(--color-border);">';
+        
+        // Image cell
+        html += '<td style="padding: 8px 4px;">';
+        html += '  <div style="display: flex; gap: 6px; align-items: center;">';
+        if (plateImg) {
+          html += '    <img src="' + plateImg + '" title="Bấm xem ảnh xe" style="height: 26px; border-radius: 4px; border: 1px solid var(--color-border); cursor: pointer; display: block;" onclick="window.open(\'' + vehicleImg + '\', \'_blank\')">';
+        } else {
+          html += '    <span style="font-size: 10px; color: var(--color-muted);">—</span>';
+        }
+        html += '  </div>';
+        html += '</td>';
+
+        // Plate + Time cell
+        html += '<td style="padding: 8px 4px;">';
+        html += '  <span class="lpr-plate-badge" style="display: inline-block; padding: 2px 6px; border: 1.5px solid #111; border-radius: 4px; background: #fff; color: #111; font-family: monospace; font-weight: 700; font-size: 13px; letter-spacing: 0.5px; box-shadow: 1px 1px 2px rgba(0,0,0,0.08);">';
+        html += '    ' + ev.license_plate;
+        html += '  </span>';
+        html += '  <div style="font-size: 10px; color: var(--color-muted); margin-top: 2px;">' + timeStr + ' (ID: ' + ev.track_id + ')</div>';
+        html += '</td>';
+
+        // Vehicle Class cell
+        html += '<td style="padding: 8px 4px; font-weight: 500;">' + classLabel + '</td>';
+
+        // Confidence cell
+        html += '<td style="padding: 8px 4px; font-weight: 600; color: ' + confColor + ';">' + confPercent + '%</td>';
+
+        html += '</tr>';
+      });
+
+      tbody.innerHTML = html;
+    }
+
+    function _handleMonitoringMessage(data) {
+      var live = data.live_state;
+      var activeId = data.active_session_id;
+
+      // Update stop button
+      var stopBtn = document.getElementById("stop-analysis-btn");
+      if (stopBtn) stopBtn.disabled = !activeId;
+
+      // Update LPR events table
+      if (data.lpr_events) {
+        updateLPREventsTable(data.lpr_events);
+      }
+
+      if (!live) return;
+      var summary = live.summary || {};
+
+      if (live.status === "running" || live.status === "queued") {
+        updateFocusCounts(summary);
+        updateResultCounts(summary);
+        setResultMeta("Đang chạy phân tích", live.source_name || currentVideoName, "");
+        var counts = getVehicleSummary(summary);
+        updateTrafficDensity(counts.total);
+
+      } else if (live.status === "completed") {
+        updateFocusCounts(summary);
+        updateResultCounts(summary);
+        setResultMeta("Phân tích hoàn thành", live.source_name || currentVideoName, "");
+        var completedCounts = getVehicleSummary(summary);
+        updateTrafficDensity(completedCounts.total);
+
+        // Only trigger video playback once per completed session
+        if (live.session_id && _lastCompletedHandledSessionId !== live.session_id) {
+          _lastCompletedHandledSessionId = live.session_id;
+          lastCompleted = {
+            source_id: live.source_id,
+            source_name: live.source_name || currentVideoName,
+            summary: summary
+          };
+          fetchSessionAndPlay(live.session_id, live.source_name || currentVideoName, summary);
+        } else if (!live.session_id && live.output_video_path) {
+          lastCompleted = { source_id: live.source_id, source_name: live.source_name || currentVideoName, summary: summary };
+          fetchAndPlayOutputForName(live.source_name || currentVideoName, summary);
+        }
+
+      } else if (live.status === "stopped" || live.status === "cancelled") {
+        updateFocusCounts(summary);
+        updateResultCounts(summary);
+        setResultMeta("Đã dừng phân tích", live.source_name || currentVideoName, "Phiên đã dừng. Bạn có thể chạy lại khi cần.");
+
+      } else if (live.status === "failed") {
+        updateFocusCounts(summary);
+        updateResultCounts(summary);
+        setResultMeta("Đã dừng phân tích", live.source_name || currentVideoName, live.error_message || "Phiên gặp lỗi và đã dừng.");
+      }
+    }
+
+    function connectMonitoringWS() {
+      if (_monitoringWS && (_monitoringWS.readyState === WebSocket.OPEN || _monitoringWS.readyState === WebSocket.CONNECTING)) {
+        return;
+      }
+      var proto = location.protocol === "https:" ? "wss:" : "ws:";
+      var ws = new WebSocket(proto + "//" + location.host + "/ws/monitoring");
+      _monitoringWS = ws;
+
+      ws.onmessage = function (event) {
+        try { _handleMonitoringMessage(JSON.parse(event.data)); } catch (e) {}
+      };
+
+      ws.onclose = function () {
+        _wsReconnectTimer = setTimeout(connectMonitoringWS, 2000);
+      };
+
+      ws.onerror = function () { ws.close(); };
+    }
+
     function hydrateFromLiveState() {
       // Fetch BOTH headless analysis state AND active MJPEG streams in parallel
       var pLiveState = fetch("/api/monitoring/live-state", { credentials: "same-origin" })
@@ -1455,6 +1671,7 @@
     }
 
     hydrateFromLiveState();
+    connectMonitoringWS();
 
     function uploadFile(file) {
       if (!file || !file.name.match(/\.(mp4|avi|mov|mkv)$/i)) {

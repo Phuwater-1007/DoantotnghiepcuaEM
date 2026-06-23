@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import os
+# Configure PyTorch CUDA memory allocator to reduce fragmentation
+os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "garbage_collection_threshold:0.6,max_split_size_mb:128"
+
 import threading
 import time
 import webbrowser

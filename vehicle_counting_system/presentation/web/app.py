@@ -12,7 +12,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from starlette.templating import Jinja2Templates
 
 from vehicle_counting_system.application.bootstrap import build_container
-from vehicle_counting_system.configs.paths import INPUT_VIDEOS_DIR, OUTPUT_VIDEOS_DIR
+from vehicle_counting_system.configs.paths import INPUT_VIDEOS_DIR, OUTPUT_VIDEOS_DIR, DATA_OUTPUT_DIR
 from vehicle_counting_system.utils.file_utils import ensure_dir
 from vehicle_counting_system.presentation.web.routes import admin, api, auth, dashboard, media, monitoring, reports, ai_config, users, stream
 from vehicle_counting_system.presentation.web.routes import ws_monitoring
@@ -69,6 +69,7 @@ def create_app() -> FastAPI:
     templates = Jinja2Templates(directory=str(templates_dir))
 
     app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+    app.mount("/outputs", StaticFiles(directory=str(DATA_OUTPUT_DIR)), name="outputs")
     ensure_dir(INPUT_VIDEOS_DIR)
     ensure_dir(OUTPUT_VIDEOS_DIR)
 
@@ -84,6 +85,16 @@ def create_app() -> FastAPI:
     app.include_router(media.build_router())
     app.include_router(stream.build_router())
     app.include_router(ws_monitoring.build_router())
+
+    @app.on_event("startup")
+    def startup_event():
+        logger.info("FastAPI startup: warming up shared YOLO detector on main thread...")
+        try:
+            from vehicle_counting_system.ai_core.services.video_analysis_runner import _get_shared_yolo_detector
+            _get_shared_yolo_detector()
+            logger.info("FastAPI startup: shared YOLO detector is ready.")
+        except Exception:
+            logger.exception("FastAPI startup: failed to warm up shared YOLO detector.")
 
     return app
 

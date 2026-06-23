@@ -229,6 +229,10 @@ def draw_track(
         else:
             parts.append(track.class_name)
 
+    # License plate if available
+    if hasattr(track, "license_plate") and track.license_plate:
+        parts.append(f"[{track.license_plate}]")
+
     label = " ".join(parts) if parts else None
 
     draw_bbox(frame, bbox, label=label, color=color)

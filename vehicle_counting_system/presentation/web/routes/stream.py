@@ -157,6 +157,7 @@ class _StreamSession:
         db=None,
         report_service=None,
         counting_persistence=None,
+        lpr_persistence=None,
         source_name: str = "",
     ):
         self.source_id = source_id
@@ -169,6 +170,7 @@ class _StreamSession:
         self.db = db
         self.report_service = report_service
         self.counting_persistence = counting_persistence
+        self.lpr_persistence = lpr_persistence
         self.source_name = source_name
         self.started_at = datetime.now()
         self.db_session_id: int | None = None  # ID phíen trong analysis_sessions
@@ -517,6 +519,8 @@ def _process_video(session: _StreamSession) -> None:
             # Bind persistence service to this session.
             if session.counting_persistence is not None:
                 session.counting_persistence.bind_session(session_id, session.source_id)
+            if session.lpr_persistence is not None:
+                session.lpr_persistence.bind_session(session_id, session.source_id)
             logger.info("Stream DB session created: #%s for source %s", session_id, session.source_id)
         except Exception:
             logger.exception("Failed to create DB session for stream %s", session.source_id)
@@ -526,13 +530,20 @@ def _process_video(session: _StreamSession) -> None:
     if session.counting_persistence is not None:
         persistence_cb = session.counting_persistence.record
 
+    lpr_cb = None
+    if session.lpr_persistence is not None:
+        lpr_cb = session.lpr_persistence.record
+
     processor = FrameProcessor(
         detector=detector,
         tracker=ByteTrackTracker(),
         counting_lines_path=session.config_path,
         frame_size=session.frame_size,
         counting_persistence_callback=persistence_cb,
+        lpr_persistence_callback=lpr_cb,
     )
+    if session.db_session_id is not None:
+        processor.session_id = session.db_session_id
 
     # Fix #4: Open with RTSP-optimised settings
     cap = _open_capture(session.video_path)
@@ -576,6 +587,7 @@ def _process_video(session: _StreamSession) -> None:
     except Exception:
         logger.exception("Stream processing error for source %s", session.source_id)
     finally:
+        session.stop_event.set()  # Signal all waiting clients that stream has stopped
         if cap is not None:
             try:
                 cap.release()
@@ -591,6 +603,15 @@ def _process_video(session: _StreamSession) -> None:
 
         with _registry_lock:
             _active_streams.pop(session.source_id, None)
+
+        # Clean up RAM and GPU memory immediately
+        try:
+            import gc
+            gc.collect()
+            from vehicle_counting_system.core.hardware_manager import empty_gpu_cache_if_needed
+            empty_gpu_cache_if_needed()
+        except Exception:
+            pass
 
         # Final broadcast: wake any still-waiting MJPEG clients
         with session._frame_cv:
@@ -609,6 +630,12 @@ def _save_stream_results_to_db(session: _StreamSession) -> None:
             session.counting_persistence.unbind()
         except Exception:
             logger.exception("Failed to unbind counting persistence for source %s", session.source_id)
+
+    if session.lpr_persistence is not None:
+        try:
+            session.lpr_persistence.unbind()
+        except Exception:
+            logger.exception("Failed to unbind LPR persistence for source %s", session.source_id)
 
     if session.db is None:
         return
@@ -691,6 +718,7 @@ def _ensure_stream(
     db=None,
     report_service=None,
     counting_persistence=None,
+    lpr_persistence=None,
     source_name: str = "",
 ) -> _StreamSession:
     """Get existing stream or create a new one. Never restarts a running stream.
@@ -717,6 +745,7 @@ def _ensure_stream(
         db=db,
         report_service=report_service,
         counting_persistence=counting_persistence,
+        lpr_persistence=lpr_persistence,
         source_name=source_name,
     )
 
@@ -829,6 +858,7 @@ def build_router() -> APIRouter:
             db=container.db,
             report_service=container.report_service,
             counting_persistence=container.counting_persistence_service,
+            lpr_persistence=container.lpr_persistence_service,
             source_name=source.name,
         )
 

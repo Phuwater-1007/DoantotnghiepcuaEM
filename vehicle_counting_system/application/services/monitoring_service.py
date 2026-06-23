@@ -19,11 +19,12 @@ VN_SQLITE_TZ_MOD = "+7 hours"
 
 
 class MonitoringService:
-    def __init__(self, db, source_service, report_service, counting_persistence_service=None):
+    def __init__(self, db, source_service, report_service, counting_persistence_service=None, lpr_persistence_service=None):
         self.db = db
         self.source_service = source_service
         self.report_service = report_service
         self.counting_persistence_service = counting_persistence_service
+        self.lpr_persistence_service = lpr_persistence_service
         self._lock = threading.Lock()
         self._active_session_id: int | None = None
         self._stop_event: threading.Event | None = None
@@ -233,6 +234,12 @@ class MonitoringService:
 
         self.db.execute("DELETE FROM report_snapshots")
         self.db.execute("DELETE FROM analysis_sessions")
+        self.db.execute("DELETE FROM license_plate_events")
+        if self.lpr_persistence_service is not None:
+            try:
+                self.lpr_persistence_service.clear_all()
+            except Exception:
+                pass
         self.db.execute("UPDATE sources SET is_active = 0, status = 'ready'")
 
         for directory in (OUTPUT_VIDEOS_DIR, OUTPUT_CSV_DIR, OUTPUT_LOGS_DIR):
@@ -264,8 +271,14 @@ class MonitoringService:
 
         # Reset AUTOINCREMENT counters (SQLite) so IDs start fresh.
         try:
+            self.db.execute("DELETE FROM license_plate_events")
+            if self.lpr_persistence_service is not None:
+                self.lpr_persistence_service.clear_all()
+        except Exception:
+            pass
+        try:
             self.db.execute(
-                "DELETE FROM sqlite_sequence WHERE name IN ('analysis_sessions', 'report_snapshots')"
+                "DELETE FROM sqlite_sequence WHERE name IN ('analysis_sessions', 'report_snapshots', 'license_plate_events')"
             )
         except Exception:
             # sqlite_sequence may not exist in some edge cases; safe to ignore.
@@ -340,9 +353,11 @@ class MonitoringService:
                     frame_index=frame_index,
                 )
 
-            # Bind counting persistence cho phiên này.
+            # Bind counting/LPR persistence cho phiên này.
             if self.counting_persistence_service is not None:
                 self.counting_persistence_service.bind_session(session_id, source_id)
+            if self.lpr_persistence_service is not None:
+                self.lpr_persistence_service.bind_session(session_id, source_id)
 
             output_path = OUTPUT_VIDEOS_DIR / f"session_{session_id}_result.mp4"
             result = analyze_video_source(
@@ -355,6 +370,11 @@ class MonitoringService:
                     self.counting_persistence_service.record
                     if self.counting_persistence_service else None
                 ),
+                lpr_persistence_callback=(
+                    self.lpr_persistence_service.record
+                    if self.lpr_persistence_service else None
+                ),
+                session_id=session_id,
             )
             finished_status = result["status"]
             summary = {
@@ -415,11 +435,15 @@ class MonitoringService:
         except Exception as exc:
             logger.exception("Analysis session failed: %s", exc)
             self._mark_failed(session_id, str(exc))
-        finally:
-            # Flush & unbind counting persistence.
+            # Flush & unbind counting/LPR persistence.
             if self.counting_persistence_service is not None:
                 try:
                     self.counting_persistence_service.unbind()
+                except Exception:
+                    pass
+            if self.lpr_persistence_service is not None:
+                try:
+                    self.lpr_persistence_service.unbind()
                 except Exception:
                     pass
             with self._lock:

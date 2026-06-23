@@ -14,6 +14,19 @@ from typing import List
 import threading
 
 import torch
+# Limit threads to optimize RAM and CPU overhead on Windows
+try:
+    torch.set_num_threads(1)
+    torch.set_num_interop_threads(1)
+except Exception:
+    pass
+
+try:
+    import cv2
+    cv2.setNumThreads(1)
+except Exception:
+    pass
+
 from ultralytics import YOLO
 
 from vehicle_counting_system.configs.paths import MODELS_DIR
@@ -88,6 +101,37 @@ class YOLODetector(BaseDetector):
             self.device = "cpu"
             logger.info("Using CPU for YOLO inference.")
 
+        # Warmup model to load backend (AutoBackend) and prevent lazy loading / threading issues in TensorRT
+        try:
+            import numpy as np
+            dummy_w = 640 if self.img_size <= 0 else self.img_size
+            dummy = np.zeros((dummy_w, dummy_w, 3), dtype=np.uint8)
+            logger.info(f"Warming up YOLO model with imgsz={dummy_w}... Detector ID: {id(self)}, Model ID: {id(self.model)}")
+            # Perform first predict to force deserialize engine and build execution context on the current thread
+            if self.device.startswith("cuda"):
+                self.model(dummy, imgsz=dummy_w, verbose=False, device=self.device)
+            else:
+                self.model(dummy, imgsz=dummy_w, verbose=False, device="cpu")
+            
+            # Verify shape mismatch if TensorRT engine
+            if self.is_tensorrt_engine and hasattr(self.model, "predictor") and self.model.predictor is not None:
+                backend = self.model.predictor.model
+                if backend is not None and hasattr(backend, "imgsz"):
+                    engine_imgsz = list(backend.imgsz)
+                    # backend.imgsz is typically [H, W] or similar. Let's compare with self.img_size.
+                    # TensorRT static engines have a strict size.
+                    if engine_imgsz and (self.img_size not in engine_imgsz):
+                        logger.warning(
+                            f"=== SHAPE MISMATCH WARNING ===\n"
+                            f"IMAGE_SIZE in .env is {self.img_size}, but TensorRT engine is compiled with imgsz={engine_imgsz}.\n"
+                            f"This may lead to inference failure or reduced accuracy.\n"
+                            f"Ensure your .env IMAGE_SIZE matches the engine's compiled shape!\n"
+                            f"=============================="
+                        )
+            logger.info(f"YOLO model warmed up successfully. Predictor ID: {id(getattr(self.model, 'predictor', None))}")
+        except Exception as e:
+            logger.warning(f"YOLO model warmup failed: {e}. Lazy loading will be used.")
+
     def _tensorrt_engine_missing_message(self) -> str:
         req = self._requested_weights or "(YOLO_WEIGHTS)"
         return (
@@ -114,6 +158,15 @@ class YOLODetector(BaseDetector):
     def detect(self, frame) -> List[Detection]:
         if self.model is None:
             raise RuntimeError("YOLO detector has been closed.")
+
+        # Log object IDs and thread context
+        import threading
+        curr_thread = threading.current_thread()
+        pred_id = id(getattr(self.model, 'predictor', None))
+        logger.info(
+            f"[Detect] Thread: {curr_thread.name} ({curr_thread.ident}), "
+            f"Detector ID: {id(self)}, Model ID: {id(self.model)}, Predictor ID: {pred_id}"
+        )
 
         # Ultralytics dùng BGR (mặc định của OpenCV).
         # TensorRT .engine: không truyền half — precision đã cố định trong engine.

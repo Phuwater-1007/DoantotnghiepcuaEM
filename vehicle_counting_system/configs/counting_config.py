@@ -61,12 +61,17 @@ def _scale_config_to_pixels(
     width: int,
     height: int,
 ) -> dict[str, Any]:
-    """Scale normalized lines/roi to pixel coordinates."""
+    """Scale normalized lines/roi/lpr_zone to pixel coordinates."""
     out = dict(config)
     if "roi" in out and out["roi"]:
         out["roi"] = [
             list(_scale_point(p[0], p[1], width, height))
             for p in out["roi"]
+        ]
+    if "lpr_zone" in out and out["lpr_zone"]:
+        out["lpr_zone"] = [
+            list(_scale_point(p[0], p[1], width, height))
+            for p in out["lpr_zone"]
         ]
     if "lines" in out and out["lines"]:
         out["lines"] = [
@@ -119,6 +124,8 @@ def load_counting_config(
                     config["roi"] = editable.get("roi")
                 if "line" in editable:
                     config["lines"] = [editable.get("line")]
+                if "lpr_zone" in editable:
+                    config["lpr_zone"] = editable.get("lpr_zone")
                 logger.info("Loaded editable ROI override from %s", editable_path)
         except Exception as exc:
             logger.warning(
@@ -134,6 +141,9 @@ def load_counting_config(
         if out.get("roi"):
             roi = _validate_roi(out["roi"], normalized=normalized)
             out["roi"] = [[int(x), int(y)] for x, y in roi] if not normalized else roi
+        if out.get("lpr_zone"):
+            lpr_zone = _validate_roi(out["lpr_zone"], normalized=normalized)
+            out["lpr_zone"] = [[int(x), int(y)] for x, y in lpr_zone] if not normalized else lpr_zone
         if out.get("lines"):
             lines = [_validate_line(L, normalized=normalized) for L in out["lines"]]
             if not normalized:

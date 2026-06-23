@@ -10,7 +10,7 @@
     [160, 360],
     [800, 360],
     [920, 720],
-    [-360, 720]
+    [40, 720]
   ],
   "guide": [
     "Chi chinh file nay neu ban muon doi ROI/line.",

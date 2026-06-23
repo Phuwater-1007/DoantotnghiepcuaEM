@@ -35,8 +35,11 @@ class LineCounter(BaseCounter):
         super().__init__()
         self.lines = lines
         self.line_directions = line_directions or ["both"] * len(lines)
-        # Lưu anchor (bottom-center) frame trước đó để kiểm tra giao cắt.
-        self._last_anchors = {}  # track_id -> last anchor
+        # Bộ đệm lưu trữ quỹ đạo thô để làm mịn: track_id -> List[Tuple[float, float]]
+        self._anchor_buffers: Dict[int, List[Tuple[float, float]]] = {}
+        # Lưu anchor (bottom-center) đã làm mịn ở frame trước đó để kiểm tra giao cắt.
+        self._last_smoothed_anchors: Dict[int, Tuple[float, float]] = {}
+        self._last_anchors = {}  # Backward-compat
         # Lưu "side" theo từng (track_id, line_idx) để xử lý điểm nằm đúng trên line.
         self._last_side: Dict[tuple[int, int], int] = {}
         # Chống đếm trùng: (track_id, line_idx) đã được cộng rồi.
@@ -52,8 +55,12 @@ class LineCounter(BaseCounter):
         self._frame_id += 1
         alive_ids = {tr.track_id for tr in tracks}
         self._counted = {k for k in self._counted if k[0] in alive_ids}
-        # Xóa vị trí cũ (giữ ~30 frame)
-        cutoff = self._frame_id - 30
+        # Dọn dẹp bộ đệm của các track đã chết để tránh phình bộ nhớ
+        self._anchor_buffers = {k: v for k, v in self._anchor_buffers.items() if k in alive_ids}
+        self._last_smoothed_anchors = {k: v for k, v in self._last_smoothed_anchors.items() if k in alive_ids}
+        
+        # Xóa vị trí cũ (giữ ~45 frame)
+        cutoff = self._frame_id - 45
         self._recent_positions = [(x, y, f) for x, y, f in self._recent_positions if f > cutoff]
 
         for tr in tracks:
@@ -63,8 +70,22 @@ class LineCounter(BaseCounter):
                 continue
 
             track_id = tr.track_id
-            current = tr.last_anchor()
-            prev = self._last_anchors.get(track_id)
+            raw_anchor = tr.last_anchor()
+            
+            # Đẩy tọa độ thô vào bộ đệm rolling 5 frame
+            if track_id not in self._anchor_buffers:
+                self._anchor_buffers[track_id] = []
+            self._anchor_buffers[track_id].append(raw_anchor)
+            if len(self._anchor_buffers[track_id]) > 5:
+                self._anchor_buffers[track_id].pop(0)
+
+            # Tính tọa độ trung bình trượt làm mịn (Moving Average)
+            buf = self._anchor_buffers[track_id]
+            cx = sum(p[0] for p in buf) / len(buf)
+            cy = sum(p[1] for p in buf) / len(buf)
+            current = (cx, cy)
+
+            prev = self._last_smoothed_anchors.get(track_id)
             if prev is not None:
                 for idx, (p1, p2) in enumerate(self.lines):
                     direction_allowed = (
@@ -85,11 +106,11 @@ class LineCounter(BaseCounter):
                     if key in self._counted:
                         continue
 
-                    # Spatial debounce: bỏ qua nếu có xe vừa đếm gần vị trí này (xe nháy/đổi ID).
-                    cx, cy = current
+                    # Spatial-Temporal Debounce nâng cao:
+                    # Bỏ qua nếu có phương tiện cùng loại vừa được đếm ở vị trí gần đó trong vòng 30 frame gần nhất (chống lỗi đổi ID)
                     skip = False
                     for rx, ry, rf in self._recent_positions:
-                        if (self._frame_id - rf) <= 20 and math.hypot(cx - rx, cy - ry) < 40:
+                        if (self._frame_id - rf) <= 30 and math.hypot(cx - rx, cy - ry) < 45:
                             skip = True
                             break
                     if not skip:
@@ -107,12 +128,15 @@ class LineCounter(BaseCounter):
                             anchor_x=cx,
                             anchor_y=cy,
                         ))
+            self._last_smoothed_anchors[track_id] = current
             self._last_anchors[track_id] = current
         return self.stats
 
     def reset(self) -> None:
         super().reset()
         self._last_anchors = {}
+        self._last_smoothed_anchors = {}
+        self._anchor_buffers = {}
         self._last_side = {}
         self._counted = set()
         self._recent_positions = []

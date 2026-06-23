@@ -43,10 +43,36 @@ def _get_monitoring_payload(container) -> dict[str, Any]:
     if live_state and "image_data" in live_state:
         live_state = {k: v for k, v in live_state.items() if k != "image_data"}
 
+    # If no headless active session, try to find an active stream session ID
+    is_stream_active = False
+    if active_id is None:
+        try:
+            from vehicle_counting_system.presentation.web.routes.stream import _active_streams, _registry_lock
+            with _registry_lock:
+                active_sessions = list(_active_streams.values())
+            if active_sessions:
+                # Find first active stream session that has a valid DB session ID
+                for sess in active_sessions:
+                    if sess.db_session_id is not None:
+                        active_id = sess.db_session_id
+                        is_stream_active = True
+                        break
+        except Exception:
+            pass
+
+    lpr_events = []
+    if active_id is not None:
+        try:
+            lpr_events = container.lpr_persistence_service.get_events_for_session(active_id, limit=30)
+        except Exception:
+            pass
+
     return {
         "type": "monitoring",
         "active_session_id": active_id,
+        "is_stream_active": is_stream_active,
         "live_state": live_state,
+        "lpr_events": lpr_events,
         "ts": time.time(),
     }
 

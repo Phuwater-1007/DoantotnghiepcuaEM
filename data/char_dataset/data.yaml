@@ -1,0 +1,13 @@
+train: ../train/images
+val: ../valid/images
+test: ../test/images
+
+nc: 1
+names: ['plate']
+
+roboflow:
+  workspace: tran-ngoc-xuan-tin-k15-hcm-dpuid
+  project: vietnam-license-plate-h8t3n
+  version: 1
+  license: CC BY 4.0
+  url: https://universe.roboflow.com/tran-ngoc-xuan-tin-k15-hcm-dpuid/vietnam-license-plate-h8t3n/dataset/1

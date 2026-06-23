@@ -121,6 +121,24 @@ class SQLiteDatabase:
                 CREATE INDEX IF NOT EXISTS idx_vc_source ON vehicle_counts(source_id);
                 CREATE INDEX IF NOT EXISTS idx_vc_counted_at ON vehicle_counts(counted_at);
 
+                CREATE TABLE IF NOT EXISTS license_plate_events (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    session_id INTEGER NOT NULL,
+                    source_id INTEGER NOT NULL,
+                    track_id INTEGER NOT NULL,
+                    vehicle_class TEXT NOT NULL,
+                    license_plate TEXT NOT NULL,
+                    confidence REAL NOT NULL DEFAULT 0,
+                    vehicle_image_path TEXT,
+                    plate_image_path TEXT,
+                    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY(session_id) REFERENCES analysis_sessions(id),
+                    FOREIGN KEY(source_id) REFERENCES sources(id)
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_lpe_session ON license_plate_events(session_id);
+                CREATE INDEX IF NOT EXISTS idx_lpe_track ON license_plate_events(track_id);
+
                 CREATE TABLE IF NOT EXISTS activity_logs (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     user_id INTEGER,

@@ -25,9 +25,10 @@ def save_source_config(
     source_id: int,
     roi: list[list[float]],
     line: dict[str, Any],
+    lpr_zone: list[list[float]] | None = None,
 ) -> str:
     """
-    Lưu config ROI/line cho source. Dùng tọa độ chuẩn hóa (0-1).
+    Lưu config ROI/line/lpr_zone cho source. Dùng tọa độ chuẩn hóa (0-1).
     Trả về đường dẫn file đã lưu.
     """
     path = _source_config_path(source_id)
@@ -36,6 +37,9 @@ def save_source_config(
         "roi": roi,
         "lines": [line],
     }
+    if lpr_zone is not None:
+        config["lpr_zone"] = lpr_zone
+        
     with open(path, "w", encoding="utf-8") as f:
         json.dump(config, f, indent=2, ensure_ascii=False)
     logger.info("Saved source config: %s", path)

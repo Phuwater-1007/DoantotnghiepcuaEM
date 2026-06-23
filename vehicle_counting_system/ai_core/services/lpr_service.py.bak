@@ -1,0 +1,295 @@
+"""AI service to detect license plates in vehicle crops and OCR the plates using EasyOCR.
+"""
+from __future__ import annotations
+
+import os
+import re
+import cv2
+import numpy as np
+from pathlib import Path
+from ultralytics import YOLO
+import easyocr
+
+from vehicle_counting_system.configs.paths import DATA_OUTPUT_DIR
+from vehicle_counting_system.utils.logger import get_logger
+
+logger = get_logger(__name__)
+
+
+class LPRService:
+    def __init__(self, use_gpu: bool = True):
+        self.use_gpu = use_gpu
+        self.detector = None
+        self.reader = None
+        self._init_models()
+
+        # Tạo thư mục lưu ảnh crop nếu chưa có
+        self.images_dir = Path(DATA_OUTPUT_DIR) / "images"
+        self.images_dir.mkdir(parents=True, exist_ok=True)
+
+    def _init_models(self):
+        # 1. Khởi tạo YOLO License Plate Detector
+        model_dir = Path(__file__).resolve().parents[2] / "data" / "models"
+        model_dir.mkdir(parents=True, exist_ok=True)
+        local_model_path = model_dir / "license_plate_detector.pt"
+        yolo11_model_path = model_dir / "license_plate_detector_yolo11.pt"
+
+        # Ưu tiên load model YOLOv11 tự train nếu có
+        if yolo11_model_path.exists():
+            try:
+                logger.info("Loading local YOLOv11 License Plate Detector from %s...", yolo11_model_path)
+                self.detector = YOLO(str(yolo11_model_path))
+                logger.info("YOLOv11 License Plate Detector loaded successfully.")
+            except Exception as e:
+                logger.error("Failed to load YOLOv11 license plate detector from %s: %s", yolo11_model_path, e)
+                
+        # Nếu chưa load được model YOLOv11, fallback về model mặc định
+        if self.detector is None:
+            if not local_model_path.exists():
+                logger.info("Local license plate detector model not found. Attempting download...")
+                import requests
+                url = "https://huggingface.co/joker5914/yolov8n-license-plate/resolve/main/best.pt"
+                success = False
+                try:
+                    logger.info("Downloading LPR model from %s...", url)
+                    r = requests.get(url, stream=True, timeout=60)
+                    r.raise_for_status()
+                    with open(local_model_path, "wb") as f:
+                        for chunk in r.iter_content(chunk_size=8192):
+                            f.write(chunk)
+                    logger.info("LPR model downloaded successfully and saved to %s.", local_model_path)
+                    success = True
+                except Exception as e:
+                    logger.warning("Failed to download primary LPR model: %s. Trying fallback model URL...", e)
+                    fallback_url = "https://huggingface.co/keremberke/yolov5n-license-plate/resolve/main/best.pt"
+                    try:
+                        logger.info("Downloading fallback LPR model from %s...", fallback_url)
+                        r = requests.get(fallback_url, stream=True, timeout=60)
+                        r.raise_for_status()
+                        with open(local_model_path, "wb") as f:
+                            for chunk in r.iter_content(chunk_size=8192):
+                                f.write(chunk)
+                        logger.info("Fallback LPR model downloaded successfully and saved to %s.", local_model_path)
+                        success = True
+                    except Exception as e2:
+                        logger.error("Failed to download fallback LPR model: %s", e2)
+            
+            if local_model_path.exists():
+                try:
+                    logger.info("Loading local YOLO License Plate Detector from %s...", local_model_path)
+                    self.detector = YOLO(str(local_model_path))
+                    logger.info("YOLO License Plate Detector loaded successfully.")
+                except Exception as e:
+                    logger.error("Failed to load YOLO license plate detector from %s: %s", local_model_path, e)
+        # 2. Khởi tạo EasyOCR reader
+        try:
+            logger.info("Initializing EasyOCR reader...")
+            self.reader = easyocr.Reader(['en'], gpu=self.use_gpu)
+            logger.info("EasyOCR reader loaded successfully.")
+        except Exception as e:
+            logger.error("Failed to initialize EasyOCR reader: %s", e)
+
+    def normalize_plate(self, text: str) -> str:
+        """Chuẩn hóa biển số: viết hoa, chỉ giữ lại chữ cái và số, viết liền."""
+        if not text:
+            return ""
+        # Viết hoa toàn bộ
+        text = text.upper()
+        # Loại bỏ các ký tự đặc biệt, khoảng trắng, dấu chấm, gạch ngang
+        text = re.sub(r'[^A-Z0-9]', '', text)
+        return text
+
+    def correct_vietnamese_plate_syntax(self, text: str) -> str:
+        """Sửa lỗi ký tự dựa trên cú pháp biển số Việt Nam."""
+        if not text:
+            return ""
+        
+        # 1. Chuẩn hóa cơ bản
+        text = text.upper().strip()
+        text = re.sub(r'[^A-Z0-9]', '', text)
+        
+        if len(text) < 4:
+            return text
+
+        # Bản đồ quy đổi lỗi ký tự
+        to_digit = {
+            'G': '9', 'B': '8', 'D': '0', 'O': '0', 'Q': '0',
+            'I': '1', 'L': '1', 'Z': '2', 'S': '5', 'A': '4', 'T': '7'
+        }
+        to_letter = {
+            '0': 'D', '8': 'B', '1': 'I', '2': 'Z', '5': 'S', '6': 'G', '9': 'G'
+        }
+
+        chars = list(text)
+        
+        # 1. Hai ký tự đầu phải là số (Mã tỉnh)
+        for i in range(2):
+            if chars[i].isalpha():
+                chars[i] = to_digit.get(chars[i], chars[i])
+
+        # 2. Ký tự thứ 3 phải là chữ cái (Series biển)
+        if chars[2].isdigit():
+            chars[2] = to_letter.get(chars[2], chars[2])
+
+        # 3. Xác định vị trí bắt đầu của dãy số đuôi (index 3 hoặc 4)
+        start_digits_idx = 3
+        if chars[3].isalpha():
+            start_digits_idx = 4
+            
+        # Các ký tự từ start_digits_idx trở đi phải là số
+        for i in range(start_digits_idx, len(chars)):
+            if chars[i].isalpha():
+                chars[i] = to_digit.get(chars[i], chars[i])
+                
+        return "".join(chars)
+
+    def detect_plate_box(self, vehicle_crop: np.ndarray) -> tuple[np.ndarray, float] | None:
+        """
+        Phát hiện vị trí biển số xe trong ảnh xe crop.
+        Trả về: (plate_crop_image, YOLO_confidence) hoặc None.
+        """
+        if self.detector is None:
+            return None
+        
+        try:
+            results = self.detector.predict(vehicle_crop, verbose=False, conf=0.25)
+        except Exception as e:
+            logger.debug("YOLO Plate Predict error: %s", e)
+            return None
+
+        best_plate_box = None
+        best_plate_conf = 0.0
+
+        for result in results:
+            if not result.boxes:
+                continue
+            for box in result.boxes:
+                conf = float(box.conf[0])
+                if conf > best_plate_conf:
+                    best_plate_conf = conf
+                    best_plate_box = box.xyxy[0].cpu().numpy()
+
+        if best_plate_box is None:
+            return None
+
+        px1, py1, px2, py2 = best_plate_box
+        px1 = max(0, int(px1))
+        py1 = max(0, int(py1))
+        px2 = min(vehicle_crop.shape[1], int(px2))
+        py2 = min(vehicle_crop.shape[0], int(py2))
+
+        if (px2 - px1) < 10 or (py2 - py1) < 5:
+            return None
+
+        plate_crop = vehicle_crop[py1:py2, px1:px2]
+        return plate_crop, best_plate_conf
+
+    def run_ocr(self, plate_crop: np.ndarray) -> tuple[str, float] | None:
+        """
+        Chạy EasyOCR trên ảnh biển số crop.
+        Tự động xử lý tách dòng và ghép chữ cho biển số 2 dòng.
+        """
+        if self.reader is None:
+            return None
+
+        try:
+            # Chuyển ảnh BGR sang RGB vì EasyOCR hoạt động tốt nhất trên RGB
+            rgb_plate = cv2.cvtColor(plate_crop, cv2.COLOR_BGR2RGB)
+            
+            # EasyOCR trả về danh sách dạng: [([x, y], text, confidence), ...]
+            ocr_results = self.reader.readtext(rgb_plate)
+        except Exception as e:
+            logger.debug("EasyOCR read error: %s", e)
+            return None
+
+        if not ocr_results:
+            return None
+
+        # Sắp xếp các dòng chữ từ trên xuống dưới theo Y-coordinate để hỗ trợ biển 2 dòng
+        lines = []
+        for bbox, text, conf in ocr_results:
+            # Tính Y trung tâm của hộp bao để xác định thứ tự dòng
+            y_center = sum(p[1] for p in bbox) / 4.0
+            lines.append((y_center, text, conf))
+
+        # Sắp xếp từ trên xuống dưới
+        lines.sort(key=lambda x: x[0])
+
+        raw_text = ""
+        ocr_conf_sum = 0.0
+        count = 0
+        for _, text, conf in lines:
+            if text and len(text.strip()) > 0:
+                raw_text += text.strip()
+                ocr_conf_sum += conf
+                count += 1
+
+        if count == 0:
+            return None
+
+        # Áp dụng bộ lọc sửa đổi lỗi cú pháp Việt Nam
+        plate_text = self.correct_vietnamese_plate_syntax(raw_text)
+        if len(plate_text) < 4 or len(plate_text) > 11:
+            return None
+
+        avg_ocr_conf = ocr_conf_sum / count
+        return plate_text, avg_ocr_conf
+
+    def save_cropped_images(self, vehicle_crop: np.ndarray, plate_crop: np.ndarray, track_id: int, session_id: int) -> tuple[str, str]:
+        """Lưu ảnh xe crop và ảnh biển số crop ra file, trả về đường dẫn tương đối."""
+        vehicle_filename = f"session_{session_id}_track_{track_id}_vehicle.jpg"
+        plate_filename = f"session_{session_id}_track_{track_id}_plate.jpg"
+        
+        vehicle_path = self.images_dir / vehicle_filename
+        plate_path = self.images_dir / plate_filename
+
+        try:
+            cv2.imwrite(str(vehicle_path), vehicle_crop)
+            cv2.imwrite(str(plate_path), plate_crop)
+        except Exception as e:
+            logger.warning("Failed to save LPR cropped images: %s", e)
+
+        rel_vehicle_path = f"outputs/images/{vehicle_filename}"
+        rel_plate_path = f"outputs/images/{plate_filename}"
+        return rel_vehicle_path, rel_plate_path
+
+    def detect_and_ocr(
+        self, 
+        frame: np.ndarray, 
+        vehicle_bbox: tuple[float, float, float, float],
+        track_id: int,
+        session_id: int,
+        vehicle_class: str
+    ) -> tuple[str, float, str | None, str | None] | None:
+        """
+        Nhận diện biển số xe từ ảnh frame và bbox của xe.
+        (Giữ lại để đảm bảo tính tương thích ngược)
+        """
+        if self.detector is None or self.reader is None:
+            return None
+
+        h_frame, w_frame = frame.shape[:2]
+        vx1, vy1, vx2, vy2 = vehicle_bbox
+        vx1 = max(0, int(vx1))
+        vy1 = max(0, int(vy1))
+        vx2 = min(w_frame, int(vx2))
+        vy2 = min(h_frame, int(vy2))
+
+        if (vx2 - vx1) < 20 or (vy2 - vy1) < 20:
+            return None
+
+        vehicle_crop = frame[vy1:vy2, vx1:vx2]
+        res_det = self.detect_plate_box(vehicle_crop)
+        if res_det is None:
+            return None
+        
+        plate_crop, best_plate_conf = res_det
+        res_ocr = self.run_ocr(plate_crop)
+        if res_ocr is None:
+            return None
+        
+        plate_text, avg_ocr_conf = res_ocr
+        final_confidence = (best_plate_conf * 0.4) + (avg_ocr_conf * 0.6)
+        rel_vehicle_path, rel_plate_path = self.save_cropped_images(vehicle_crop, plate_crop, track_id, session_id)
+
+        return plate_text, final_confidence, rel_vehicle_path, rel_plate_path

@@ -27,11 +27,12 @@
   </div>
 
   <div class="edit-roi-toolbar roi-toolbar">
-    <button type="button" id="btn-roi" class="btn btn-outline">Ve ROI</button>
-    <button type="button" id="btn-line" class="btn btn-outline">Ve duong dem</button>
-    <button type="button" id="btn-clear" class="btn btn-outline">Xoa het</button>
-    <button type="button" id="btn-save" class="btn btn-primary">Luu ROI</button>
-    <a href="/monitoring" class="btn btn-outline">Quay lai Giam sat</a>
+    <button type="button" id="btn-roi" class="btn btn-outline">Vẽ ROI (Xanh lá)</button>
+    <button type="button" id="btn-line" class="btn btn-outline">Vẽ đường đếm (Vàng)</button>
+    <button type="button" id="btn-lpr" class="btn btn-outline">Vẽ vùng biển số (Tím hồng)</button>
+    <button type="button" id="btn-clear" class="btn btn-outline">Xóa hết</button>
+    <button type="button" id="btn-save" class="btn btn-primary">Lưu cấu hình</button>
+    <a href="/monitoring" class="btn btn-outline">Quay lại Giám sát</a>
   </div>
 
   <div class="roi-canvas-card">
@@ -51,8 +52,9 @@
 
   let img = null;
   let imgW = 0, imgH = 0;
-  let mode = 'roi'; // 'roi' | 'line'
+  let mode = 'roi'; // 'roi' | 'line' | 'lpr_zone'
   let roiPoints = [];
+  let lprPoints = [];
   let lineStart = null;
   let lineEnd = null;
   let savedConfig = null;
@@ -70,11 +72,12 @@
 
   function loadSavedConfig(config) {
     roiPoints = [];
+    lprPoints = [];
     lineStart = null;
     lineEnd = null;
 
     if (!config || !config.has_config) {
-      setStatus('Chua co ROI da luu. Hay ve moi cho video nay.');
+      setStatus('Chưa có cấu hình đã lưu. Hãy vẽ mới cho video này.');
       draw();
       return;
     }
@@ -85,13 +88,17 @@
       roiPoints = config.roi.map(toPixelPoint);
     }
 
+    if (Array.isArray(config.lpr_zone)) {
+      lprPoints = config.lpr_zone.map(toPixelPoint);
+    }
+
     if (config.line && Array.isArray(config.line.start) && Array.isArray(config.line.end)) {
       lineStart = toPixelPoint(config.line.start);
       lineEnd = toPixelPoint(config.line.end);
     }
 
     draw();
-    setStatus('Da nap ROI da luu cho video nay. Ban co the chinh sua va luu lai.');
+    setStatus('Đã nạp cấu hình đã lưu cho video này. Bạn có thể chỉnh sửa và lưu lại.');
   }
 
   function loadEditorData() {
@@ -101,11 +108,11 @@
     ])
       .then(([previewData, configData]) => {
         if (previewData.error) {
-          setStatus('Loi tai frame: ' + previewData.error);
+          setStatus('Lỗi tải frame: ' + previewData.error);
           return;
         }
         if (configData.error) {
-          setStatus('Loi tai config ROI: ' + configData.error);
+          setStatus('Lỗi tải config ROI: ' + configData.error);
           return;
         }
 
@@ -120,7 +127,7 @@
         img.src = previewData.image;
       })
       .catch(e => {
-        setStatus('Loi tai du lieu ROI: ' + e);
+        setStatus('Lỗi tải dữ liệu ROI: ' + e);
       });
   }
 
@@ -129,6 +136,7 @@
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(img, 0, 0);
 
+    // Vẽ ROI (Xanh lá)
     ctx.strokeStyle = 'rgba(0, 255, 0, 0.8)';
     ctx.lineWidth = 3;
     ctx.fillStyle = 'rgba(0, 255, 0, 0.2)';
@@ -149,6 +157,30 @@
       ctx.fill();
     });
 
+    // Vẽ LPR Zone (Tím hồng)
+    ctx.strokeStyle = 'rgba(255, 0, 255, 0.8)';
+    ctx.lineWidth = 3;
+    ctx.fillStyle = 'rgba(255, 0, 255, 0.15)';
+    ctx.setLineDash([6, 4]); // Vẽ nét đứt
+    if (lprPoints.length >= 2) {
+      ctx.beginPath();
+      ctx.moveTo(lprPoints[0][0], lprPoints[0][1]);
+      for (let i = 1; i < lprPoints.length; i++) {
+        ctx.lineTo(lprPoints[i][0], lprPoints[i][1]);
+      }
+      if (lprPoints.length >= 3) ctx.closePath();
+      ctx.stroke();
+      if (lprPoints.length >= 3) ctx.fill();
+    }
+    ctx.setLineDash([]); // Trả lại nét liền
+    lprPoints.forEach((p, i) => {
+      ctx.fillStyle = '#f0f';
+      ctx.beginPath();
+      ctx.arc(p[0], p[1], 6, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    // Vẽ đường đếm (Vàng)
     ctx.strokeStyle = 'rgba(255, 200, 0, 0.9)';
     ctx.lineWidth = 4;
     if (lineStart && lineEnd) {
@@ -185,14 +217,17 @@
     const p = getMousePos(e);
     if (mode === 'roi') {
       roiPoints.push(p);
-      setStatus('ROI: ' + roiPoints.length + ' điểm (double-click để đóng)');
+      setStatus('ROI: ' + roiPoints.length + ' điểm (double-click để đóng đa giác)');
+    } else if (mode === 'lpr_zone') {
+      lprPoints.push(p);
+      setStatus('Vùng biển số: ' + lprPoints.length + ' điểm (double-click để đóng đa giác)');
     } else if (mode === 'line') {
       if (!lineStart) {
         lineStart = p;
         setStatus('Đường đếm: đã chọn điểm đầu, click điểm cuối');
       } else {
         lineEnd = p;
-        setStatus('Đường đếm: đã xong. Có thể Lưu config.');
+        setStatus('Đường đếm: đã xong. Có thể Lưu cấu hình.');
       }
     }
     draw();
@@ -200,36 +235,52 @@
 
   canvas.addEventListener('dblclick', function(e) {
     if (mode === 'roi' && roiPoints.length >= 3) {
-      setStatus('ROI đã đóng. Chuyển sang bước 2 để vẽ đường đếm.');
+      setStatus('ROI đã đóng. Chuyển sang vẽ đường đếm hoặc vùng biển số.');
+    } else if (mode === 'lpr_zone' && lprPoints.length >= 3) {
+      setStatus('Vùng biển số đã đóng. Có thể Lưu cấu hình.');
     }
   });
 
   document.getElementById('btn-roi').onclick = function() {
     mode = 'roi';
-    setStatus('Che do ROI: click de them diem.');
+    setStatus('Chế độ vẽ ROI: click để thêm điểm.');
   };
   document.getElementById('btn-line').onclick = function() {
     mode = 'line';
-    setStatus('Che do duong dem: click diem dau roi click diem cuoi.');
+    setStatus('Chế độ vẽ đường đếm: click điểm đầu rồi click điểm cuối.');
+  };
+  document.getElementById('btn-lpr').onclick = function() {
+    mode = 'lpr_zone';
+    setStatus('Chế độ vẽ vùng nhận diện biển số (Tím hồng): click để thêm điểm.');
   };
   document.getElementById('btn-clear').onclick = function() {
     roiPoints = [];
+    lprPoints = [];
     lineStart = null;
     lineEnd = null;
     savedConfig = null;
-    setStatus('Da xoa ROI hien tai. Ve lai tu dau.');
+    setStatus('Đã xóa toàn bộ cấu hình đang vẽ. Hãy vẽ lại từ đầu.');
     draw();
   };
 
   document.getElementById('btn-save').onclick = function() {
     if (roiPoints.length < 3) {
-      setStatus('Can it nhat 3 diem cho ROI.');
+      setStatus('Cần ít nhất 3 điểm cho ROI.');
       return;
     }
     if (!lineStart || !lineEnd) {
-      setStatus('Can ve duong dem gom 2 diem.');
+      setStatus('Cần vẽ đường đếm gồm 2 điểm.');
       return;
     }
+    
+    let lpr_zone = null;
+    if (lprPoints.length >= 3) {
+      lpr_zone = lprPoints.map(p => [p[0], p[1]]);
+    } else if (lprPoints.length > 0) {
+      setStatus('Vùng nhận diện biển số (nếu vẽ) phải có ít nhất 3 điểm.');
+      return;
+    }
+
     const roi = roiPoints.map(p => [p[0], p[1]]);
     const line = {
       id: 'main_road_downstream',
@@ -237,6 +288,7 @@
       end: [lineEnd[0], lineEnd[1]],
       direction: 'both'
     };
+    
     fetch('/api/sources/' + sourceId + '/config', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -244,13 +296,14 @@
         roi: roi,
         line: line,
         width: imgW,
-        height: imgH
+        height: imgH,
+        lpr_zone: lpr_zone
       })
     })
     .then(r => r.json())
     .then(data => {
       if (data.ok) {
-        setStatus('Da luu ROI thanh cong. Video nay se dung ROI vua luu khi phan tich.');
+        setStatus('Đã lưu cấu hình thành công. Phiên giám sát tiếp theo sẽ áp dụng.');
         return fetch('/api/sources/' + sourceId + '/config').then(r => r.json());
       } else {
         throw new Error(data.error || 'Unknown');
@@ -261,7 +314,7 @@
         loadSavedConfig(configData);
       }
     })
-    .catch(e => setStatus('Loi luu ROI: ' + e));
+    .catch(e => setStatus('Lỗi lưu cấu hình: ' + e));
   };
 
   loadEditorData();

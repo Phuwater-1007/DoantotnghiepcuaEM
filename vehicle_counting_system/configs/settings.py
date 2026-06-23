@@ -136,8 +136,8 @@ class Settings:
     # === Tracking (ByteTrack) ===
     # These defaults are chosen for crowded traffic scenes (stable IDs > aggressive new tracks).
     bytetrack_activation_threshold: float = float(os.getenv("BYTETRACK_ACTIVATION_TH", "0.35"))
-    bytetrack_matching_threshold: float = float(os.getenv("BYTETRACK_MATCHING_TH", "0.80"))
-    bytetrack_lost_buffer: int = int(os.getenv("BYTETRACK_LOST_BUFFER", "80"))
+    bytetrack_matching_threshold: float = float(os.getenv("BYTETRACK_MATCHING_TH", "0.60"))
+    bytetrack_lost_buffer: int = int(os.getenv("BYTETRACK_LOST_BUFFER", "120"))
     # NOTE: supervision ByteTrack currently does not emit tracks reliably with >1 here,
     # so keep it at 1 for stable demo output.
     bytetrack_min_consecutive: int = int(os.getenv("BYTETRACK_MIN_CONSEC_FRAMES", "1"))
