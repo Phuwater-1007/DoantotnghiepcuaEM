@@ -24,6 +24,9 @@ class TrackedObject:
     history: List[Tuple[float, float]] = field(default_factory=list)
     # Display ID: số tuần tự 1,2,3... để hiển thị, ổn định hơn track_id từ ByteTrack.
     display_id: int | None = None
+    # Stable ID: ID ổn định qua các lần Re-ID. Khi ByteTrack đổi track_id (do mất/lại detect),
+    # stable_id giữ nguyên nếu Re-ID thành công → counter không bị đếm trùng/mất đếm.
+    stable_id: int | None = None
 
     def update(
         self,

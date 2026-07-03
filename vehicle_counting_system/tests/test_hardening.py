@@ -13,6 +13,7 @@ from vehicle_counting_system.application.services.monitoring_service import Moni
 from vehicle_counting_system.application.services.activity_log_service import ActivityLogService
 from vehicle_counting_system.application.services.admin_service import AdminService
 from vehicle_counting_system.application.services.counting_persistence_service import CountingPersistenceService
+from vehicle_counting_system.application.services.lpr_persistence_service import LPRPersistenceService
 from vehicle_counting_system.application.bootstrap import AppContainer
 from vehicle_counting_system.presentation.web.app import create_app
 import vehicle_counting_system.configs.paths as paths
@@ -64,7 +65,8 @@ class TestHardeningIntegration(unittest.TestCase):
         self.report = ReportService(self.db)
         self.dashboard = DashboardService(self.db, self.source)
         self.counting_persistence = CountingPersistenceService(self.db)
-        self.monitoring = MonitoringService(self.db, self.source, self.report, self.counting_persistence)
+        self.lpr_persistence = LPRPersistenceService(self.db)
+        self.monitoring = MonitoringService(self.db, self.source, self.report, self.counting_persistence, self.lpr_persistence)
         self.activity_log = ActivityLogService(self.db)
         self.admin = AdminService(self.db, self.monitoring)
         
@@ -81,6 +83,7 @@ class TestHardeningIntegration(unittest.TestCase):
             activity_log_service=self.activity_log,
             admin_service=self.admin,
             counting_persistence_service=self.counting_persistence,
+            lpr_persistence_service=self.lpr_persistence,
         )
         
         self.app = create_app()

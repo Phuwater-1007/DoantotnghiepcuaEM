@@ -14,7 +14,11 @@ from dotenv import load_dotenv
 from vehicle_counting_system.configs.paths import MODELS_DIR, PROJECT_ROOT
 
 # Load variables from .env into the environment once.
-load_dotenv()
+env_path = PROJECT_ROOT / ".env"
+if env_path.exists():
+    load_dotenv(dotenv_path=env_path, override=True)
+else:
+    load_dotenv(override=True)
 
 
 def _read_list(name: str, default: str) -> List[str]:
@@ -50,16 +54,20 @@ class Settings:
     # === Detection performance ===
 
     # Confidence threshold: cao hơn => ít box chất lượng thấp, nhận diện chặt hơn.
-    conf_threshold: float = float(os.getenv("CONF_THRESHOLD", "0.49"))
+    conf_threshold: float = float(os.getenv("CONF_THRESHOLD", "0.25"))
 
     # Input size for YOLO (imgsz). Smaller => faster but less accurate.
     image_size: int = int(os.getenv("IMAGE_SIZE", "640"))
 
     # Drop boxes with very small area (in pixels) to remove far/noisy objects.
-    min_box_area: float = float(os.getenv("MIN_BOX_AREA", "800.0"))
+    min_box_area: float = float(os.getenv("MIN_BOX_AREA", "300.0"))
 
     # Max detections per frame (cap heavy scenes to avoid lag).
     max_detections: int = int(os.getenv("MAX_DETECTIONS", "150"))
+
+    # NMS IoU threshold: thấp hơn → giữ nhiều box chồng nhau hơn (xe máy sát nhau).
+    # YOLO mặc định 0.7, giảm xuống 0.45 giúp phân biệt xe máy đi hàng ngang.
+    nms_iou_threshold: float = float(os.getenv("NMS_IOU_THRESHOLD", "0.45"))
 
     # Only keep these class names from YOLO (case-sensitive, as returned by model.names).
     allowed_class_names: List[str] = field(
@@ -85,7 +93,7 @@ class Settings:
     vid_stride: int = int(os.getenv("VID_STRIDE", "1"))
 
     # Video sharpen: làm rõ nét (unsharp mask). 0=tắt, 0.3-1.0=độ mạnh.
-    video_sharpen: float = float(os.getenv("VIDEO_SHARPEN", "0.4"))
+    video_sharpen: float = float(os.getenv("VIDEO_SHARPEN", "0.0"))
 
     # Làm mượt box/label khi hiển thị (EMA). 0=tắt, 0.3-0.8=độ mượt. Không ảnh hưởng đếm.
     display_smooth_alpha: float = float(os.getenv("DISPLAY_SMOOTH_ALPHA", "0.5"))
@@ -97,6 +105,8 @@ class Settings:
     show_confidence: bool = _read_bool("SHOW_CONFIDENCE", "false")
     # Hiển thị Track ID (#số) trên bounding box — giúp theo dõi từng xe riêng biệt.
     show_track_id: bool = _read_bool("SHOW_TRACK_ID", "false")
+    # Hiển thị bảng thống kê đếm xe ở góc trên bên trái khung hình.
+    show_stats: bool = _read_bool("SHOW_STATS", "false")
 
     # ROI rendering mode (friendly names):
     # "hidden" (or "off", "none")  -> no ROI drawn
@@ -134,9 +144,9 @@ class Settings:
         return tuple(parts)  # type: ignore[return-value]
 
     # === Tracking (ByteTrack) ===
-    # These defaults are chosen for crowded traffic scenes (stable IDs > aggressive new tracks).
-    bytetrack_activation_threshold: float = float(os.getenv("BYTETRACK_ACTIVATION_TH", "0.35"))
-    bytetrack_matching_threshold: float = float(os.getenv("BYTETRACK_MATCHING_TH", "0.60"))
+    # Optimized defaults for stable tracking on camera streams running at 25-30 FPS.
+    bytetrack_activation_threshold: float = float(os.getenv("BYTETRACK_ACTIVATION_TH", "0.25"))
+    bytetrack_matching_threshold: float = float(os.getenv("BYTETRACK_MATCHING_TH", "0.50"))
     bytetrack_lost_buffer: int = int(os.getenv("BYTETRACK_LOST_BUFFER", "120"))
     # NOTE: supervision ByteTrack currently does not emit tracks reliably with >1 here,
     # so keep it at 1 for stable demo output.
@@ -144,7 +154,11 @@ class Settings:
 
     # === Classification smoothing (per-track) ===
     class_smoothing_window: int = int(os.getenv("CLASS_SMOOTHING_WINDOW", "15"))
-    class_smoothing_min_votes: int = int(os.getenv("CLASS_SMOOTHING_MIN_VOTES", "6"))
+    class_smoothing_min_votes: int = int(os.getenv("CLASS_SMOOTHING_MIN_VOTES", "3"))
+
+    # === License Plate Recognition (LPR) ===
+    lpr_debounce_seconds: int = int(os.getenv("LPR_DEBOUNCE_SECONDS", "60"))
+    lpr_quality_threshold: float = float(os.getenv("LPR_QUALITY_THRESHOLD", "0.20"))
 
     def __post_init__(self) -> None:
         # Chuẩn hóa thiết bị: .env hay dùng "cuda" → PyTorch/Ultralytics ổn định hơn với "cuda:0"

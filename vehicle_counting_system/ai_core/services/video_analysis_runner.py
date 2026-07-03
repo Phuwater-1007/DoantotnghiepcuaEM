@@ -46,14 +46,25 @@ def get_ai_config() -> dict:
     det = _get_shared_yolo_detector()
     return {
         "conf_threshold": getattr(det, "conf_thres", 0.5),
-        "min_box_area": getattr(det, "min_box_area", 100.0)
+        "min_box_area": getattr(det, "min_box_area", 100.0),
+        "lpr_debounce_seconds": getattr(settings, "lpr_debounce_seconds", 60),
+        "lpr_quality_threshold": getattr(settings, "lpr_quality_threshold", 0.20),
     }
 
 
-def update_ai_config(conf_thres: float | None = None, min_box_area: float | None = None) -> None:
-    """Update active YOLO parameters."""
+def update_ai_config(
+    conf_thres: float | None = None, 
+    min_box_area: float | None = None,
+    lpr_debounce_seconds: int | None = None,
+    lpr_quality_threshold: float | None = None,
+) -> None:
+    """Update active YOLO and LPR parameters."""
     det = _get_shared_yolo_detector()
     det.update_params(conf_thres=conf_thres, min_box_area=min_box_area)
+    if lpr_debounce_seconds is not None:
+        settings.lpr_debounce_seconds = int(lpr_debounce_seconds)
+    if lpr_quality_threshold is not None:
+        settings.lpr_quality_threshold = float(lpr_quality_threshold)
 
 
 def analyze_video_source(

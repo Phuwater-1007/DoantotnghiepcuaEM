@@ -32,17 +32,24 @@ def build_router(templates) -> APIRouter:
         request: Request,
         conf_threshold: float = Form(...),
         min_box_area: float = Form(...),
+        lpr_debounce_seconds: int = Form(...),
+        lpr_quality_threshold: float = Form(...),
     ):
         user = require_admin(request)
         if isinstance(user, RedirectResponse):
             return user
         
         try:
-            update_ai_config(conf_thres=conf_threshold, min_box_area=min_box_area)
+            update_ai_config(
+                conf_thres=conf_threshold, 
+                min_box_area=min_box_area,
+                lpr_debounce_seconds=lpr_debounce_seconds,
+                lpr_quality_threshold=lpr_quality_threshold
+            )
             container = get_container(request)
             container.activity_log_service.log(
                 action="update_ai_config",
-                detail=f"Cập nhật cấu hình AI: Conf={conf_threshold}, Min Area={min_box_area}",
+                detail=f"Cập nhật cấu hình AI: Conf={conf_threshold}, Min Area={min_box_area}, Debounce={lpr_debounce_seconds}s, LPR Quality={lpr_quality_threshold}",
                 user_id=user.id,
                 username=user.username,
                 ip_address=request.client.host if request.client else "",

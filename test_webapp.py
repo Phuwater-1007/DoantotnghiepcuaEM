@@ -5,7 +5,7 @@ import json
 # Create a session to maintain cookies
 session = requests.Session()
 
-def test_page(url, name, session):
+def check_page(url, name, session):
     """Test a page and return results"""
     try:
         response = session.get(url, timeout=10)
@@ -77,7 +77,7 @@ results = []
 
 # 1. Try to access login page
 print("Testing login page...")
-login_result = test_page(f'{base_url}/login', 'Login Page', session)
+login_result = check_page(f'{base_url}/login', 'Login Page', session)
 results.append(login_result)
 print(f"  Status: {login_result['status']}, Title: {login_result['title']}")
 
@@ -98,7 +98,7 @@ except Exception as e:
 
 # 3. Test /dashboard
 print("\nTesting /dashboard...")
-dashboard_result = test_page(f'{base_url}/dashboard', 'Dashboard', session)
+dashboard_result = check_page(f'{base_url}/dashboard', 'Dashboard', session)
 results.append(dashboard_result)
 print(f"  Status: {dashboard_result['status']}, Title: {dashboard_result['title']}")
 print(f"  Vietnamese text: {dashboard_result['has_vietnamese']}")
@@ -106,7 +106,7 @@ print(f"  Errors: {dashboard_result['errors']}")
 
 # 4. Test /monitoring
 print("\nTesting /monitoring...")
-monitoring_result = test_page(f'{base_url}/monitoring', 'Monitoring', session)
+monitoring_result = check_page(f'{base_url}/monitoring', 'Monitoring', session)
 results.append(monitoring_result)
 print(f"  Status: {monitoring_result['status']}, Title: {monitoring_result['title']}")
 print(f"  Vietnamese text: {monitoring_result['has_vietnamese']}")
@@ -133,7 +133,7 @@ except Exception as e:
 
 # 5. Test /sources
 print("\nTesting /sources...")
-sources_result = test_page(f'{base_url}/sources', 'Sources', session)
+sources_result = check_page(f'{base_url}/sources', 'Sources', session)
 results.append(sources_result)
 print(f"  Status: {sources_result['status']}, Title: {sources_result['title']}")
 print(f"  Errors: {sources_result['errors']}")

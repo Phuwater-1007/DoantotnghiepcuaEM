@@ -151,8 +151,14 @@ class Pipeline:
         self._cap = cap
         width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        
+        # Lấy FPS thực tế của video nguồn để đồng bộ với Kalman Filter
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        if not fps or fps <= 1e-6 or fps > 240:
+            fps = 30.0
+            
         detector = YOLODetector()
-        tracker = ByteTrackTracker()
+        tracker = ByteTrackTracker(frame_rate=int(fps))
         self.processor = FrameProcessor(
             detector=detector,
             tracker=tracker,

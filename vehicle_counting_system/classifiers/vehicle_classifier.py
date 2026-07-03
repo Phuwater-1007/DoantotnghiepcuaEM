@@ -7,6 +7,7 @@ from typing import Deque, Dict, List
 from vehicle_counting_system.classifiers.base_classifier import BaseClassifier
 from vehicle_counting_system.models.tracked_object import TrackedObject
 from vehicle_counting_system.configs.settings import settings
+from vehicle_counting_system.utils.math_utils import get_bbox_bottom_center
 
 
 @dataclass
@@ -35,9 +36,21 @@ class VehicleClassifier(BaseClassifier):
                 self._buffers[tid] = buf
             buf.append(_Vote(tr.class_name, float(tr.confidence)))
 
-            smoothed = self._smooth(buf)
-            if smoothed is not None:
-                tr.class_name = smoothed
+            # CẢI TIẾN THƯƠNG MẠI:
+            # Khi xe đã di chuyển gần vạch đếm (Y > 400), YOLO có độ chính xác rất cao vì xe đã lớn và rõ.
+            # Ta bỏ qua mượt hóa và tin tưởng trực tiếp kết quả YOLO class của frame hiện tại,
+            # tránh việc bị kẹt ở nhãn "car" sai lệch thu thập từ lúc xe ở xa.
+            ax, ay = get_bbox_bottom_center(tr.bbox)
+            min_bypass_conf = 0.15 if tr.class_name in {"motorcycle", "bicycle"} else 0.20
+            if ay > 400.0 and tr.confidence > min_bypass_conf:
+                # Không áp dụng mượt hóa, giữ nguyên nhãn YOLO
+                # Xóa bộ đệm cũ để các frame sau nhất quán
+                buf.clear()
+                buf.append(_Vote(tr.class_name, float(tr.confidence)))
+            else:
+                smoothed = self._smooth(buf)
+                if smoothed is not None:
+                    tr.class_name = smoothed
         self._prune_missing({t.track_id for t in tracks})
         return tracks
 

@@ -229,9 +229,8 @@ def draw_track(
         else:
             parts.append(track.class_name)
 
-    # License plate if available
-    if hasattr(track, "license_plate") and track.license_plate:
-        parts.append(f"[{track.license_plate}]")
+    # Bỏ hiển thị biển số đè lên đầu xe cạnh ID để giao diện video sạch hơn.
+    # Kết quả biển số sẽ chỉ được hiển thị ở bảng kết quả bên cạnh.
 
     label = " ".join(parts) if parts else None
 
@@ -271,3 +270,74 @@ def draw_roi_polygon(
     # Always draw border in outline/filled mode.
     for i in range(len(pts)):
         cv2.line(frame, pts[i], pts[(i + 1) % len(pts)], color, 1)
+
+
+def _draw_dashed_line(
+    frame,
+    pt1: Tuple[int, int],
+    pt2: Tuple[int, int],
+    color: Tuple[int, int, int],
+    thickness: int = 2,
+    dash_length: int = 12,
+    gap_length: int = 8,
+) -> None:
+    """Vẽ đường nét đứt giữa 2 điểm."""
+    x1, y1 = pt1
+    x2, y2 = pt2
+    dx = x2 - x1
+    dy = y2 - y1
+    dist = max(1, int((dx * dx + dy * dy) ** 0.5))
+    step = dash_length + gap_length
+    for i in range(0, dist, step):
+        t1 = i / dist
+        t2 = min(1.0, (i + dash_length) / dist)
+        sx = int(x1 + dx * t1)
+        sy = int(y1 + dy * t1)
+        ex = int(x1 + dx * t2)
+        ey = int(y1 + dy * t2)
+        cv2.line(frame, (sx, sy), (ex, ey), color, thickness, cv2.LINE_AA)
+
+
+def draw_capture_zone(
+    frame,
+    points: Sequence[Tuple[int, int]],
+    color: Tuple[int, int, int] = (200, 0, 200),
+    alpha: float = 0.12,
+    label: str = "LPR Zone",
+) -> None:
+    """Vẽ capture zone với style riêng biệt: filled tím nhạt + border nét đứt.
+    
+    Phân biệt rõ với ROI chính (vàng, viền liền) để người dùng dễ quan sát.
+    """
+    if not points:
+        return
+    pts = [(int(x), int(y)) for x, y in points]
+
+    mode = settings.roi_mode
+    if mode in {"hidden", "none", "off"}:
+        return
+
+    # Fill bán trong suốt tím nhạt
+    overlay = frame.copy()
+    poly = np.array(pts, dtype=np.int32)
+    cv2.fillPoly(overlay, [poly], color)
+    cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0, frame)
+
+    # Border nét đứt để phân biệt với ROI
+    for i in range(len(pts)):
+        _draw_dashed_line(frame, pts[i], pts[(i + 1) % len(pts)], color, thickness=2)
+
+    # Label nhỏ ở phía trên zone
+    if label:
+        cx = int(sum(p[0] for p in pts) / len(pts))
+        cy = int(min(p[1] for p in pts)) - 10
+        sf = _get_render_scale(frame)
+        cv2.putText(
+            frame, label,
+            (cx - int(30 * sf), max(15, cy)),
+            cv2.FONT_HERSHEY_DUPLEX,
+            0.45 * sf,
+            color,
+            max(1, int(sf)),
+            cv2.LINE_AA,
+        )

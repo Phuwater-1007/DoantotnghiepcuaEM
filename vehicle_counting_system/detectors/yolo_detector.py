@@ -16,8 +16,8 @@ import threading
 import torch
 # Limit threads to optimize RAM and CPU overhead on Windows
 try:
-    torch.set_num_threads(1)
-    torch.set_num_interop_threads(1)
+    torch.set_num_threads(2)
+    torch.set_num_interop_threads(2)
 except Exception:
     pass
 
@@ -58,6 +58,7 @@ class YOLODetector(BaseDetector):
         self.img_size = settings.image_size
         self.min_box_area = settings.min_box_area
         self.max_det = settings.max_detections
+        self.nms_iou_thres = getattr(settings, 'nms_iou_threshold', 0.45)
         self.allowed_names = set(settings.allowed_class_names)
         self._inference_lock = threading.Lock()
 
@@ -146,6 +147,36 @@ class YOLODetector(BaseDetector):
     def _area(self, x1: float, y1: float, x2: float, y2: float) -> float:
         return max(0.0, x2 - x1) * max(0.0, y2 - y1)
 
+    _SMALL_VEHICLE_CLASSES = {"motorcycle", "bicycle"}
+
+    def _get_min_area_for_class(self, class_name: str) -> float:
+        """Xe máy/xe đạp cho phép bbox nhỏ hơn vì chúng nhỏ hơn ô tô nhiều."""
+        if class_name in self._SMALL_VEHICLE_CLASSES:
+            return max(80.0, self.min_box_area * 0.33)  # ~83px cho motorcycle (với min_box_area=250)
+        return self.min_box_area
+
+    def _get_adaptive_min_area(self, class_name: str, bottom_y: float, frame_h: int) -> float:
+        """Tính MIN_BOX_AREA adaptive theo vị trí Y trong frame.
+        
+        Xe ở trên (xa camera) -> ngưỡng nhỏ hơn.
+        Xe ở dưới (gần camera) -> ngưỡng lớn hơn.
+        """
+        y_ratio = bottom_y / max(1, frame_h)
+        # Bắt chước phối cảnh: diện tích tỷ lệ nghịch với bình phương khoảng cách
+        # Ta dùng bình phương tỷ lệ Y làm hệ số scale
+        scale = y_ratio * y_ratio
+        
+        if class_name in self._SMALL_VEHICLE_CLASSES:
+            base = self.min_box_area * 0.33
+            min_limit = 20.0
+        else:
+            base = self.min_box_area
+            min_limit = 50.0
+            
+        scaled_min = base * scale
+        # Đảm bảo giới hạn dưới cực tiểu để không bị lọc các xe máy siêu nhỏ ở xa
+        return max(min_limit, min(base, scaled_min))
+
     def update_params(self, conf_thres: float | None = None, min_box_area: float | None = None) -> None:
         """Cập nhật nhanh thông số model (thay đổi ngay ở lần detect tiếp theo)."""
         if conf_thres is not None:
@@ -159,14 +190,8 @@ class YOLODetector(BaseDetector):
         if self.model is None:
             raise RuntimeError("YOLO detector has been closed.")
 
-        # Log object IDs and thread context
-        import threading
-        curr_thread = threading.current_thread()
-        pred_id = id(getattr(self.model, 'predictor', None))
-        logger.info(
-            f"[Detect] Thread: {curr_thread.name} ({curr_thread.ident}), "
-            f"Detector ID: {id(self)}, Model ID: {id(self.model)}, Predictor ID: {pred_id}"
-        )
+        frame_h = frame.shape[0] if hasattr(frame, 'shape') else 720
+        frame_w = frame.shape[1] if hasattr(frame, 'shape') else 1280
 
         # Ultralytics dùng BGR (mặc định của OpenCV).
         # TensorRT .engine: không truyền half — precision đã cố định trong engine.
@@ -178,6 +203,7 @@ class YOLODetector(BaseDetector):
                     frame,
                     imgsz=self.img_size,
                     conf=self.conf_thres,
+                    iou=self.nms_iou_thres,
                     max_det=self.max_det,
                     verbose=False,
                     device=self.device,
@@ -188,6 +214,7 @@ class YOLODetector(BaseDetector):
                     frame,
                     imgsz=self.img_size,
                     conf=self.conf_thres,
+                    iou=self.nms_iou_thres,
                     max_det=self.max_det,
                     verbose=False,
                     device="cpu",
@@ -208,8 +235,31 @@ class YOLODetector(BaseDetector):
                     continue
 
                 # Bỏ bbox quá nhỏ (thường là object xa / nhiễu).
-                if self._area(x1, y1, x2, y2) < self.min_box_area:
+                # Adaptive: tự động điều chỉnh MIN_BOX_AREA theo tọa độ Y của bbox (phối cảnh xa gần)
+                min_area = self._get_adaptive_min_area(name, y2, frame_h)
+                if self._area(x1, y1, x2, y2) < min_area:
                     continue
+
+                # Lọc bbox tỷ lệ bất thường (quá dẹp hoặc quá cao)
+                w = x2 - x1
+                h = y2 - y1
+                aspect = w / max(h, 1)
+                
+                # Nới lỏng giới hạn dưới cho xe máy vì từ trên cao xuống xe máy rất dài và hẹp
+                if name in {"motorcycle", "bicycle"}:
+                    if aspect > 3.0 or aspect < 0.05:
+                        continue
+                else:
+                    if aspect > 5.0 or aspect < 0.10:
+                        continue
+
+                # Bỏ xe bị cắt quá nhiều ở rìa frame (>50% box ngoài frame)
+                margin = 5
+                if x1 < margin or y1 < margin or x2 > frame_w - margin or y2 > frame_h - margin:
+                    visible_w = min(x2, frame_w - margin) - max(x1, margin)
+                    visible_h = min(y2, frame_h - margin) - max(y1, margin)
+                    if visible_w < w * 0.5 or visible_h < h * 0.5:
+                        continue
 
                 detections.append(
                     Detection(

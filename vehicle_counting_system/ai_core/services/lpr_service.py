@@ -38,20 +38,31 @@ class LPRService:
 
         # ============================================================
         # 1. Khởi tạo YOLO License Plate Detector (YOLO 2)
+        #    Ưu tiên: TensorRT .engine → YOLOv11 .pt → fallback .pt
         # ============================================================
-        local_model_path = model_dir / "license_plate_detector.pt"
+        engine_path = model_dir / "license_plate_detector_yolo11.engine"
         yolo11_model_path = model_dir / "license_plate_detector_yolo11.pt"
+        local_model_path = model_dir / "license_plate_detector.pt"
 
-        # Ưu tiên load model YOLOv11 tự train nếu có
-        if yolo11_model_path.exists():
+        # Ưu tiên 1: TensorRT engine (nhanh nhất, ~2-3x so với .pt)
+        if engine_path.exists():
             try:
-                logger.info("Loading local YOLOv11 License Plate Detector from %s...", yolo11_model_path)
+                logger.info("Loading TensorRT License Plate Detector from %s...", engine_path)
+                self.detector = YOLO(str(engine_path))
+                logger.info("TensorRT License Plate Detector loaded successfully (2-3x faster than .pt).")
+            except Exception as e:
+                logger.warning("Failed to load TensorRT engine, falling back to .pt: %s", e)
+
+        # Ưu tiên 2: YOLOv11 .pt
+        if self.detector is None and yolo11_model_path.exists():
+            try:
+                logger.info("Loading YOLOv11 License Plate Detector from %s...", yolo11_model_path)
                 self.detector = YOLO(str(yolo11_model_path))
                 logger.info("YOLOv11 License Plate Detector loaded successfully.")
             except Exception as e:
                 logger.error("Failed to load YOLOv11 license plate detector from %s: %s", yolo11_model_path, e)
                 
-        # Nếu chưa load được model YOLOv11, fallback về model mặc định
+        # Ưu tiên 3: fallback model cũ
         if self.detector is None:
             if not local_model_path.exists():
                 logger.info("Local license plate detector model not found. Attempting download...")
@@ -91,18 +102,29 @@ class LPRService:
                     logger.error("Failed to load YOLO license plate detector from %s: %s", local_model_path, e)
 
         # ============================================================
-        # 2. Khởi tạo YOLO Character Recognizer (YOLO 3) — thay EasyOCR
+        # 2. Khởi tạo YOLO Character Recognizer (YOLO 3)
+        #    Ưu tiên: TensorRT .engine → .pt
         # ============================================================
+        char_engine_path = model_dir / "char_detector_yolo11.engine"
         char_model_path = model_dir / "char_detector_yolo11.pt"
-        if char_model_path.exists():
+
+        # Chọn model path: ưu tiên .engine nếu có
+        char_path_to_load = None
+        if char_engine_path.exists():
+            char_path_to_load = char_engine_path
+            logger.info("Found TensorRT char detector engine: %s", char_engine_path)
+        elif char_model_path.exists():
+            char_path_to_load = char_model_path
+
+        if char_path_to_load is not None:
             try:
                 self.char_recognizer = YOLOCharRecognizer(
-                    model_path=str(char_model_path),
+                    model_path=str(char_path_to_load),
                     conf=0.25,
                     imgsz=320,
                     use_gpu=self.use_gpu,
                 )
-                logger.info("YOLO Character Recognizer loaded successfully.")
+                logger.info("YOLO Character Recognizer loaded successfully from %s.", char_path_to_load)
             except Exception as e:
                 logger.error("Failed to load YOLO Character Recognizer: %s", e)
         else:
@@ -123,13 +145,14 @@ class LPRService:
         text = re.sub(r'[^A-Z0-9]', '', text)
         return text
 
-    def correct_vietnamese_plate_syntax(self, text: str) -> str:
-        """Sửa lỗi ký tự dựa trên cú pháp biển số Việt Nam.
+    def correct_vietnamese_plate_syntax(self, text: str, vehicle_class: str = "unknown") -> str:
+        """Sửa lỗi ký tự dựa trên cú pháp biển số Việt Nam theo loại phương tiện.
         
-        Format biển số VN: XX-Y-ZZZZZ
-        - XX: 2 số (mã tỉnh, vd: 51, 29, 30)
-        - Y: 1-2 chữ cái (series, vd: A, B, D, T, LD, MD)
-        - ZZZZZ: 4-5 số (số đuôi)
+        Quy tắc:
+        - Với XE MÁY (motorcycle): XX - [Chữ] [Số] - [4 hoặc 5 số]
+        - Với Ô TÔ (car, truck, bus...):
+            + Loại 1 chữ: XX - [Chữ] - [4 hoặc 5 số]
+            + Loại 2 chữ: XX - [Chữ] [Chữ] - [4 hoặc 5 số]
         """
         if not text:
             return ""
@@ -141,42 +164,70 @@ class LPRService:
         if len(text) < 4:
             return text
 
-        # Bản đồ quy đổi lỗi ký tự (đã sửa, không map các ký tự series hợp lệ)
+        # Bản đồ quy đổi lỗi ký tự
         to_digit = {
-            'O': '0', 'Q': '0',    # O/Q dễ nhầm với 0
-            'I': '1', 'L': '1',    # I/L dễ nhầm với 1
-            'Z': '2',              # Z dễ nhầm với 2
-            'S': '5',              # S dễ nhầm với 5
-            'B': '8',              # B dễ nhầm với 8
-            'G': '9',              # G dễ nhầm với 9
+            'O': '0', 'Q': '0', 'D': '0', # Dễ nhầm với 0
+            'I': '1', 'L': '1', 'T': '1', # Dễ nhầm với 1
+            'Z': '2',                     # Dễ nhầm với 2
+            'S': '5',                     # Dễ nhầm với 5
+            'B': '8',                     # Dễ nhầm với 8
+            'G': '9',                     # Dễ nhầm với 9
         }
         to_letter = {
-            '0': 'O',              # 0 dễ nhầm với O
-            '8': 'B',              # 8 dễ nhầm với B
-            '1': 'L',              # 1 dễ nhầm với L
-            '5': 'S',              # 5 dễ nhầm với S
+            '0': 'O', 'D': 'O',
+            '8': 'B',
+            '1': 'L',
+            '5': 'S',
+            '2': 'Z',
         }
 
         chars = list(text)
         
-        # 1. Hai ký tự đầu phải là số (Mã tỉnh)
-        for i in range(min(2, len(chars))):
-            if chars[i].isalpha():
-                chars[i] = to_digit.get(chars[i], chars[i])
+        # Thử quy đổi c0, c1 sang số bằng to_digit để phân biệt biển dân sự và quân đội
+        c0 = to_digit.get(chars[0], chars[0])
+        c1 = to_digit.get(chars[1], chars[1])
+        
+        is_military = (not c0.isdigit()) and (not c1.isdigit())
+        
+        if is_military:
+            # === CÚ PHÁP BIỂN QUÂN ĐỘI: XX - [Số đuôi] (e.g. KP-12-34) ===
+            # Giữ nguyên 2 chữ đầu, tất cả ký tự phía sau bắt buộc là Số
+            for i in range(2, len(chars)):
+                if chars[i].isalpha():
+                    chars[i] = to_digit.get(chars[i], chars[i])
+        else:
+            # === CÚ PHÁP BIỂN DÂN SỰ / BIỂN ĐẶC BIỆT KHÁC ===
+            # Bước 1: 2 ký tự đầu bắt buộc là Số (Mã tỉnh)
+            for i in range(min(2, len(chars))):
+                if chars[i].isalpha():
+                    chars[i] = to_digit.get(chars[i], chars[i])
 
-        # 2. Ký tự thứ 3 phải là chữ cái (Series biển)
-        if len(chars) > 2 and chars[2].isdigit():
-            chars[2] = to_letter.get(chars[2], chars[2])
+            # Bước 2: Ký tự thứ 3 bắt buộc là Chữ (Series chữ)
+            if len(chars) > 2 and chars[2].isdigit():
+                chars[2] = to_letter.get(chars[2], chars[2])
 
-        # 3. Xác định vị trí bắt đầu của dãy số đuôi (index 3 hoặc 4)
-        start_digits_idx = 3
-        if len(chars) > 3 and chars[3].isalpha():
-            start_digits_idx = 4
-            
-        # Các ký tự từ start_digits_idx trở đi phải là số
-        for i in range(start_digits_idx, len(chars)):
-            if chars[i].isalpha():
-                chars[i] = to_digit.get(chars[i], chars[i])
+            is_motorcycle = vehicle_class in {"motorcycle", "bicycle"}
+            if is_motorcycle:
+                # === CÚ PHÁP XE MÁY: XX - [Chữ] [Số] - [Số đuôi] ===
+                # Ký tự thứ 4 bắt buộc là Số (Ví dụ: số 1 trong A1)
+                if len(chars) > 3 and chars[3].isalpha():
+                    chars[3] = to_digit.get(chars[3], chars[3])
+                    
+                # Tất cả ký tự từ thứ 5 trở đi bắt buộc là Số
+                for i in range(4, len(chars)):
+                    if chars[i].isalpha():
+                        chars[i] = to_digit.get(chars[i], chars[i])
+            else:
+                # === CÚ PHÁP Ô TÔ: XX - [Chữ] hoặc [Chữ][Chữ] - [Số đuôi] ===
+                start_digits_idx = 3
+                # Nếu ký tự thứ 4 là chữ (như LD, NG, NN...) -> Chuỗi số đuôi bắt đầu từ ký tự 5
+                if len(chars) > 3 and chars[3].isalpha():
+                    start_digits_idx = 4
+                    
+                # Tất cả ký tự phía sau bắt buộc là Số
+                for i in range(start_digits_idx, len(chars)):
+                    if chars[i].isalpha():
+                        chars[i] = to_digit.get(chars[i], chars[i])
                 
         return "".join(chars)
 
@@ -230,10 +281,9 @@ class LPRService:
         plate_crop = vehicle_crop[py1:py2, px1:px2]
         return plate_crop, best_plate_conf
 
-    def run_ocr(self, plate_crop: np.ndarray) -> tuple[str, float] | None:
+    def run_ocr(self, plate_crop: np.ndarray, vehicle_class: str = "unknown") -> tuple[str, float] | None:
         """
         Nhận diện ký tự biển số bằng YOLO Character Detection.
-        Thay thế hoàn toàn EasyOCR.
         """
         if self.char_recognizer is None or not self.char_recognizer.is_ready:
             return None
@@ -244,8 +294,8 @@ class LPRService:
 
         plate_text, avg_conf = result
 
-        # Post-processing: sửa lỗi cú pháp biển VN
-        plate_text = self.correct_vietnamese_plate_syntax(plate_text)
+        # Post-processing: sửa lỗi cú pháp biển VN dựa trên loại phương tiện
+        plate_text = self.correct_vietnamese_plate_syntax(plate_text, vehicle_class)
 
         if len(plate_text) < 4 or len(plate_text) > 11:
             return None

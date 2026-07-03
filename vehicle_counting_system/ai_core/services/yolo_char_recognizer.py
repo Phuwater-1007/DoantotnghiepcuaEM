@@ -73,8 +73,9 @@ class YOLOCharRecognizer:
         """Tiền xử lý ảnh biển số trước khi detect ký tự.
 
         Các bước:
-        1. Resize nếu quá nhỏ (chiều cao < 40px)
+        1. Resize nếu quá nhỏ (chiều cao < 100px) để nâng cao độ phân giải ký tự
         2. Tăng contrast nhẹ bằng CLAHE
+        3. Làm sắc nét các cạnh ký tự bằng unsharp mask
         """
         if plate_crop is None or plate_crop.size == 0:
             return plate_crop
@@ -82,12 +83,12 @@ class YOLOCharRecognizer:
         try:
             h, w = plate_crop.shape[:2]
 
-            # Resize nếu quá nhỏ — YOLO cần ảnh đủ lớn để detect ký tự
-            if h < 40:
-                scale = 40.0 / h
+            # Resize nếu quá nhỏ — YOLO cần ảnh đủ lớn để detect ký tự chính xác
+            if h < 100:
+                scale = 100.0 / h
                 plate_crop = cv2.resize(
                     plate_crop,
-                    (int(w * scale), 40),
+                    (int(w * scale), 100),
                     interpolation=cv2.INTER_CUBIC,
                 )
 
@@ -98,46 +99,19 @@ class YOLOCharRecognizer:
             lab[:, :, 0] = clahe.apply(l_channel)
             plate_crop = cv2.cvtColor(lab, cv2.COLOR_LAB2BGR)
 
+            # Làm sắc nét ảnh (Unsharp Mask)
+            gaussian = cv2.GaussianBlur(plate_crop, (0, 0), 1.0)
+            plate_crop = cv2.addWeighted(plate_crop, 1.5, gaussian, -0.5, 0)
+
             return plate_crop
         except Exception as e:
             logger.debug("Plate preprocessing error: %s", e)
             return plate_crop
 
-    def recognize(self, plate_crop: np.ndarray) -> tuple[str, float] | None:
-        """Nhận diện chuỗi biển số từ ảnh biển số đã crop.
-
-        Args:
-            plate_crop: Ảnh biển số BGR (đã crop từ ảnh xe)
-
-        Returns:
-            (plate_text, avg_confidence) hoặc None nếu không nhận diện được
-        """
-        if self.model is None:
-            return None
-
-        if plate_crop is None or plate_crop.size == 0:
-            return None
-
-        # Tiền xử lý
-        processed = self.preprocess_plate(plate_crop)
-
-        try:
-            results = self.model.predict(
-                processed,
-                conf=self.conf,
-                imgsz=self.imgsz,
-                verbose=False,
-            )
-        except Exception as e:
-            logger.debug("YOLO Char predict error: %s", e)
-            return None
-
-        if not results or not results[0].boxes or len(results[0].boxes) == 0:
-            return None
-
-        # Thu thập ký tự detected
+    def _extract_chars_from_results(self, boxes) -> list[dict]:
+        """Trích xuất danh sách ký tự từ kết quả predict của YOLO."""
         chars = []
-        for box in results[0].boxes:
+        for box in boxes:
             x1, y1, x2, y2 = box.xyxy[0].tolist()
             conf = float(box.conf[0])
             cls_id = int(box.cls[0])
@@ -160,17 +134,126 @@ class YOLOCharRecognizer:
                 "h": char_h,
                 "w": char_w,
             })
+        return chars
 
+    def _estimate_skew_angle(self, chars: list[dict]) -> float:
+        """Ước lượng góc nghiêng của biển số dựa trên tọa độ tâm của các ký tự."""
+        if len(chars) < 2:
+            return 0.0
+
+        # Phân chia dòng sơ bộ để fit đường thẳng cho từng dòng
+        y_coords = [c["cy"] for c in chars]
+        y_spread = max(y_coords) - min(y_coords)
+        avg_char_h = sum(c["h"] for c in chars) / len(chars)
+
+        is_two_line = y_spread > avg_char_h * 1.2
+
+        lines = []
+        if is_two_line:
+            mid_y = (max(y_coords) + min(y_coords)) / 2.0
+            lines.append([c for c in chars if c["cy"] < mid_y])
+            lines.append([c for c in chars if c["cy"] >= mid_y])
+        else:
+            lines.append(chars)
+
+        angles = []
+        for line_chars in lines:
+            if len(line_chars) < 2:
+                continue
+            # Sắp xếp theo cx để fit từ trái qua phải
+            line_chars = sorted(line_chars, key=lambda c: c["cx"])
+            xs = np.array([c["cx"] for c in line_chars], dtype=np.float32)
+            ys = np.array([c["cy"] for c in line_chars], dtype=np.float32)
+
+            points = np.vstack([xs, ys]).T
+            # fitLine trả về [vx, vy, x, y] với vx, vy là normalized direction vector
+            [vx, vy, x, y] = cv2.fitLine(points, cv2.DIST_L2, 0, 0.01, 0.01)
+
+            slope = vy[0] / (vx[0] + 1e-9)
+            angle = np.arctan(slope) * 180.0 / np.pi
+            angles.append(angle)
+
+        if not angles:
+            return 0.0
+        return float(np.mean(angles))
+
+    def recognize(self, plate_crop: np.ndarray) -> tuple[str, float] | None:
+        """Nhận diện chuỗi biển số từ ảnh biển số đã crop.
+
+        Các bước:
+        1. Tiền xử lý (phóng to, tăng tương phản, làm nét)
+        2. Nhận diện ký tự lần 1
+        3. Phát hiện độ nghiêng, xoay thẳng biển số (deskew) và nhận diện lại nếu cần
+        4. Sắp xếp ký tự theo dòng và ghép thành chuỗi biển số
+        """
+        if self.model is None:
+            return None
+
+        if plate_crop is None or plate_crop.size == 0:
+            return None
+
+        # 1. Tiền xử lý
+        processed = self.preprocess_plate(plate_crop)
+
+        # 2. Chạy detect lần 1
+        try:
+            results = self.model.predict(
+                processed,
+                conf=self.conf,
+                imgsz=self.imgsz,
+                verbose=False,
+            )
+        except Exception as e:
+            logger.debug("YOLO Char predict error: %s", e)
+            return None
+
+        if not results or not results[0].boxes or len(results[0].boxes) == 0:
+            return None
+
+        # Thu thập ký tự detected
+        chars = self._extract_chars_from_results(results[0].boxes)
         if not chars:
             return None
 
-        # Loại bỏ các detection trùng lặp (NMS nhẹ theo vị trí)
+        # Loại bỏ các trùng lặp (NMS nhẹ)
         chars = self._remove_duplicates(chars)
-
         if not chars:
             return None
 
-        # Ghép ký tự thành chuỗi (hỗ trợ 1 dòng + 2 dòng)
+        # 3. Ước lượng góc nghiêng và xoay thẳng biển số (Deskew)
+        angle = self._estimate_skew_angle(chars)
+
+        # Nếu nghiêng từ 2 độ trở lên (và dưới 30 độ để tránh sai lệch quá mức do nhiễu)
+        if abs(angle) >= 2.0 and abs(angle) <= 30.0:
+            try:
+                h_img, w_img = processed.shape[:2]
+                center = (w_img // 2, h_img // 2)
+                # Tính ma trận xoay: xoay ngược lại góc nghiêng để thẳng biển số
+                rot_mat = cv2.getRotationMatrix2D(center, angle, 1.0)
+                rotated_processed = cv2.warpAffine(
+                    processed, rot_mat, (w_img, h_img),
+                    flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE
+                )
+
+                # Chạy nhận diện lần 2 trên ảnh đã xoay thẳng
+                results_rot = self.model.predict(
+                    rotated_processed,
+                    conf=self.conf,
+                    imgsz=self.imgsz,
+                    verbose=False,
+                )
+
+                if results_rot and results_rot[0].boxes and len(results_rot[0].boxes) > 0:
+                    chars_rot = self._extract_chars_from_results(results_rot[0].boxes)
+                    chars_rot = self._remove_duplicates(chars_rot)
+                    # Chỉ dùng kết quả xoay nếu nó nhận diện được số lượng ký tự tương đương hoặc tốt hơn
+                    if chars_rot and len(chars_rot) >= len(chars) - 1:
+                        chars = chars_rot
+                        processed = rotated_processed
+            except Exception as e:
+                logger.warning("Failed to deskew plate image: %s", e)
+
+        # 4. Ghép ký tự thành chuỗi (hỗ trợ 1 dòng + 2 dòng)
         plate_text = self._assemble_plate_text(chars, processed.shape)
         avg_conf = sum(c["conf"] for c in chars) / len(chars)
 
@@ -220,45 +303,48 @@ class YOLOCharRecognizer:
     def _assemble_plate_text(self, chars: list[dict], img_shape: tuple) -> str:
         """Sắp xếp ký tự theo vị trí → ghép thành chuỗi biển số.
 
-        Tự động xử lý:
-        - Biển 1 dòng (ô tô): sắp xếp trái → phải theo X
-        - Biển 2 dòng (xe máy): phân chia dòng theo Y, mỗi dòng sắp xếp theo X
-
-        Thuật toán phân dòng:
-        - Tính spread Y (khoảng cách Y lớn nhất giữa các ký tự)
-        - Nếu spread > 35% chiều cao ảnh → biển 2 dòng
-        - Dùng điểm giữa Y để chia 2 dòng
+        Thuật toán phân dòng thông minh dựa trên phân cụm khoảng trống trục Y (Y gap clustering).
         """
         h_img = img_shape[0]
 
         if len(chars) <= 1:
             return chars[0]["char"] if chars else ""
 
-        y_coords = [c["cy"] for c in chars]
-        y_spread = max(y_coords) - min(y_coords)
+        # Sắp xếp các ký tự theo Y tăng dần
+        sorted_by_y = sorted(chars, key=lambda c: c["cy"])
 
         # Tính chiều cao trung bình của ký tự để so sánh
         avg_char_h = sum(c["h"] for c in chars) / len(chars)
 
-        # Quyết định 1 dòng hay 2 dòng
-        is_two_line = y_spread > max(h_img * 0.35, avg_char_h * 1.2)
+        # Tìm gap lớn nhất giữa hai ký tự liên tiếp theo trục Y
+        max_gap = 0.0
+        split_idx = -1
 
-        if is_two_line:
-            # Biển 2 dòng: phân chia bằng điểm giữa Y
-            mid_y = (max(y_coords) + min(y_coords)) / 2.0
+        for i in range(len(sorted_by_y) - 1):
+            gap = sorted_by_y[i + 1]["cy"] - sorted_by_y[i]["cy"]
+            if gap > max_gap:
+                max_gap = gap
+                split_idx = i + 1
 
-            line1 = sorted(
-                [c for c in chars if c["cy"] < mid_y],
-                key=lambda c: c["cx"],
-            )
-            line2 = sorted(
-                [c for c in chars if c["cy"] >= mid_y],
-                key=lambda c: c["cx"],
-            )
+        # Tính khoảng cách Y tổng thể (spread)
+        y_coords = [c["cy"] for c in chars]
+        y_spread = max(y_coords) - min(y_coords)
+
+        # Quyết định 1 dòng hay 2 dòng dựa trên phân cụm khoảng trống Y
+        is_two_line = (max_gap > avg_char_h * 0.45) and (y_spread > avg_char_h * 1.0)
+
+        if is_two_line and split_idx != -1:
+            # Biển 2 dòng: phân chia tại split_idx thành dòng 1 và dòng 2
+            line1_chars = sorted_by_y[:split_idx]
+            line2_chars = sorted_by_y[split_idx:]
+
+            # Sắp xếp các ký tự trong mỗi dòng từ trái qua phải theo trục X
+            line1 = sorted(line1_chars, key=lambda c: c["cx"])
+            line2 = sorted(line2_chars, key=lambda c: c["cx"])
 
             text = "".join(c["char"] for c in line1) + "".join(c["char"] for c in line2)
         else:
-            # Biển 1 dòng: sắp xếp trái → phải
+            # Biển 1 dòng: sắp xếp toàn bộ từ trái qua phải theo trục X
             chars_sorted = sorted(chars, key=lambda c: c["cx"])
             text = "".join(c["char"] for c in chars_sorted)
 

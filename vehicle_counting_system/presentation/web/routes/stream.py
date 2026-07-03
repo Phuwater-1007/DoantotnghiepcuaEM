@@ -367,8 +367,7 @@ def _process_live_stream(session: _StreamSession, processor: FrameProcessor) -> 
             continue
 
         # Apply per-session class filter (set by UI toggle, None = count all)
-        if session.active_classes is not None:
-            processor.set_active_classes(session.active_classes)
+        processor.set_active_classes(session.active_classes)
 
         # YOLO + overlay (Fix #5: if inference lock is busy we've already
         # moved on to the latest frame, so no stale-frame accumulation)
@@ -444,8 +443,7 @@ def _process_video_file(
                 break
 
             # Apply per-session class filter
-            if session.active_classes is not None:
-                processor.set_active_classes(session.active_classes)
+            processor.set_active_classes(session.active_classes)
 
             processed = processor.process(frame)
 

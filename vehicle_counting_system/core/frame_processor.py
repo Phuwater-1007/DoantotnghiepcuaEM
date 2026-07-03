@@ -9,8 +9,11 @@ Mục tiêu:
 
 from __future__ import annotations
 
+import queue
 import re
+import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from typing import List, Tuple, Optional
 
 from vehicle_counting_system.counters.line_counter import LineCounter
@@ -25,6 +28,7 @@ from vehicle_counting_system.utils.vision_utils import (
     draw_counting_line,
     draw_statistics,
     draw_roi_polygon,
+    draw_capture_zone,
     sharpen_frame,
 )
 from vehicle_counting_system.ai_core.services.lpr_service import LPRService
@@ -107,6 +111,18 @@ class FrameProcessor:
         self._track_lpr_results = {}
         self._track_ocr_history = {}
         self._track_in_capture_last = {}
+        self._lpr_lock = threading.Lock()
+
+        # Thread pool cho LPR — không block pipeline chính
+        self._lpr_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="lpr")
+
+        # Biến cấu hình LPR Keyframe và chống trùng lặp mới
+        self.last_lpr_time = 0.0
+        self._lpr_debounce_cache = {}  # plate_text -> timestamp
+        self._track_max_bbox_area = {}  # stable_id -> (max_area, frame_with_max_area)
+        self._track_keyframe_processed = set()  # stable_id
+        self._track_in_capture_start_time = {}  # stable_id -> timestamp
+        self._frame_count = 0  # Đếm frame để tối ưu cleanup
 
         self.capture_box_polygon = []
         raw_capture_box = cfg.get("lpr_zone") or cfg.get("capture_box")
@@ -121,6 +137,38 @@ class FrameProcessor:
             self.capture_box_polygon = [p_top_left, p_top_right, r[2], r[3]]
         else:
             self.capture_box_polygon = self.roi_polygon
+
+        # Validate zone positions
+        self._validate_zone_positions()
+
+    def _validate_zone_positions(self):
+        """Đảm bảo capture zone nằm hợp lý so với counting line."""
+        if not self.capture_box_polygon or not self.lines:
+            return
+        from vehicle_counting_system.utils.logger import get_logger
+        _logger = get_logger(__name__)
+        capture_center_y = sum(p[1] for p in self.capture_box_polygon) / len(self.capture_box_polygon)
+        line_center_y = (self.lines[0][0][1] + self.lines[0][1][1]) / 2
+        if capture_center_y > line_center_y:
+            _logger.warning(
+                "Capture zone (Y=%.0f) nằm SAU counting line (Y=%.0f). "
+                "Nên đặt capture zone TRƯỚC line để LPR chạy trước khi đếm.",
+                capture_center_y, line_center_y
+            )
+
+    @staticmethod
+    def _estimate_crop_quality(crop) -> float:
+        """Đánh giá chất lượng crop bằng Laplacian variance (độ nét) + diện tích."""
+        import cv2
+        try:
+            gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
+            laplacian_var = cv2.Laplacian(gray, cv2.CV_64F).var()
+            h, w = crop.shape[:2]
+            area = h * w
+            # Score kết hợp: diện tích lớn + ảnh nét = tốt nhất
+            return area * min(laplacian_var, 500) / 500.0
+        except Exception:
+            return 0.0
 
     def _filter_by_roi(self, detections: List[Detection]) -> List[Detection]:
         if not self.roi_polygon:
@@ -154,176 +202,368 @@ class FrameProcessor:
             except Exception:
                 pass
 
+    # ------------------------------------------------------------------
+    # Async LPR Worker — chạy trên background thread, KHÔNG block pipeline
+    # ------------------------------------------------------------------
+
+    def _crop_vehicle(self, bbox, frame, w_frame, h_frame, class_name: str):
+        """Cắt ảnh xe từ bbox, áp dụng padding cho xe máy và trả về (crop, raw_area).
+        
+        Không upscale ở đây — upscale chỉ chạy 1 lần khi trigger LPR.
+        """
+        vx1, vy1, vx2, vy2 = bbox
+        
+        # Nguyên bản diện tích thực tế của xe trong frame
+        raw_area = float(max(0.0, vx2 - vx1) * max(0.0, vy2 - vy1))
+        
+        # Mở rộng padding cho xe máy (biển số thường nằm sát rìa bbox)
+        if class_name in {"motorcycle", "bicycle"}:
+            pad_x = int((vx2 - vx1) * 0.15)
+            pad_y = int((vy2 - vy1) * 0.10)
+            vx1 -= pad_x
+            vy1 -= pad_y
+            vx2 += pad_x
+            vy2 += pad_y
+            
+        vx1 = max(0, int(vx1))
+        vy1 = max(0, int(vy1))
+        vx2 = min(w_frame, int(vx2))
+        vy2 = min(h_frame, int(vy2))
+        
+        w = vx2 - vx1
+        h = vy2 - vy1
+        
+        # Giảm ngưỡng kích thước tối thiểu cho xe máy
+        min_size = 15 if class_name in {"motorcycle", "bicycle"} else 20
+        if w < min_size or h < min_size:
+            return None, 0.0
+            
+        crop = frame[vy1:vy2, vx1:vx2].copy()
+        return crop, raw_area
+
+    def _smart_upscale(self, crop, class_name: str):
+        """Zoom thông minh cho xe nhỏ — CHỈ gọi khi trigger LPR (không mỗi frame).
+        
+        Dùng INTER_CUBIC (nhanh hơn LANCZOS4 ~3x, chất lượng đủ tốt cho OCR).
+        """
+        if crop is None or crop.size == 0:
+            return crop
+            
+        try:
+            import cv2
+            h, w = crop.shape[:2]
+            
+            # Target: đảm bảo chiều rộng crop >= 200px cho LPR
+            target_width = 200 if class_name in {"motorcycle", "bicycle"} else 250
+            
+            if w < target_width:
+                scale = target_width / w
+                scale = min(scale, 4.0)
+                crop = cv2.resize(crop, (0, 0), fx=scale, fy=scale, 
+                                  interpolation=cv2.INTER_CUBIC)
+                # Sharpen sau khi upscale
+                gaussian = cv2.GaussianBlur(crop, (0, 0), 1.2)
+                crop = cv2.addWeighted(crop, 1.5, gaussian, -0.5, 0)
+        except Exception:
+            pass
+        return crop
+
+    def _preprocess_lpr_image(self, image):
+        """Tiền xử lý ảnh cho LPR: Tăng sáng (Gamma 1.4) + CLAHE tương phản + Zoom Cubic."""
+        if image is None or image.size == 0:
+            return image
+        
+        try:
+            import cv2
+
+            # 1. Gamma Correction để làm sáng vùng biển bị tối/bóng râm
+            image = self._adjust_gamma(image, gamma=1.4)
+
+            # 2. CLAHE tăng tương phản thích ứng giúp nổi bật các ký tự chữ/số
+            image = self._apply_clahe(image)
+            
+            # 3. Phóng to nếu ảnh quá bé (CUBIC nhanh và giữ nét tốt cho OCR)
+            h, w = image.shape[:2]
+            if w < 150:
+                scale = 200.0 / w
+                image = cv2.resize(image, (0, 0), fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
+                gaussian = cv2.GaussianBlur(image, (0, 0), 1.5)
+                image = cv2.addWeighted(image, 1.6, gaussian, -0.6, 0)
+        except Exception:
+            pass
+        return image
+
+    def _adjust_gamma(self, image, gamma=1.4):
+        import numpy as np
+        import cv2
+        invGamma = 1.0 / gamma
+        table = np.array([((i / 255.0) ** invGamma) * 255 for i in np.arange(0, 256)]).astype("uint8")
+        return cv2.LUT(image, table)
+
+    def _apply_clahe(self, image):
+        import cv2
+        if len(image.shape) == 3:
+            lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
+            l, a, b = cv2.split(lab)
+            clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
+            cl = clahe.apply(l)
+            limg = cv2.merge((cl, a, b))
+            return cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
+        else:
+            clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
+            return clahe.apply(image)
+
+    def _try_lpr_on_crop(self, vehicle_crop, lpr_key, state, current_time, class_name="unknown") -> bool:
+        """Thử nhận diện biển số trên 1 crop. Trả về True nếu thành công."""
+        if vehicle_crop is None or vehicle_crop.size == 0:
+            return False
+
+        # Upscale ở đây (chỉ 1 lần khi trigger LPR, không phải mỗi frame)
+        vehicle_crop = self._smart_upscale(vehicle_crop, class_name)
+
+        # Tiền xử lý
+        preprocessed_vehicle = self._preprocess_lpr_image(vehicle_crop)
+        
+        if self.lpr_service.detector is None:
+            return False
+            
+        try:
+            results = self.lpr_service.detector.predict(preprocessed_vehicle, verbose=False, conf=0.25)
+        except Exception:
+            return False
+        
+        best_plate_box = None
+        best_plate_conf = 0.0
+        
+        for r in results:
+            if not r.boxes:
+                continue
+            for box in r.boxes:
+                conf = float(box.conf[0])
+                if conf > best_plate_conf:
+                    best_plate_conf = conf
+                    best_plate_box = box.xyxy[0].cpu().numpy()
+        
+        lpr_quality_th = getattr(settings, "lpr_quality_threshold", 0.20)
+        if best_plate_box is not None and best_plate_conf >= lpr_quality_th:
+            px1, py1, px2, py2 = best_plate_box
+            pad_x = int((px2 - px1) * 0.08)
+            pad_y = int((py2 - py1) * 0.10)
+            cpx1 = max(0, int(px1) - pad_x)
+            cpy1 = max(0, int(py1) - pad_y)
+            cpx2 = min(vehicle_crop.shape[1], int(px2) + pad_x)
+            cpy2 = min(vehicle_crop.shape[0], int(py2) + pad_y)
+            
+            plate_crop = vehicle_crop[cpy1:cpy2, cpx1:cpx2]
+            if plate_crop.size > 0:
+                res_ocr = self.lpr_service.run_ocr(plate_crop, vehicle_class=class_name)
+                if res_ocr:
+                    plate_text, ocr_conf = res_ocr
+                    normalized_text = self.lpr_service.normalize_plate(plate_text)
+                    
+                    if normalized_text in self._lpr_debounce_cache:
+                        return True  # Đã nhận diện trước đó
+                    
+                    self._lpr_debounce_cache[normalized_text] = current_time
+                    final_conf = (best_plate_conf * 0.4) + (ocr_conf * 0.6)
+                    
+                    with self._lpr_lock:
+                        state["plate_text"] = plate_text
+                        self._track_lpr_results[lpr_key] = plate_text
+                    
+                    rel_vehicle, rel_plate = self.lpr_service.save_cropped_images(
+                        vehicle_crop, plate_crop, lpr_key, self.session_id
+                    )
+                    self._trigger_lpr_callback(
+                        lpr_key, class_name, plate_text, final_conf, rel_vehicle, rel_plate
+                    )
+                    return True
+        return False
+
+    def _process_lpr_for_vehicle(self, lpr_key, state, current_time, class_name="unknown") -> None:
+        """Multi-attempt LPR: thử trên nhiều crop chất lượng nhất."""
+        best_crops = state.get("best_crops", [])
+        
+        # Fallback: nếu không có multi-crop, thử crop đơn (tương thích ngược)
+        if not best_crops:
+            vehicle_crop = state.get("best_vehicle_crop")
+            if vehicle_crop is not None and vehicle_crop.size > 0:
+                best_crops = [(0.0, vehicle_crop)]
+        
+        if not best_crops:
+            with self._lpr_lock:
+                state["is_finalized"] = False
+            return
+        
+        # Sắp xếp theo quality giảm dần, thử tối đa 3 crop
+        best_crops.sort(key=lambda x: x[0], reverse=True)
+        success = False
+        for item in best_crops[:3]:
+            # Hỗ trợ cả định dạng tuple 2 phần tử (quality, crop) và 3 phần tử (quality, crop, frame_idx)
+            vehicle_crop = item[1]
+            if self._try_lpr_on_crop(vehicle_crop, lpr_key, state, current_time, class_name):
+                success = True
+                break  # Thành công → dừng
+                
+        if not success:
+            with self._lpr_lock:
+                state["is_finalized"] = False
+
     def _run_inference(self, frame) -> tuple[List[TrackedObject], object]:
         """Run detect -> track -> smooth classification -> count."""
+        import time
+        
+        self._frame_count += 1
         detections = self._detect_with_optional_crop(frame)
-        # Bỏ lọc ROI trước khi track để thực hiện Global Tracking (ByteTrack ổn định hơn)
         tracks: List[TrackedObject] = self.tracker.update(detections)
         tracks = self.classifier.classify(tracks)
-        stats = self.counter.process(tracks)
+        stats = self.counter.process(tracks) # Đếm xe độc lập dựa trên vạch đếm
 
         h_frame, w_frame = frame.shape[:2]
-        allowed_classes = {"car", "truck", "bus", "motorcycle"}
+        current_time = time.time()
+        
+        # Dọn dẹp cache chống trùng lặp — chỉ mỗi 30 frame để giảm overhead
+        if self._frame_count % 30 == 0:
+            debounce_limit = getattr(settings, "lpr_debounce_seconds", 60)
+            self._lpr_debounce_cache = {
+                k: v for k, v in self._lpr_debounce_cache.items() 
+                if (current_time - v) < debounce_limit
+            }
 
-        # Chạy nhận diện biển số xe (LPR) theo thuật toán Quality-Aware Multi-Frame Voting
+        # Thu thập các active lpr_keys ở frame hiện tại
+        active_lpr_keys = set()
         for tr in tracks:
-            state = self._track_lpr_results.get(tr.track_id)
-            if state is None:
-                state = {
-                    "plate_text": None,
-                    "confidence": 0.0,
-                    "vehicle_path": None,
-                    "plate_path": None,
-                    "is_finalized": False,
-                    "best_score": 0.0,
-                    "best_plate_crop": None,
-                    "best_vehicle_crop": None,
-                    "best_det_conf": 0.0
-                }
-                self._track_lpr_results[tr.track_id] = state
+            lpr_key = tr.stable_id if tr.stable_id is not None else tr.track_id
+            active_lpr_keys.add(lpr_key)
 
-            if state.get("plate_text"):
-                tr.license_plate = state["plate_text"]
-            else:
-                tr.license_plate = None
+        # A. Kiểm tra các xe đã biến mất khỏi camera khi đang ở trong Capture Zone
+        for old_key, was_in in list(self._track_in_capture_last.items()):
+            if was_in and old_key not in active_lpr_keys:
+                # Xe đã biến mất -> Kích hoạt LPR ngay
+                self._track_in_capture_last[old_key] = False
+                state = self._track_lpr_results.get(old_key)
+                if state and not state["is_finalized"] and state["plate_text"] is None:
+                    state["is_finalized"] = True
+                    class_name = state.get("class_name", "unknown")
+                    self._process_lpr_for_vehicle(old_key, state, current_time, class_name=class_name)
 
-            if tr.class_name not in allowed_classes:
-                continue
-
+        # B. Xử lý LPR theo chuyển động cho các xe đang hoạt động
+        for tr in tracks:
+            # Gán display_id tuần tự chỉ khi xe thực sự đi vào vùng ROI
             ax, ay = get_bbox_bottom_center(tr.bbox)
-            in_capture = _point_in_polygon((int(ax), int(ay)), self.capture_box_polygon)
-            was_in_capture = self._track_in_capture_last.get(tr.track_id, False)
-            self._track_in_capture_last[tr.track_id] = in_capture
+            if _point_in_polygon((int(ax), int(ay)), self.roi_polygon):
+                if hasattr(self.tracker, "get_or_assign_display_id"):
+                    self.tracker.get_or_assign_display_id(tr.track_id)
 
-            if state["is_finalized"]:
+            lpr_key = tr.stable_id if tr.stable_id is not None else tr.track_id
+            
+            # Khởi tạo state nếu chưa có
+            with self._lpr_lock:
+                state = self._track_lpr_results.get(lpr_key)
+                if state is None or not isinstance(state, dict):
+                    state = {
+                        "plate_text": None,
+                        "best_crops": [],       # List of (quality_score, crop) — top 3
+                        "best_vehicle_crop": None,  # Tương thích ngược
+                        "is_finalized": False,
+                        "class_name": tr.class_name,
+                        "frames_in_zone": 0,
+                    }
+                    self._track_lpr_results[lpr_key] = state
+                else:
+                    state["class_name"] = tr.class_name
+                
+                # Đồng bộ biển số đã nhận diện sang track object để vẽ lên màn hình
+                if state.get("plate_text"):
+                    tr.license_plate = state["plate_text"]
+                else:
+                    tr.license_plate = None
+
+            # Bỏ qua xe có lớp không được đếm trong settings
+            if self.counter._allowed_names and tr.class_name not in self.counter._allowed_names:
                 continue
 
-            # 1. Xe đang trong vùng Capture Box -> Quét và tích lũy các kết quả nhận diện biển số
-            if in_capture:
-                vx1, vy1, vx2, vy2 = tr.bbox
-                vx1 = max(0, int(vx1))
-                vy1 = max(0, int(vy1))
-                vx2 = min(w_frame, int(vx2))
-                vy2 = min(h_frame, int(vy2))
-                if (vx2 - vx1) >= 20 and (vy2 - vy1) >= 20:
-                    vehicle_crop = frame[vy1:vy2, vx1:vx2]
-                    res_det = self.lpr_service.detect_plate_box(vehicle_crop)
-                    if res_det:
-                        plate_crop, det_conf = res_det
+            # Kiểm tra xem xe có trong Capture Zone ở frame này hay không
+            in_capture = _point_in_polygon((int(ax), int(ay)), self.capture_box_polygon)
+            was_in_capture = self._track_in_capture_last.get(lpr_key, False)
+            self._track_in_capture_last[lpr_key] = in_capture
+
+            # 1. Nếu xe đang trong Capture Zone -> Theo dõi đồ thị chất lượng để bắt điểm Đỉnh (Peak)
+            if in_capture and not state["is_finalized"] and state["plate_text"] is None:
+                state["frames_in_zone"] = state.get("frames_in_zone", 0) + 1
+                crop, raw_area = self._crop_vehicle(tr.bbox, frame, w_frame, h_frame, tr.class_name)
+                if crop is not None:
+                    quality = self._estimate_crop_quality(crop)
+                    
+                    # Khởi tạo các giá trị đỉnh nếu chưa có
+                    if "peak_quality" not in state:
+                        state["peak_quality"] = 0.0
+                        state["peak_crop"] = None
+                        state["quality_history"] = []
+                        state["consecutive_drops"] = 0
+
+                    state["quality_history"].append(quality)
+                    
+                    # Nếu chất lượng hiện tại tốt hơn đỉnh cũ -> Cập nhật đỉnh mới
+                    if quality > state["peak_quality"]:
+                        state["peak_quality"] = quality
+                        state["peak_crop"] = crop
+                        state["consecutive_drops"] = 0
+                    else:
+                        # Nếu chất lượng giảm so với frame trước -> Đếm số lần giảm liên tiếp
+                        state["consecutive_drops"] += 1
+
+                    # Cập nhật để tương thích ngược với luồng lưu ảnh
+                    state["best_vehicle_crop"] = state["peak_crop"]
+                    current_frame_idx = self._frame_count
+                    if not state.get("best_crops"):
+                        state["best_crops"] = [(quality, crop, current_frame_idx)]
+                    else:
+                        # Đảm bảo các ảnh trong top 3 cách nhau ít nhất 3 frames để đa dạng góc chụp/vị trí
+                        is_diverse = True
+                        for _, _, f_idx in state["best_crops"]:
+                            if abs(current_frame_idx - f_idx) < 3:
+                                is_diverse = False
+                                break
                         
-                        # Tính toán điểm chất lượng để theo dõi khung hình tốt nhất
-                        h_p, w_p = plate_crop.shape[:2]
-                        area_at = float(h_p * w_p)
-                        a_max_expected = 15000.0
-                        normalized_area = min(1.0, area_at / a_max_expected)
-                        score = 0.7 * det_conf + 0.3 * normalized_area
-                        
-                        if score > state["best_score"]:
-                            state["best_score"] = score
-                            state["best_plate_crop"] = plate_crop
-                            state["best_vehicle_crop"] = vehicle_crop
-                            state["best_det_conf"] = det_conf
+                        if is_diverse:
+                            state["best_crops"].append((quality, crop, current_frame_idx))
+                            state["best_crops"].sort(key=lambda x: x[0], reverse=True)
+                            state["best_crops"] = state["best_crops"][:3]
+                        else:
+                            # Nếu không đa dạng (quá gần), cập nhật ảnh cũ nếu chất lượng tốt hơn
+                            for idx, (q, c, f_idx) in enumerate(state["best_crops"]):
+                                if abs(current_frame_idx - f_idx) < 3 and quality > q:
+                                    state["best_crops"][idx] = (quality, crop, current_frame_idx)
+                                    state["best_crops"].sort(key=lambda x: x[0], reverse=True)
+                                    break
 
-                        # Chạy nhận diện OCR và tích lũy vào lịch sử bỏ phiếu nếu độ tin cậy detector ổn (> 0.20)
-                        if det_conf > 0.20:
-                            res_ocr = self.lpr_service.run_ocr(plate_crop)
-                            if res_ocr:
-                                plate_text, ocr_conf = res_ocr
-                                final_conf = (det_conf * 0.4) + (ocr_conf * 0.6)
-                                rel_vehicle, rel_plate = self.lpr_service.save_cropped_images(
-                                    vehicle_crop, plate_crop, tr.track_id, self.session_id
-                                )
-                                
-                                if tr.track_id not in self._track_ocr_history:
-                                    self._track_ocr_history[tr.track_id] = []
-                                
-                                self._track_ocr_history[tr.track_id].append({
-                                    "plate_text": plate_text,
-                                    "confidence": final_conf,
-                                    "vehicle_path": rel_vehicle,
-                                    "plate_path": rel_plate
-                                })
+                    # THƯƠNG MẠI: Nếu đã ở trong zone > 5 frames và chất lượng giảm liên tiếp 3 frames 
+                    # (chứng tỏ đã đi qua điểm nét nhất - Điểm Đỉnh) -> Kích hoạt LPR ngay lập tức!
+                    if state["frames_in_zone"] >= 6 and state["consecutive_drops"] >= 3 and state["peak_quality"] > 3000:
+                        state["is_finalized"] = True
+                        self._lpr_executor.submit(
+                            self._process_lpr_for_vehicle, lpr_key, state, current_time, class_name=tr.class_name
+                        )
 
-                                # Thực hiện thuật toán Bỏ Phiếu (Voting / Aggregation)
-                                # Regex validate biển số VN: 2 số + 1-2 chữ + 4-5 số
-                                _VN_PLATE_RE = re.compile(r'^\d{2}[A-Z]{1,2}\d{4,5}$')
-                                history = self._track_ocr_history[tr.track_id]
-                                votes = {}
-                                for entry in history:
-                                    norm_text = entry["plate_text"].replace(" ", "").replace("-", "").replace(".", "").upper()
-                                    # Lọc bỏ kết quả không đúng format biển VN
-                                    if not _VN_PLATE_RE.match(norm_text):
-                                        continue
-                                    if norm_text not in votes:
-                                        votes[norm_text] = []
-                                    votes[norm_text].append(entry)
-
-                                # Tìm kết quả có điểm tích lũy (tần suất * độ tin cậy trung bình) cao nhất
-                                best_norm = None
-                                best_vote_score = -1.0
-                                for norm, entries in votes.items():
-                                    freq = len(entries)
-                                    avg_conf = sum(e["confidence"] for e in entries) / freq
-                                    v_score = freq * avg_conf
-                                    if v_score > best_vote_score:
-                                        best_vote_score = v_score
-                                        best_norm = norm
-
-                                if best_norm:
-                                    best_entry = max(votes[best_norm], key=lambda e: e["confidence"])
-                                    
-                                    # Cập nhật kết quả tốt nhất hiện tại lên DB và UI
-                                    if state["plate_text"] != best_entry["plate_text"] or best_entry["confidence"] > state["confidence"]:
-                                        state.update({
-                                            "plate_text": best_entry["plate_text"],
-                                            "confidence": best_entry["confidence"],
-                                            "vehicle_path": best_entry["vehicle_path"],
-                                            "plate_path": best_entry["plate_path"]
-                                        })
-                                        tr.license_plate = best_entry["plate_text"]
-                                        self._trigger_lpr_callback(
-                                            tr.track_id, tr.class_name, best_entry["plate_text"],
-                                            best_entry["confidence"], best_entry["vehicle_path"], best_entry["plate_path"]
-                                        )
-
-                                    # Tối ưu hóa: YOLO char chính xác hơn EasyOCR → chỉ cần 2 lần trùng để finalize
-                                    if len(votes[best_norm]) >= 2 and (sum(e["confidence"] for e in votes[best_norm]) / len(votes[best_norm])) >= 0.65:
-                                        state["is_finalized"] = True
-
-            # 2. Cơ chế Fallback / Finalization: Xe đi ra khỏi vùng tím hoặc cắt qua vạch đếm
+            # 2. Nếu xe đi ra khỏi Capture Zone -> Kích hoạt LPR async bằng ảnh Đỉnh (Peak Crop) rõ nhất
             exited_zone = was_in_capture and not in_capture
-            crossed_line = False
-            for key in self.counter._counted:
-                if key[0] == tr.track_id:
-                    crossed_line = True
-                    break
-
-            if (exited_zone or crossed_line) and not state["is_finalized"]:
+            if exited_zone and not state["is_finalized"] and state["plate_text"] is None:
                 state["is_finalized"] = True
                 
-                # Nếu chưa chạy OCR được khung hình nào, tiến hành chạy fallback trên khung hình có điểm chất lượng YOLO cao nhất lưu được
-                if (tr.track_id not in self._track_ocr_history or not self._track_ocr_history[tr.track_id]) and state["best_plate_crop"] is not None:
-                    plate_crop = state["best_plate_crop"]
-                    vehicle_crop = state["best_vehicle_crop"]
-                    det_conf = state["best_det_conf"]
-                    
-                    res_ocr = self.lpr_service.run_ocr(plate_crop)
-                    if res_ocr:
-                        plate_text, ocr_conf = res_ocr
-                        final_conf = (det_conf * 0.4) + (ocr_conf * 0.6)
-                        rel_vehicle, rel_plate = self.lpr_service.save_cropped_images(
-                            vehicle_crop, plate_crop, tr.track_id, self.session_id
-                        )
-                        state.update({
-                            "plate_text": plate_text,
-                            "confidence": final_conf,
-                            "vehicle_path": rel_vehicle,
-                            "plate_path": rel_plate
-                        })
-                        tr.license_plate = plate_text
-                        self._trigger_lpr_callback(
-                            tr.track_id, tr.class_name, plate_text, final_conf, rel_vehicle, rel_plate
-                        )
+                # Sử dụng ảnh đỉnh (peak crop) thu thập được, nếu không có mới crop ở frame hiện tại
+                peak_crop = state.get("peak_crop")
+                if peak_crop is not None:
+                    state["best_vehicle_crop"] = peak_crop
+                elif not state.get("best_crops") and state.get("best_vehicle_crop") is None:
+                    crop, raw_area = self._crop_vehicle(tr.bbox, frame, w_frame, h_frame, tr.class_name)
+                    if crop is not None:
+                        state["best_vehicle_crop"] = crop
+                        
+                # LPR chạy async trên background thread
+                self._lpr_executor.submit(
+                    self._process_lpr_for_vehicle, lpr_key, state, current_time, class_name=tr.class_name
+                )
 
         # Forward counting events to persistence layer (nếu có).
         if self._counting_persistence_callback and self.counter.pending_events:
@@ -381,14 +621,15 @@ class FrameProcessor:
 
         draw_roi_polygon(frame, self.roi_polygon)
         
-        # Vẽ Capture Box bằng màu tím hồng để người dùng dễ quan sát
+        # Vẽ Capture Zone bằng style riêng biệt (tím nhạt, dashed border)
         if self.capture_box_polygon:
-            draw_roi_polygon(frame, self.capture_box_polygon, color=(255, 0, 255))
+            draw_capture_zone(frame, self.capture_box_polygon)
 
-        draw_statistics(
-            frame,
-            {"total": stats.total, **stats.per_class},
-        )
+        if settings.show_stats:
+            draw_statistics(
+                frame,
+                {"total": stats.total, **stats.per_class},
+            )
 
     def _draw_fps(self, frame, started_at: float) -> None:
         # FPS (EMA for stable display)
@@ -417,17 +658,16 @@ class FrameProcessor:
             pass
 
     def set_active_classes(self, classes: set | None) -> None:
-        """Cập nhật filter loại xe được đếm trong khi stream đang chạy.
-
-        Args:
-            classes: Set tên class cần đếm (vd: {"car", "motorcycle"}).
-                     None = đếm tất cả class được phép trong settings.
-        """
+        """Cập nhật filter loại xe được đếm. Luôn đảm bảo giữ lại các lớp chính."""
         from vehicle_counting_system.configs.settings import settings as _settings
-        if classes is None:
-            self.counter._allowed_names = set(_settings.allowed_class_names)
+        base_allowed = {"motorcycle", "car", "truck", "bus"}
+        if classes is None or not classes:
+            self.counter._allowed_names = base_allowed
         else:
-            self.counter._allowed_names = set(classes)
+            # Chỉ cho phép lọc trong tập hợp xe hợp lệ, tránh lỗi rỗng
+            self.counter._allowed_names = set(classes).intersection(base_allowed)
+            if not self.counter._allowed_names:
+                self.counter._allowed_names = base_allowed
 
     def process(self, frame):
         started_at = time.perf_counter()
@@ -460,14 +700,27 @@ class FrameProcessor:
         self._last_ts = time.perf_counter()
         self._fps_ema = None
         self._smoothed_bbox.clear()
-        self._track_lpr_results.clear()
+        with self._lpr_lock:
+            self._track_lpr_results.clear()
         self._track_ocr_history.clear()
         self._track_in_capture_last.clear()
+        
+        # Reset các biến LPR Keyframe và chống trùng lặp mới
+        self.last_lpr_time = 0.0
+        self._lpr_debounce_cache.clear()
+        self._track_max_bbox_area.clear()
+        self._track_keyframe_processed.clear()
+        self._track_in_capture_start_time.clear()
 
     def close(self) -> None:
         try:
             if hasattr(self.detector, "close"):
                 self.detector.close()
+        except Exception:
+            pass
+        # Shutdown LPR thread pool
+        try:
+            self._lpr_executor.shutdown(wait=False)
         except Exception:
             pass
         self.reset()
