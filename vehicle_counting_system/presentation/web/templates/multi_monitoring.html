@@ -1,0 +1,750 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="multi-monitor-workspace">
+
+  <!-- Control Header -->
+  <section class="grid-controls card" style="display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; margin-bottom: 20px;">
+    <div style="display: flex; align-items: center; gap: 16px;">
+      <h3 style="margin: 0; font-size: 16px; font-weight: 600;">Sơ đồ lưới:</h3>
+      <div class="layout-buttons-group" style="display: flex; gap: 8px;">
+        <button type="button" class="layout-btn" data-layout="1x1" title="Lưới 1x1 (1 Camera)">1x1</button>
+        <button type="button" class="layout-btn active" data-layout="2x2" title="Lưới 2x2 (4 Camera)">2x2</button>
+        <button type="button" class="layout-btn" data-layout="3x3" title="Lưới 3x3 (9 Camera)">3x3</button>
+        <button type="button" class="layout-btn" data-layout="4x4" title="Lưới 4x4 (16 Camera)">4x4</button>
+      </div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <button type="button" class="btn btn-primary" id="multi-start-all-btn" style="font-size: 13px; padding: 8px 16px;">
+        ▶ Chạy tất cả đã gán
+      </button>
+      <button type="button" class="btn btn-outline" id="multi-stop-all-btn" style="font-size: 13px; padding: 8px 16px; border-color: #ef4444; color: #ef4444;">
+        ■ Dừng tất cả
+      </button>
+    </div>
+  </section>
+
+  <!-- Lưới Giám Sát -->
+  <div id="control-room-grid" class="control-room-grid grid-2x2">
+    <!-- Sinh động bằng JavaScript -->
+  </div>
+
+  <!-- Thanh Thống Kê Tổng Hợp -->
+  <footer id="multi-stream-footer" class="card" style="margin-top: 20px; padding: 14px 20px; background: rgba(99,102,241,0.05); border: 1px solid rgba(99,102,241,0.1); border-radius: 12px;">
+    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <span style="font-size: 13px; color: var(--color-muted); font-weight: 500;">Tổng hệ thống đang chạy:</span>
+        <strong id="multi-agg-total" style="font-size: 24px; color: #6366f1; font-weight: 800;">0</strong>
+        <span style="font-size: 12px; color: var(--color-muted);">phương tiện</span>
+      </div>
+      <div style="display: flex; gap: 20px; font-size: 14px; font-weight: 600;">
+        <span>🚗 Ô tô: <strong id="multi-agg-car" style="color: #6366f1;">0</strong></span>
+        <span>🏍️ Xe máy: <strong id="multi-agg-moto" style="color: #f59e0b;">0</strong></span>
+        <span>🚛 Xe tải: <strong id="multi-agg-truck" style="color: #ef4444;">0</strong></span>
+        <span>🚌 Xe buýt: <strong id="multi-agg-bus" style="color: #10b981;">0</strong></span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Modal Chọn Camera -->
+  <div class="camera-select-modal" id="camera-select-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 999; align-items: center; justify-content: center;">
+    <div class="modal-card card" style="width: 480px; max-width: 90%; background: #fff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1); animation: modalFadeIn 0.25s ease;">
+      <div style="display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--color-border);">
+        <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: #1e1b4b;">Gán Camera cho ô giám sát</h3>
+        <button type="button" id="close-modal-btn" style="background: none; border: none; font-size: 20px; cursor: pointer; color: var(--color-muted); padding: 4px;">✕</button>
+      </div>
+      <div style="padding: 20px; max-height: 380px; overflow-y: auto;" id="camera-list-container">
+        <!-- Render danh sách camera -->
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Styles cụ thể cho Control Room -->
+<style>
+  .control-room-grid {
+    display: grid;
+    gap: 16px;
+    width: 100%;
+    min-height: 480px;
+    transition: all 0.3s ease;
+  }
+  
+  .grid-1x1 { grid-template-columns: repeat(1, 1fr); }
+  .grid-2x2 { grid-template-columns: repeat(2, 1fr); }
+  .grid-3x3 { grid-template-columns: repeat(3, 1fr); }
+  .grid-4x4 { grid-template-columns: repeat(4, 1fr); }
+
+  .layout-btn {
+    background: #f3f4f6;
+    border: 1px solid #e5e7eb;
+    color: #4b5563;
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .layout-btn:hover {
+    background: #e5e7eb;
+  }
+
+  .layout-btn.active {
+    background: #6366f1;
+    border-color: #6366f1;
+    color: #fff;
+  }
+
+  .ms-slot-card {
+    background: #0f172a; /* Slate 900 (Đậm chất Control Room) */
+    border: 1px solid #334155;
+    border-radius: 14px;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  .ms-slot-card:hover {
+    border-color: #6366f1;
+    box-shadow: 0 8px 15px -3px rgba(99,102,241,0.2);
+  }
+
+  .empty-slot-btn {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    background: transparent;
+    border: 2px dashed #475569;
+    border-radius: 14px;
+    color: #94a3b8;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .empty-slot-btn:hover {
+    background: rgba(99,102,241,0.03);
+    border-color: #6366f1;
+    color: #a5b4fc;
+  }
+
+  .empty-slot-btn svg {
+    width: 32px;
+    height: 32px;
+    stroke: currentColor;
+    stroke-width: 1.5;
+    transition: transform 0.2s;
+  }
+
+  .empty-slot-btn:hover svg {
+    transform: scale(1.1);
+  }
+
+  .slot-header {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(to bottom, rgba(15,23,42,0.9) 0%, rgba(15,23,42,0) 100%);
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    z-index: 10;
+  }
+
+  .slot-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #f1f5f9;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .slot-live-dot {
+    width: 7px;
+    height: 7px;
+    background: #ef4444;
+    border-radius: 50%;
+    animation: slotPulse 1.5s ease-in-out infinite;
+    display: inline-block;
+  }
+
+  .slot-close-btn {
+    background: rgba(15,23,42,0.6);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: #cbd5e1;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .slot-close-btn:hover {
+    background: #ef4444;
+    color: #fff;
+    border-color: #ef4444;
+  }
+
+  .ms-card-video {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    background: #020617;
+    display: block;
+  }
+
+  .slot-loading-overlay {
+    position: absolute;
+    inset: 0;
+    background: #020617;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    color: #a5b4fc;
+    z-index: 2;
+  }
+
+  .slot-stats-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(to top, rgba(15,23,42,0.95) 0%, rgba(15,23,42,0.6) 50%, rgba(15,23,42,0) 100%);
+    padding: 12px 14px 10px 14px;
+    z-index: 10;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    pointer-events: none;
+  }
+
+  .slot-stats-left {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .slot-stats-right {
+    display: flex;
+    gap: 10px;
+    font-size: 11px;
+    color: #cbd5e1;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+  }
+
+  .slot-stats-pill {
+    background: rgba(99,102,241,0.25);
+    border: 1px solid rgba(99,102,241,0.4);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    color: #e0e7ff;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .camera-item-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    border: 1px solid var(--color-border);
+    transition: all 0.2s;
+  }
+
+  .camera-item-row:hover {
+    background: rgba(99,102,241,0.04);
+    border-color: rgba(99,102,241,0.3);
+  }
+
+  .camera-item-name {
+    font-weight: 600;
+    font-size: 13px;
+    color: #1e1b4b;
+  }
+
+  .camera-item-type {
+    font-size: 11px;
+    color: var(--color-muted);
+    margin-top: 2px;
+  }
+
+  .camera-select-btn {
+    background: #6366f1;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .camera-select-btn:hover {
+    background: #4f46e5;
+  }
+
+  .camera-select-btn:disabled {
+    background: #d1d5db;
+    color: #9ca3af;
+    cursor: not-allowed;
+  }
+
+  @keyframes slotPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  @keyframes modalFadeIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  /* Spinner */
+  .slot-spinner {
+    animation: slotSpin 1s linear infinite;
+    width: 24px;
+    height: 24px;
+    color: #6366f1;
+  }
+
+  @keyframes slotSpin {
+    to { transform: rotate(360deg); }
+  }
+</style>
+
+<!-- Logic Điều Khiển Control Room -->
+<script>
+  (function() {
+    // Danh sách camera khả dụng truyền từ backend thông qua Jinja2
+    var allSources = [
+      {% for v in detected_videos %}
+      {
+        id: {{ v.source_id if v.source_id else "null" }},
+        name: "{{ v.name }}",
+        roi_ready: {{ "true" if v.roi_ready else "false" }},
+        source_type: "{{ v.source_type|default('video') }}",
+        path: "{{ v.path }}"
+      },
+      {% endfor %}
+    ];
+
+    // Lọc ra các nguồn khả dụng (có ID và đã cấu hình ROI)
+    var availableSources = allSources.filter(function(s) {
+      return s.id !== null && s.roi_ready;
+    });
+
+    var grid = document.getElementById('control-room-grid');
+    var modal = document.getElementById('camera-select-modal');
+    var modalCloseBtn = document.getElementById('close-modal-btn');
+    var modalContainer = document.getElementById('camera-list-container');
+    
+    // Khởi tạo các trạng thái
+    var currentLayout = localStorage.getItem('multi_monitor_layout') || '2x2';
+    var slotAssignments = {};
+    try {
+      slotAssignments = JSON.parse(localStorage.getItem('multi_monitor_assignments')) || {};
+    } catch(e) {
+      slotAssignments = {};
+    }
+
+    var activeSlotIndex = null; // Slot đang click gán camera
+    var activeStreamsData = {}; // source_id -> stats data
+    var statsIntervalTimer = null;
+
+    // Thiết lập các nút chọn Layout
+    var layoutBtns = document.querySelectorAll('.layout-btn');
+    layoutBtns.forEach(function(btn) {
+      var lay = btn.getAttribute('data-layout');
+      if (lay === currentLayout) {
+        layoutBtns.forEach(function(b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+      }
+      
+      btn.addEventListener('click', function() {
+        layoutBtns.forEach(function(b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        changeLayout(lay);
+      });
+    });
+
+    // Thay đổi Layout
+    function changeLayout(newLayout) {
+      currentLayout = newLayout;
+      localStorage.setItem('multi_monitor_layout', newLayout);
+      
+      // Đổi class của Grid
+      grid.className = 'control-room-grid grid-' + newLayout;
+      renderGrid();
+    }
+
+    // Lấy số lượng ô tối đa dựa theo layout
+    function getSlotCount() {
+      if (currentLayout === '1x1') return 1;
+      if (currentLayout === '2x2') return 4;
+      if (currentLayout === '3x3') return 9;
+      if (currentLayout === '4x4') return 16;
+      return 4;
+    }
+
+    // Render toàn bộ Grid
+    function renderGrid() {
+      grid.innerHTML = '';
+      var slotCount = getSlotCount();
+      
+      for (var i = 0; i < slotCount; i++) {
+        var slotCard = document.createElement('div');
+        slotCard.className = 'ms-slot-card';
+        slotCard.setAttribute('data-slot-index', i);
+        
+        var assignment = slotAssignments[i];
+        
+        if (assignment) {
+          // Ô đã được gán camera
+          var sid = assignment.id;
+          var name = assignment.name;
+          var hasStreamRunning = activeStreamsData[sid] && activeStreamsData[sid].streaming;
+          
+          var html = 
+            '<div class="slot-header">' +
+            '  <span class="slot-title">' +
+            '    <span class="slot-live-dot" style="' + (hasStreamRunning ? '' : 'display:none;') + '"></span>' +
+            '    ' + name +
+            '  </span>' +
+            '  <button type="button" class="slot-close-btn" data-slot-idx="' + i + '" title="Gỡ camera">✕</button>' +
+            '</div>';
+
+          if (hasStreamRunning) {
+            // Hiển thị ảnh Live MJPEG
+            html += '<img class="ms-card-video" src="/api/stream/' + sid + '?t=' + Date.now() + '" alt="' + name + '">';
+            
+            // Lấy dữ liệu thống kê
+            var stats = activeStreamsData[sid] || {};
+            var total = stats.total || 0;
+            var pc = stats.per_class || {};
+            var car = pc.car || 0;
+            var moto = pc.motorcycle || 0;
+            var truck = (pc.truck || 0) + (pc.bus || 0);
+            var elapsed = fmtTime(stats.elapsed_sec || 0);
+
+            html += 
+              '<div class="slot-stats-overlay">' +
+              '  <div class="slot-stats-left">' +
+              '    <span style="font-size:10px; color:#cbd5e1; text-transform:uppercase;">Tổng phương tiện</span>' +
+              '    <strong style="font-size:18px; color:#a5b4fc; font-weight:800;">' + total + '</strong>' +
+              '  </div>' +
+              '  <div class="slot-stats-right">' +
+              '    <span>🚗 ' + car + '</span>' +
+              '    <span>🏍️ ' + moto + '</span>' +
+              '    <span>🚛 ' + truck + '</span>' +
+              '    <span class="slot-stats-pill">' + elapsed + '</span>' +
+              '  </div>' +
+              '</div>';
+          } else {
+            // Trạng thái đang tải / đang kết nối
+            html += 
+              '<div class="slot-loading-overlay">' +
+              '  <svg class="slot-spinner" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-opacity="0.2" stroke-width="3"></circle><path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>' +
+              '  <span style="font-size:12px; font-weight:600;">Đang kết nối camera...</span>' +
+              '  <button type="button" class="btn btn-outline retry-btn" data-slot-id="' + sid + '" style="font-size:10px; padding:2px 8px; margin-top:4px;">Kích hoạt</button>' +
+              '</div>';
+          }
+          slotCard.innerHTML = html;
+        } else {
+          // Ô trống
+          slotCard.innerHTML = 
+            '<button type="button" class="empty-slot-btn" data-slot-idx="' + i + '">' +
+            '  <svg fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>' +
+            '  <span style="font-size:13px; font-weight:600;">Chọn Camera</span>' +
+            '</button>';
+        }
+        grid.appendChild(slotCard);
+      }
+
+      // Đăng ký sự kiện click cho các ô
+      var emptyBtns = grid.querySelectorAll('.empty-slot-btn');
+      emptyBtns.forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          var idx = parseInt(btn.getAttribute('data-slot-idx'), 10);
+          openCameraSelectModal(idx);
+        });
+      });
+
+      var closeBtns = grid.querySelectorAll('.slot-close-btn');
+      closeBtns.forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          var idx = parseInt(btn.getAttribute('data-slot-idx'), 10);
+          clearSlot(idx);
+        });
+      });
+
+      var retryBtns = grid.querySelectorAll('.retry-btn');
+      retryBtns.forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          var sid = parseInt(btn.getAttribute('data-slot-id'), 10);
+          startStreamAPI(sid);
+        });
+      });
+    }
+
+    // Gỡ Camera khỏi Slot
+    function clearSlot(idx) {
+      var assignment = slotAssignments[idx];
+      if (assignment) {
+        var sid = assignment.id;
+        // Dừng camera ở backend
+        fetch('/api/stream/' + sid + '/stop', { method: 'POST', credentials: 'same-origin' }).catch(function() {});
+      }
+      delete slotAssignments[idx];
+      localStorage.setItem('multi_monitor_assignments', JSON.stringify(slotAssignments));
+      renderGrid();
+    }
+
+    // Mở hộp thoại chọn camera
+    function openCameraSelectModal(slotIdx) {
+      activeSlotIndex = slotIdx;
+      
+      // Sinh danh sách camera khả dụng trong modal
+      modalContainer.innerHTML = '';
+      if (availableSources.length === 0) {
+        modalContainer.innerHTML = '<p style="text-align:center; color:var(--color-muted); font-style:italic; padding:20px 0;">Chưa có camera nào được cấu hình ROI.<br><small>Hãy cấu hình ROI tại trang Giám sát đơn luồng trước.</small></p>';
+      } else {
+        availableSources.forEach(function(src) {
+          // Kiểm tra xem camera đã được gán ở slot nào chưa
+          var isAssigned = Object.keys(slotAssignments).some(function(k) {
+            return slotAssignments[k] && slotAssignments[k].id === src.id;
+          });
+
+          var row = document.createElement('div');
+          row.className = 'camera-item-row';
+          row.innerHTML = 
+            '  <div>' +
+            '    <div class="camera-item-name">' + src.name + '</div>' +
+            '    <div class="camera-item-type">' + (src.source_type === 'stream' ? '📡 Camera mạng IP (RTSP)' : '📂 File video tải lên') + '</div>' +
+            '  </div>' +
+            '  <button type="button" class="camera-select-btn" data-cam-id="' + src.id + '" data-cam-name="' + src.name + '" ' + (isAssigned ? 'disabled title="Đang hiển thị ở ô khác"' : '') + '>' +
+            '    ' + (isAssigned ? 'Đã gán' : 'Chọn') + '' +
+            '  </button>';
+          modalContainer.appendChild(row);
+        });
+
+        // Bắt sự kiện nút chọn camera
+        var selectBtns = modalContainer.querySelectorAll('.camera-select-btn');
+        selectBtns.forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            var cid = parseInt(btn.getAttribute('data-cam-id'), 10);
+            var cname = btn.getAttribute('data-cam-name');
+            assignCameraToSlot(cid, cname);
+          });
+        });
+      }
+
+      modal.style.display = 'flex';
+    }
+
+    // Đóng modal
+    function closeModal() {
+      modal.style.display = 'none';
+      activeSlotIndex = null;
+    }
+    
+    if (modalCloseBtn) modalCloseBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', function(e) {
+      if (e.target === modal) closeModal();
+    });
+
+    // Gán camera vào ô trống
+    function assignCameraToSlot(camId, camName) {
+      if (activeSlotIndex === null) return;
+      
+      slotAssignments[activeSlotIndex] = { id: camId, name: camName };
+      localStorage.setItem('multi_monitor_assignments', JSON.stringify(slotAssignments));
+      
+      closeModal();
+      renderGrid();
+      
+      // Kích hoạt luồng mjpeg chạy ngầm ở backend
+      startStreamAPI(camId);
+    }
+
+    // Gọi API bật luồng camera
+    function startStreamAPI(sid) {
+      fetch('/api/stream/' + sid, { credentials: 'same-origin', method: 'GET' })
+        .then(function(r) {
+          if (r.status === 429) {
+            alert('Lỗi: Đã chạm giới hạn năng lực xử lý phần cứng GPU.');
+          }
+          // Hủy stream body trực tiếp vì ta chỉ cần trigger bật camera
+          if (r.body) r.body.cancel().catch(function() {});
+        })
+        .catch(function() {});
+    }
+
+    // Định dạng thời gian
+    function fmtTime(sec) {
+      var mm = String(Math.floor(sec / 60)).padStart(2, '0');
+      var ss = String(sec % 60).padStart(2, '0');
+      return mm + ':' + ss;
+    }
+
+    // Refresh dữ liệu các ô giám sát
+    function refreshStats() {
+      fetch('/api/stream/active-stats', { credentials: 'same-origin' })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          var streams = data.streams || [];
+          var oldActiveData = activeStreamsData;
+          
+          activeStreamsData = {};
+          streams.forEach(function(stream) {
+            activeStreamsData[stream.source_id] = stream;
+          });
+
+          // Kiểm tra xem có sự thay đổi trạng thái của các ô để vẽ lại giao diện
+          var needRepaint = false;
+          Object.keys(slotAssignments).forEach(function(k) {
+            var assignment = slotAssignments[k];
+            if (assignment) {
+              var sid = assignment.id;
+              var isRunningNow = !!(activeStreamsData[sid] && activeStreamsData[sid].streaming);
+              var wasRunning = !!(oldActiveData[sid] && oldActiveData[sid].streaming);
+              
+              if (isRunningNow !== wasRunning) {
+                needRepaint = true;
+              }
+            }
+          });
+
+          if (needRepaint) {
+            renderGrid();
+          } else {
+            // Update counts locally to avoid layout flickers
+            Object.keys(slotAssignments).forEach(function(k) {
+              var assignment = slotAssignments[k];
+              if (assignment) {
+                var sid = assignment.id;
+                var stats = activeStreamsData[sid];
+                if (stats && stats.streaming) {
+                  var total = stats.total || 0;
+                  var pc = stats.per_class || {};
+                  var car = pc.car || 0;
+                  var moto = pc.motorcycle || 0;
+                  var truck = (pc.truck || 0) + (pc.bus || 0);
+                  
+                  // Query các phần tử trong ô slot này để cập nhật text
+                  var slotEl = grid.querySelector('.ms-slot-card[data-slot-index="' + k + '"]');
+                  if (slotEl) {
+                    var totalEl = slotEl.querySelector('strong');
+                    if (totalEl) totalEl.textContent = total;
+                    
+                    var rightStatsSpan = slotEl.querySelectorAll('.slot-stats-right span');
+                    if (rightStatsSpan && rightStatsSpan.length >= 3) {
+                      rightStatsSpan[0].textContent = '🚗 ' + car;
+                      rightStatsSpan[1].textContent = '🏍️ ' + moto;
+                      rightStatsSpan[2].textContent = '🚛 ' + truck;
+                    }
+                    
+                    var timerEl = slotEl.querySelector('.slot-stats-pill');
+                    if (timerEl) timerEl.textContent = fmtTime(stats.elapsed_sec || 0);
+                  }
+                }
+              }
+            });
+          }
+
+          // Cập nhật Footer Tổng
+          updateAggregateFooter(data);
+        })
+        .catch(function() {});
+    }
+
+    // Cập nhật Footer Tổng hợp thông số hệ thống
+    function updateAggregateFooter(data) {
+      var el;
+      el = document.getElementById('multi-agg-total'); if (el) el.textContent = data.total || 0;
+      var pc = data.per_class || {};
+      el = document.getElementById('multi-agg-car'); if (el) el.textContent = pc.car || 0;
+      el = document.getElementById('multi-agg-moto'); if (el) el.textContent = pc.motorcycle || 0;
+      el = document.getElementById('multi-agg-truck'); if (el) el.textContent = pc.truck || 0;
+      el = document.getElementById('multi-agg-bus'); if (el) el.textContent = pc.bus || 0;
+    }
+
+    // ========== NÚT CHẠY TẤT CẢ ĐÃ GÁN ==========
+    var startAllBtn = document.getElementById('multi-start-all-btn');
+    if (startAllBtn) {
+      startAllBtn.addEventListener('click', function() {
+        startAllBtn.disabled = true;
+        startAllBtn.textContent = '⏳ Đang kết nối...';
+        
+        var promises = Object.keys(slotAssignments).map(function(k) {
+          var assignment = slotAssignments[k];
+          if (assignment) {
+            var sid = assignment.id;
+            return fetch('/api/stream/' + sid, { credentials: 'same-origin', method: 'GET' })
+              .then(function(r) {
+                if (r.body) r.body.cancel().catch(function() {});
+                return { ok: r.status !== 429, id: sid };
+              })
+              .catch(function() { return { ok: false, id: sid }; });
+          }
+          return Promise.resolve({ ok: true });
+        });
+
+        Promise.all(promises).then(function(results) {
+          startAllBtn.disabled = false;
+          startAllBtn.textContent = '▶ Chạy tất cả đã gán';
+          var failed = results.filter(function(r) { return r && !r.ok; });
+          if (failed.length > 0) {
+            alert('Cảnh báo: Một số camera không thể khởi chạy do chạm giới hạn phần cứng xử lý.');
+          }
+          setTimeout(refreshStats, 1000);
+        });
+      });
+    }
+
+    // ========== NÚT DỪNG TẤT CẢ ==========
+    var stopAllBtn = document.getElementById('multi-stop-all-btn');
+    if (stopAllBtn) {
+      stopAllBtn.addEventListener('click', function() {
+        Object.keys(slotAssignments).forEach(function(k) {
+          var assignment = slotAssignments[k];
+          if (assignment) {
+            var sid = assignment.id;
+            fetch('/api/stream/' + sid + '/stop', { method: 'POST', credentials: 'same-origin' }).catch(function() {});
+          }
+        });
+        setTimeout(function() {
+          refreshStats();
+        }, 600);
+      });
+    }
+
+    // Khởi chạy
+    changeLayout(currentLayout);
+    statsIntervalTimer = setInterval(refreshStats, 2000);
+    refreshStats();
+
+  })();
+</script>
+{% endblock %}

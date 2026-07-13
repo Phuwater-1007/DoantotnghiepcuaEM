@@ -146,9 +146,26 @@ def _ensure_csrf_token(request: Request) -> str:
 
 
 def base_context(request: Request, **extra: Any) -> dict[str, Any]:
+    import json
+    settings_file = DATA_DIR / "system_settings.json"
+    settings = {
+        "company_name": "Giám sát Giao thông",
+        "subtitle": "Đồ án tốt nghiệp",
+        "logo_url": "/static/brand_logo.jpg",
+        "address": ""
+    }
+    if settings_file.exists():
+        try:
+            with open(settings_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                settings.update(data)
+        except Exception:
+            pass
+
     return {
         "request": request,
         "current_user": get_current_user(request),
         "csrf_token": _ensure_csrf_token(request),
+        "system_settings": settings,
         **extra,
     }

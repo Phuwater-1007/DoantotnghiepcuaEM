@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="brand-settings-workspace" style="max-width: 800px; margin: 0 auto; padding: 10px 0;">
+
+  {% if success_msg %}
+  <div class="alert alert-success" style="margin-bottom: 20px; padding: 12px 16px; background-color: #d1fae5; border: 1px solid #10b981; color: #065f46; border-radius: 8px; font-size: 13px; font-weight: 500;">
+    {{ success_msg }}
+  </div>
+  {% endif %}
+
+  {% if error_msg %}
+  <div class="alert alert-error" style="margin-bottom: 20px; padding: 12px 16px; background-color: #fee2e2; border: 1px solid #ef4444; color: #991b1b; border-radius: 8px; font-size: 13px; font-weight: 500;">
+    {{ error_msg }}
+  </div>
+  {% endif %}
+
+  <div class="card" style="border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+    <div style="padding: 16px 24px; border-bottom: 1px solid var(--color-border); background: #fafafa;">
+      <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: #1e1b4b;">Thiết lập thông tin Đơn vị sử dụng</h3>
+    </div>
+
+    <form method="post" action="/brand-settings/save" enctype="multipart/form-data" style="padding: 24px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+      <div style="display: flex; flex-direction: column; gap: 20px;">
+        
+        <!-- Đơn vị sử dụng -->
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <label style="font-size: 13px; font-weight: 600; color: #374151;">Đơn vị sử dụng <span style="color:#ef4444;">*</span></label>
+          <input type="text" name="company_name" value="{{ settings.company_name }}" required
+            placeholder="" autocomplete="off"
+            style="width: 100%; padding: 10px 14px; border: 1px solid var(--color-border); border-radius: 8px; font-size: 13px; outline: none; transition: border-color 0.2s;"
+            onfocus="this.style.borderColor='#6366f1';" onblur="this.style.borderColor='var(--color-border)';">
+        </div>
+
+        <!-- Địa chỉ -->
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <label style="font-size: 13px; font-weight: 600; color: #374151;">Địa chỉ</label>
+          <input type="text" name="address" value="{{ settings.address }}"
+            placeholder="" autocomplete="off"
+            style="width: 100%; padding: 10px 14px; border: 1px solid var(--color-border); border-radius: 8px; font-size: 13px; outline: none; transition: border-color 0.2s;"
+            onfocus="this.style.borderColor='#6366f1';" onblur="this.style.borderColor='var(--color-border)';">
+        </div>
+
+        <!-- LOGO -->
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <label style="font-size: 13px; font-weight: 600; color: #374151;">Ảnh Logo</label>
+          <div style="display: flex; align-items: center; gap: 24px; flex-wrap: wrap;">
+            
+            <!-- Preview Box -->
+            <div style="width: 240px; height: 160px; border: 1px solid var(--color-border); border-radius: 12px; overflow: hidden; background: #f8fafc; display: flex; align-items: center; justify-content: center; position: relative;">
+              <img id="logo-preview-img" src="{{ settings.logo_url }}" alt="Logo Preview" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+            </div>
+
+            <!-- Upload input -->
+            <div style="flex: 1; min-width: 240px; display: flex; flex-direction: column; gap: 10px;">
+              <div style="position: relative;">
+                <input type="file" name="logo_file" id="logo_file" accept=".png,.jpg,.jpeg,.svg,.webp,.gif"
+                  style="font-size: 13px; color: #4b5563; cursor: pointer;">
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Ghi chú đã ẩn -->
+
+      </div>
+
+      <!-- Action buttons -->
+      <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--color-border);">
+        <a href="/dashboard" class="btn btn-outline" style="font-size: 13px; padding: 8px 20px; text-decoration: none;">
+          Đóng
+        </a>
+        <button type="submit" class="btn btn-primary" style="font-size: 13px; padding: 8px 24px; font-weight: 600;">
+          Lưu cấu hình
+        </button>
+      </div>
+
+    </form>
+  </div>
+
+</div>
+
+<script>
+  // Script xem trước ảnh khi chọn file mới
+  (function() {
+    var fileInput = document.getElementById('logo_file');
+    var previewImg = document.getElementById('logo-preview-img');
+    
+    if (fileInput && previewImg) {
+      fileInput.addEventListener('change', function() {
+        var file = fileInput.files[0];
+        if (file) {
+          var reader = new FileReader();
+          reader.onload = function(e) {
+            previewImg.src = e.target.result;
+          };
+          reader.readAsDataURL(file);
+        }
+      });
+    }
+  })();
+</script>
+{% endblock %}

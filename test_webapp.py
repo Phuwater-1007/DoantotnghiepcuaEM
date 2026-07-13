@@ -131,6 +131,22 @@ try:
 except Exception as e:
     print(f"  Error checking monitoring details: {e}")
 
+# 4.5. Test /multi-monitoring
+print("\nTesting /multi-monitoring...")
+multi_monitoring_result = check_page(f'{base_url}/multi-monitoring', 'Multi Monitoring', session)
+results.append(multi_monitoring_result)
+print(f"  Status: {multi_monitoring_result['status']}, Title: {multi_monitoring_result['title']}")
+print(f"  Vietnamese text: {multi_monitoring_result['has_vietnamese']}")
+print(f"  Errors: {multi_monitoring_result['errors']}")
+
+# 4.6. Test /brand-settings
+print("\nTesting /brand-settings...")
+brand_settings_result = check_page(f'{base_url}/brand-settings', 'Brand Settings', session)
+results.append(brand_settings_result)
+print(f"  Status: {brand_settings_result['status']}, Title: {brand_settings_result['title']}")
+print(f"  Vietnamese text: {brand_settings_result['has_vietnamese']}")
+print(f"  Errors: {brand_settings_result['errors']}")
+
 # 5. Test /sources
 print("\nTesting /sources...")
 sources_result = check_page(f'{base_url}/sources', 'Sources', session)

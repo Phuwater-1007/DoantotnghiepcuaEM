@@ -73,6 +73,21 @@ def build_router(templates) -> APIRouter:
             ),
         )
 
+    @router.get("/multi-monitoring")
+    def multi_monitoring_page(request: Request):
+        user = require_login(request)
+        if hasattr(user, "status_code"):
+            return user
+        container = get_container(request)
+        return templates.TemplateResponse(
+            "multi_monitoring.html",
+            base_context(
+                request,
+                page_title="Giám sát đa luồng",
+                **_build_monitoring_page_data(container),
+            ),
+        )
+
     @router.post("/monitoring/start")
     def start_monitoring(request: Request, source_id: int = Form(...)):
         user = require_login(request)
