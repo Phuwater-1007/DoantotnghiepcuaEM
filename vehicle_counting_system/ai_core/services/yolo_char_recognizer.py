@@ -83,14 +83,17 @@ class YOLOCharRecognizer:
         try:
             h, w = plate_crop.shape[:2]
 
-            # Resize nếu quá nhỏ — YOLO cần ảnh đủ lớn để detect ký tự chính xác
-            if h < 100:
-                scale = 100.0 / h
+            # Resize nếu quá nhỏ — YOLO cần ảnh đủ lớn để detect ký tự chính xác (tăng từ 150 lên 180px)
+            if h < 180:
+                scale = 180.0 / h
                 plate_crop = cv2.resize(
                     plate_crop,
-                    (int(w * scale), 100),
-                    interpolation=cv2.INTER_CUBIC,
+                    (int(w * scale), 180),
+                    interpolation=cv2.INTER_LANCZOS4,
                 )
+
+            # Bilateral Filter để giảm nhiễu hạt nhưng giữ sắc nét biên ký tự (tối ưu biển xe máy mờ)
+            plate_crop = cv2.bilateralFilter(plate_crop, 7, 50, 50)
 
             # CLAHE nhẹ để tăng contrast
             lab = cv2.cvtColor(plate_crop, cv2.COLOR_BGR2LAB)

@@ -34,6 +34,7 @@ def build_router(templates) -> APIRouter:
         min_box_area: float = Form(...),
         lpr_debounce_seconds: int = Form(...),
         lpr_quality_threshold: float = Form(...),
+        allowed_classes: list[str] = Form(default=[]),
     ):
         user = require_admin(request)
         if isinstance(user, RedirectResponse):
@@ -44,12 +45,13 @@ def build_router(templates) -> APIRouter:
                 conf_thres=conf_threshold, 
                 min_box_area=min_box_area,
                 lpr_debounce_seconds=lpr_debounce_seconds,
-                lpr_quality_threshold=lpr_quality_threshold
+                lpr_quality_threshold=lpr_quality_threshold,
+                allowed_classes=allowed_classes
             )
             container = get_container(request)
             container.activity_log_service.log(
                 action="update_ai_config",
-                detail=f"Cập nhật cấu hình AI: Conf={conf_threshold}, Min Area={min_box_area}, Debounce={lpr_debounce_seconds}s, LPR Quality={lpr_quality_threshold}",
+                detail=f"Cập nhật cấu hình AI: Conf={conf_threshold}, Min Area={min_box_area}, Debounce={lpr_debounce_seconds}s, LPR Quality={lpr_quality_threshold}, Allowed Classes={allowed_classes}",
                 user_id=user.id,
                 username=user.username,
                 ip_address=request.client.host if request.client else "",

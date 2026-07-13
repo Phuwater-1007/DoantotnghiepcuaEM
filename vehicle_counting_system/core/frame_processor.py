@@ -313,10 +313,10 @@ class FrameProcessor:
             clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
             return clahe.apply(image)
 
-    def _try_lpr_on_crop(self, vehicle_crop, lpr_key, state, current_time, class_name="unknown") -> bool:
-        """Thử nhận diện biển số trên 1 crop. Trả về True nếu thành công."""
+    def _get_lpr_on_crop(self, vehicle_crop, class_name="unknown") -> tuple[str, float, np.ndarray, np.ndarray] | None:
+        """Nhận diện biển số trên 1 crop. Trả về (plate_text, final_conf, vehicle_crop, plate_crop) hoặc None."""
         if vehicle_crop is None or vehicle_crop.size == 0:
-            return False
+            return None
 
         # Upscale ở đây (chỉ 1 lần khi trigger LPR, không phải mỗi frame)
         vehicle_crop = self._smart_upscale(vehicle_crop, class_name)
@@ -325,12 +325,12 @@ class FrameProcessor:
         preprocessed_vehicle = self._preprocess_lpr_image(vehicle_crop)
         
         if self.lpr_service.detector is None:
-            return False
+            return None
             
         try:
             results = self.lpr_service.detector.predict(preprocessed_vehicle, verbose=False, conf=0.25)
         except Exception:
-            return False
+            return None
         
         best_plate_box = None
         best_plate_conf = 0.0
@@ -359,29 +359,13 @@ class FrameProcessor:
                 res_ocr = self.lpr_service.run_ocr(plate_crop, vehicle_class=class_name)
                 if res_ocr:
                     plate_text, ocr_conf = res_ocr
-                    normalized_text = self.lpr_service.normalize_plate(plate_text)
-                    
-                    if normalized_text in self._lpr_debounce_cache:
-                        return True  # Đã nhận diện trước đó
-                    
-                    self._lpr_debounce_cache[normalized_text] = current_time
-                    final_conf = (best_plate_conf * 0.4) + (ocr_conf * 0.6)
-                    
-                    with self._lpr_lock:
-                        state["plate_text"] = plate_text
-                        self._track_lpr_results[lpr_key] = plate_text
-                    
-                    rel_vehicle, rel_plate = self.lpr_service.save_cropped_images(
-                        vehicle_crop, plate_crop, lpr_key, self.session_id
-                    )
-                    self._trigger_lpr_callback(
-                        lpr_key, class_name, plate_text, final_conf, rel_vehicle, rel_plate
-                    )
-                    return True
-        return False
+                    if ocr_conf >= 0.35:  # Ngưỡng tối thiểu độ tự tin OCR để lọc bỏ biển mờ/rác
+                        final_conf = (best_plate_conf * 0.4) + (ocr_conf * 0.6)
+                        return plate_text, final_conf, vehicle_crop, plate_crop
+        return None
 
     def _process_lpr_for_vehicle(self, lpr_key, state, current_time, class_name="unknown") -> None:
-        """Multi-attempt LPR: thử trên nhiều crop chất lượng nhất."""
+        """Multi-attempt LPR: chạy nhận diện trên cả 3 crops, bỏ phiếu chọn kết quả tốt nhất."""
         best_crops = state.get("best_crops", [])
         
         # Fallback: nếu không có multi-crop, thử crop đơn (tương thích ngược)
@@ -395,19 +379,89 @@ class FrameProcessor:
                 state["is_finalized"] = False
             return
         
-        # Sắp xếp theo quality giảm dần, thử tối đa 3 crop
+        # Sắp xếp theo quality giảm dần, lấy tối đa 3 crops tốt nhất
         best_crops.sort(key=lambda x: x[0], reverse=True)
-        success = False
+        
+        candidates = []
         for item in best_crops[:3]:
             # Hỗ trợ cả định dạng tuple 2 phần tử (quality, crop) và 3 phần tử (quality, crop, frame_idx)
             vehicle_crop = item[1]
-            if self._try_lpr_on_crop(vehicle_crop, lpr_key, state, current_time, class_name):
-                success = True
-                break  # Thành công → dừng
+            res = self._get_lpr_on_crop(vehicle_crop, class_name)
+            if res is not None:
+                candidates.append(res) # res: (plate_text, final_conf, vehicle_crop, plate_crop)
                 
-        if not success:
+        if not candidates:
             with self._lpr_lock:
                 state["is_finalized"] = False
+            return
+            
+        # Thực hiện bỏ phiếu (Voting) trên các ứng viên
+        votes = {}
+        for plate_text, final_conf, v_crop, p_crop in candidates:
+            norm = self.lpr_service.normalize_plate(plate_text)
+            if not norm:
+                continue
+            if norm not in votes:
+                votes[norm] = {
+                    "raw_text": plate_text,
+                    "count": 0,
+                    "confs": [],
+                    "v_crop": v_crop,
+                    "p_crop": p_crop
+                }
+            votes[norm]["count"] += 1
+            votes[norm]["confs"].append(final_conf)
+            
+        if not votes:
+            with self._lpr_lock:
+                state["is_finalized"] = False
+            return
+            
+        # Tìm biển số chiến thắng theo phiếu bầu cao nhất
+        winner_norm = None
+        winner_data = None
+        max_votes = -1
+        max_avg_conf = -1.0
+        
+        for norm, data in votes.items():
+            avg_conf = sum(data["confs"]) / len(data["confs"])
+            if data["count"] > max_votes or (data["count"] == max_votes and avg_conf > max_avg_conf):
+                max_votes = data["count"]
+                max_avg_conf = avg_conf
+                winner_norm = norm
+                winner_data = data
+                
+        winning_raw_text = winner_data["raw_text"]
+        winning_v_crop = winner_data["v_crop"]
+        winning_p_crop = winner_data["p_crop"]
+        
+        # Kiểm tra trùng lặp trong cache debounce
+        if winner_norm in self._lpr_debounce_cache:
+            with self._lpr_lock:
+                state["plate_text"] = winning_raw_text
+                self._track_lpr_results[lpr_key] = winning_raw_text
+                state["is_finalized"] = True
+            return
+            
+        self._lpr_debounce_cache[winner_norm] = current_time
+        
+        # Định dạng biển số hiển thị
+        is_motorcycle = class_name in ["motorcycle", "bicycle", "tricycle"]
+        formatted_text = self.lpr_service.format_vietnamese_plate(winning_raw_text, is_motorcycle=is_motorcycle)
+        
+        with self._lpr_lock:
+            state["plate_text"] = formatted_text
+            self._track_lpr_results[lpr_key] = formatted_text
+            state["is_finalized"] = True
+            
+        # Lưu ảnh crop và kích hoạt callback hiển thị
+        rel_vehicle, rel_plate = self.lpr_service.save_cropped_images(
+            winning_v_crop, winning_p_crop, lpr_key, self.session_id
+        )
+        self._trigger_lpr_callback(
+            lpr_key, class_name, formatted_text, max_avg_conf, rel_vehicle, rel_plate
+        )
+
 
     def _run_inference(self, frame) -> tuple[List[TrackedObject], object]:
         """Run detect -> track -> smooth classification -> count."""

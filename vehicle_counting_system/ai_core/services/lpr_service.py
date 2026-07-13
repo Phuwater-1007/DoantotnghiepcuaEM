@@ -157,77 +157,161 @@ class LPRService:
         if not text:
             return ""
         
-        # 1. Chuẩn hóa cơ bản
+        # 1. Chuẩn hóa cơ bản: viết hoa, chỉ giữ lại chữ cái và số
         text = text.upper().strip()
         text = re.sub(r'[^A-Z0-9]', '', text)
         
         if len(text) < 4:
             return text
 
-        # Bản đồ quy đổi lỗi ký tự
-        to_digit = {
-            'O': '0', 'Q': '0', 'D': '0', # Dễ nhầm với 0
-            'I': '1', 'L': '1', 'T': '1', # Dễ nhầm với 1
-            'Z': '2',                     # Dễ nhầm với 2
-            'S': '5',                     # Dễ nhầm với 5
-            'B': '8',                     # Dễ nhầm với 8
-            'G': '9',                     # Dễ nhầm với 9
+        # Bản đồ quy đổi chữ thành số (cho vùng bắt buộc là số)
+        letter_to_digit = {
+            'O': '0', 'Q': '0', 'D': '0',
+            'I': '1', 'L': '1', 'T': '1',
+            'Z': '2',
+            'E': '3',
+            'A': '4',
+            'S': '5',
+            'G': '9',
+            'B': '8',
+            'Y': '7',
+            'H': '8',
+            'K': '5',
+            'M': '4',
+            'N': '4',
+            'P': '9',
+            'R': '8',
+            'U': '0',
+            'V': '0',
+            'W': '0',
+            'X': '8',
+            'J': '1',
+            'F': '7',
+            'C': '0',
         }
-        to_letter = {
-            '0': 'O', 'D': 'O',
-            '8': 'B',
-            '1': 'L',
-            '5': 'S',
+
+        # Bản đồ quy đổi số thành chữ (cho vùng bắt buộc là chữ). Lưu ý biển VN không có I, O, Q, W
+        digit_to_letter = {
+            '0': 'D',
+            '1': 'T',  # Hoặc L, nhưng T phổ biến hơn
             '2': 'Z',
+            '3': 'E',
+            '4': 'A',
+            '5': 'S',
+            '6': 'G',
+            '7': 'T',
+            '8': 'B',
+            '9': 'G',
         }
 
         chars = list(text)
         
-        # Thử quy đổi c0, c1 sang số bằng to_digit để phân biệt biển dân sự và quân đội
-        c0 = to_digit.get(chars[0], chars[0])
-        c1 = to_digit.get(chars[1], chars[1])
-        
-        is_military = (not c0.isdigit()) and (not c1.isdigit())
-        
+        # Nhận diện biển quân đội: Bắt đầu bằng 2 chữ cái (e.g. KP, AA, TM...)
+        c0_is_digit = chars[0].isdigit() or chars[0] in ['O', 'Q', 'D', 'I', 'L', 'T', 'S', 'B', 'G']
+        c1_is_digit = chars[1].isdigit() or chars[1] in ['O', 'Q', 'D', 'I', 'L', 'T', 'S', 'B', 'G']
+        is_military = (not c0_is_digit) and (not c1_is_digit)
+
         if is_military:
             # === CÚ PHÁP BIỂN QUÂN ĐỘI: XX - [Số đuôi] (e.g. KP-12-34) ===
-            # Giữ nguyên 2 chữ đầu, tất cả ký tự phía sau bắt buộc là Số
+            # 2 ký tự đầu là chữ, chuyển số thành chữ nếu nhầm
+            for i in range(2):
+                if chars[i].isdigit():
+                    chars[i] = digit_to_letter.get(chars[i], chars[i])
+            # Tất cả các ký tự phía sau bắt buộc là Số
             for i in range(2, len(chars)):
                 if chars[i].isalpha():
-                    chars[i] = to_digit.get(chars[i], chars[i])
+                    chars[i] = letter_to_digit.get(chars[i], chars[i])
         else:
             # === CÚ PHÁP BIỂN DÂN SỰ / BIỂN ĐẶC BIỆT KHÁC ===
             # Bước 1: 2 ký tự đầu bắt buộc là Số (Mã tỉnh)
             for i in range(min(2, len(chars))):
                 if chars[i].isalpha():
-                    chars[i] = to_digit.get(chars[i], chars[i])
+                    chars[i] = letter_to_digit.get(chars[i], chars[i])
 
             # Bước 2: Ký tự thứ 3 bắt buộc là Chữ (Series chữ)
             if len(chars) > 2 and chars[2].isdigit():
-                chars[2] = to_letter.get(chars[2], chars[2])
+                chars[2] = digit_to_letter.get(chars[2], chars[2])
+            
+            # Sửa các ký tự cấm I, O, Q, W ở vị trí chữ
+            if len(chars) > 2 and chars[2] in ['I', 'O', 'Q', 'W']:
+                if chars[2] == 'I':
+                    chars[2] = 'T'
+                elif chars[2] in ['O', 'Q']:
+                    chars[2] = 'D'
+                elif chars[2] == 'W':
+                    chars[2] = 'V'
 
-            is_motorcycle = vehicle_class in {"motorcycle", "bicycle"}
-            if is_motorcycle:
-                # === CÚ PHÁP XE MÁY: XX - [Chữ] [Số] - [Số đuôi] ===
-                # Ký tự thứ 4 bắt buộc là Số (Ví dụ: số 1 trong A1)
-                if len(chars) > 3 and chars[3].isalpha():
-                    chars[3] = to_digit.get(chars[3], chars[3])
-                    
-                # Tất cả ký tự từ thứ 5 trở đi bắt buộc là Số
-                for i in range(4, len(chars)):
+            # Bước 3: Xử lý các ký tự phía sau dựa theo độ dài sạch của biển số
+            n = len(chars)
+            
+            if n == 7:
+                # Định dạng chuẩn: XX-Y-XXXX (e.g. 29A-1234)
+                for i in range(3, 7):
                     if chars[i].isalpha():
-                        chars[i] = to_digit.get(chars[i], chars[i])
+                        chars[i] = letter_to_digit.get(chars[i], chars[i])
+            elif n == 8:
+                # Có các định dạng sau:
+                # 1. Ô tô 5 số: XX-Y-XXXXX (e.g. 30F-12345) -> 5 số cuối
+                # 2. Xe máy 4 số: XX-Y1-XXXX (e.g. 30T4-1945) -> ký tự 4 là số, 4 số cuối (tổng cộng 5 ký tự cuối là số)
+                # 3. Liên doanh / Dự án / Nước ngoài 4 số: XX-YY-XXXX (e.g. 29LD-1234) -> ký tự 4 là chữ, 4 số cuối.
+                
+                # Quyết định ký tự thứ 4 (index 3) là Chữ hay Số:
+                is_idx3_letter = chars[3].isalpha() and chars[3] not in ['I', 'O', 'S', 'B', 'G']
+                
+                if is_idx3_letter:
+                    # Ký tự 4 là Chữ (e.g. 29LD-1234)
+                    if chars[3].isdigit():
+                        chars[3] = digit_to_letter.get(chars[3], chars[3])
+                    if chars[3] in ['I', 'O', 'Q', 'W']:
+                        if chars[3] == 'I': chars[3] = 'T'
+                        elif chars[3] in ['O', 'Q']: chars[3] = 'D'
+                        elif chars[3] == 'W': chars[3] = 'V'
+                    for i in range(4, 8):
+                        if chars[i].isalpha():
+                            chars[i] = letter_to_digit.get(chars[i], chars[i])
+                else:
+                    # Ký tự 4 là Số (e.g. 30F-12345 hoặc 30T4-1945)
+                    for i in range(3, 8):
+                        if chars[i].isalpha():
+                            chars[i] = letter_to_digit.get(chars[i], chars[i])
+            elif n == 9:
+                # Có các định dạng sau:
+                # 1. Xe máy 5 số: XX-Y1-XXXXX (e.g. 29G1-12611) -> ký tự 4 là số, 5 số cuối (tổng cộng 6 ký tự cuối là số)
+                # 2. Liên doanh / Dự án / Nước ngoài 5 số: XX-YY-XXXXX (e.g. 29LD-12345) -> ký tự 4 là chữ, 5 số cuối.
+                
+                is_idx3_letter = chars[3].isalpha() and chars[3] not in ['I', 'O', 'S', 'B', 'G']
+                
+                if is_idx3_letter:
+                    # Ký tự 4 là Chữ (e.g. 29LD-12345)
+                    if chars[3].isdigit():
+                        chars[3] = digit_to_letter.get(chars[3], chars[3])
+                    if chars[3] in ['I', 'O', 'Q', 'W']:
+                        if chars[3] == 'I': chars[3] = 'T'
+                        elif chars[3] in ['O', 'Q']: chars[3] = 'D'
+                        elif chars[3] == 'W': chars[3] = 'V'
+                    for i in range(4, 9):
+                        if chars[i].isalpha():
+                            chars[i] = letter_to_digit.get(chars[i], chars[i])
+                else:
+                    # Ký tự 4 là Số (e.g. 29G1-12611)
+                    for i in range(3, 9):
+                        if chars[i].isalpha():
+                            chars[i] = letter_to_digit.get(chars[i], chars[i])
             else:
-                # === CÚ PHÁP Ô TÔ: XX - [Chữ] hoặc [Chữ][Chữ] - [Số đuôi] ===
-                start_digits_idx = 3
-                # Nếu ký tự thứ 4 là chữ (như LD, NG, NN...) -> Chuỗi số đuôi bắt đầu từ ký tự 5
-                if len(chars) > 3 and chars[3].isalpha():
-                    start_digits_idx = 4
-                    
-                # Tất cả ký tự phía sau bắt buộc là Số
-                for i in range(start_digits_idx, len(chars)):
-                    if chars[i].isalpha():
-                        chars[i] = to_digit.get(chars[i], chars[i])
+                is_motorcycle = vehicle_class in {"motorcycle", "bicycle"}
+                if is_motorcycle:
+                    if len(chars) > 3 and chars[3].isalpha():
+                        chars[3] = letter_to_digit.get(chars[3], chars[3])
+                    for i in range(4, len(chars)):
+                        if chars[i].isalpha():
+                            chars[i] = letter_to_digit.get(chars[i], chars[i])
+                else:
+                    start_digits_idx = 3
+                    if len(chars) > 3 and chars[3].isalpha():
+                        start_digits_idx = 4
+                    for i in range(start_digits_idx, len(chars)):
+                        if chars[i].isalpha():
+                            chars[i] = letter_to_digit.get(chars[i], chars[i])
                 
         return "".join(chars)
 
@@ -319,6 +403,39 @@ class LPRService:
         rel_vehicle_path = f"outputs/images/{vehicle_filename}"
         rel_plate_path = f"outputs/images/{plate_filename}"
         return rel_vehicle_path, rel_plate_path
+
+    def format_vietnamese_plate(self, text: str, is_motorcycle: bool = False) -> str:
+        """Định dạng biển số Việt Nam (thêm dấu gạch ngang, gạch chéo và dấu chấm hiển thị).
+        
+        Ví dụ:
+        - 26K07054, False -> 26K-070.54
+        - 29X1234, False -> 29X-1234
+        - 29G11234, True -> 29-G1 / 1234
+        - 99A498853, True -> 99-A4 / 988.53
+        """
+        if not text:
+            return ""
+            
+        # Chuẩn hóa chỉ lấy chữ cái và số viết hoa
+        clean_text = "".join(c.upper() for c in text if c.isalnum())
+        length = len(clean_text)
+        
+        if is_motorcycle:
+            if length == 8:
+                # Dạng xe máy 4 số cũ: 29G11234 -> 29-G1 / 1234
+                return f"{clean_text[:2]}-{clean_text[2:4]} / {clean_text[4:]}"
+            elif length == 9:
+                # Dạng xe máy 5 số mới: 99A498853 -> 99-A4 / 988.53
+                return f"{clean_text[:2]}-{clean_text[2:4]} / {clean_text[4:7]}.{clean_text[7:]}"
+        else:
+            if length == 8:
+                # Dạng ô tô 5 số mới: 26K07054 -> 26K-070.54
+                return f"{clean_text[:3]}-{clean_text[3:6]}.{clean_text[6:]}"
+            elif length == 7:
+                # Dạng ô tô 4 số cũ: 29X1234 -> 29X-1234
+                return f"{clean_text[:3]}-{clean_text[3:]}"
+                
+        return clean_text
 
     def detect_and_ocr(
         self, 

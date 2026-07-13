@@ -5,33 +5,24 @@
   <div class="alert alert-error">{{ error }}</div>
   {% endif %}
 
-  <section class="monitor-topbar card">
-    <div>
-      <h2>Màn hình giám sát</h2>
-    </div>
-    <div class="monitor-topbar-actions">
-      <span class="monitor-state">
-        <span class="monitor-state-dot"></span>
-        Sẵn sàng
-      </span>
-    </div>
-  </section>
-
   <section class="monitor-uploadbar card">
     <div class="monitor-uploadbar-copy">
       <h3>Nguồn dữ liệu</h3>
-      <p>Tải lên video hoặc kết nối nguồn camera IP để thêm luồng giám sát mới.</p>
     </div>
     <div class="monitor-source-actions">
-      <div class="monitor-uploadbox" id="drop-zone">
-        <div class="monitor-uploadbox-icon">
-          <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round"
-              d="M12 16V4m0 0L8 8m4-4l4 4M4 14v4a2 2 0 002 2h12a2 2 0 002-2v-4" />
-          </svg>
+      <div class="monitor-uploadbox" id="drop-zone" style="display: flex; flex-direction: column; gap: 8px;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <div class="monitor-uploadbox-icon" style="margin: 0; flex-shrink: 0;">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M12 16V4m0 0L8 8m4-4l4 4M4 14v4a2 2 0 002 2h12a2 2 0 002-2v-4" />
+            </svg>
+          </div>
+          <div>
+            <div class="monitor-uploadbox-title" style="margin: 0;">Tải video lên</div>
+            <div class="monitor-uploadbox-subtitle" style="margin: 2px 0 0 0; font-size: 12px;">Kéo thả hoặc bấm — mp4, avi, mov, mkv</div>
+          </div>
         </div>
-        <div class="monitor-uploadbox-title">Tải video lên</div>
-        <div class="monitor-uploadbox-subtitle">Kéo thả hoặc bấm — mp4, avi, mov, mkv</div>
         <input type="file" id="file-input" accept=".mp4,.avi,.mov,.mkv" hidden>
         <div class="monitor-progress" id="upload-progress" hidden>
           <div class="monitor-progress-bar" id="upload-progress-bar"></div>
@@ -39,16 +30,20 @@
         <div class="monitor-progress-label" id="upload-progress-label" hidden>Đang tải lên...</div>
       </div>
 
-      <div class="monitor-rtsp-box" id="rtsp-form-box">
-        <div class="monitor-uploadbox-icon monitor-rtsp-icon-color">
-          <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round"
-              d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-          </svg>
+      <div class="monitor-rtsp-box" id="rtsp-form-box" style="display: flex; flex-direction: column; gap: 8px;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <div class="monitor-uploadbox-icon monitor-rtsp-icon-color" style="margin: 0; flex-shrink: 0;">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+          </div>
+          <div>
+            <div class="monitor-uploadbox-title" style="margin: 0;">Kết nối Camera IP</div>
+            <div class="monitor-uploadbox-subtitle" style="margin: 2px 0 0 0; font-size: 12px;">Nhập URL RTSP hoặc HTTP stream</div>
+          </div>
         </div>
-        <div class="monitor-uploadbox-title">Kết nối Camera IP</div>
-        <div class="monitor-uploadbox-subtitle">Nhập URL RTSP hoặc HTTP stream</div>
-        <div class="monitor-rtsp-form" id="rtsp-connect-form">
+        <div class="monitor-rtsp-form" id="rtsp-connect-form" style="margin-top: 6px;">
           <input type="text" id="rtsp-cam-name" class="monitor-rtsp-input" placeholder="Tên camera (VD: Cổng chính)"
             autocomplete="off">
           <input type="text" id="rtsp-cam-url" class="monitor-rtsp-input"
@@ -93,7 +88,7 @@
               <span>RTSP</span>
             </div>
             {% else %}
-            <video muted autoplay loop playsinline preload="metadata">
+            <video muted autoplay loop playsinline preload="metadata" data-idm-ignore="true">
               <source src="{{ v.preview_url }}">
             </video>
             {% endif %}
@@ -139,9 +134,6 @@
       <div class="monitor-header-row">
         <div>
           <h3>Khung xem chính</h3>
-          <p id="focus-player-note">
-            Video gốc. Bấm Chạy phân tích để xử lý và xem kết quả.
-          </p>
         </div>
         <span class="monitor-counter" id="focus-player-mode">
           Video gốc
@@ -153,7 +145,7 @@
         <div class="live-badge" id="live-badge" hidden>
           <span class="live-badge-dot"></span> LIVE
         </div>
-        <video id="focus-player" class="monitor-focus-player"
+        <video id="focus-player" class="monitor-focus-player" data-idm-ignore="true"
           style="width: 100% !important; height: auto !important; aspect-ratio: auto !important; object-fit: contain !important; border-radius: 18px !important; display: block !important;"
           controls playsinline preload="metadata" src="{{ first_video.preview_url }}"></video>
         <style>
@@ -178,7 +170,7 @@
             <span style="font-size: 14px; font-weight: 500; color: #a5b4fc;">Đang kết nối luồng phân tích...</span>
           </div>
           <!-- img dùng natural flow (không absolute) → tự fill theo tỷ lệ thực của camera, không có viền đen -->
-          <img id="live-stream-img" alt="Live Stream"
+          <img id="live-stream-img" alt="Live Stream" data-idm-ignore="true"
             style="display: block; width: 100%; height: auto; border-radius: 18px; position: relative; z-index: 2; opacity: 0; transition: opacity 0.4s ease;">
         </div>
       </div>
@@ -208,25 +200,7 @@
           <strong id="focus-flowrate">0 xe/giờ</strong>
         </div>
       </div>
-      <!-- D-Factor bar (hiện khi LIVE) -->
-      <div id="focus-dfactor-row"
-        style="display:none; margin-top:10px; padding: 8px 12px; background: rgba(99,102,241,0.07); border-radius:10px; border:1px solid rgba(99,102,241,0.15);">
-        <div
-          style="display:flex; align-items:center; justify-content:space-between; margin-bottom:5px; font-size:12px; color:var(--color-muted);">
-          <span>↗ Đi: <strong id="focus-dfactor-di-pct" style="color:#6366f1;">—</strong></span>
-          <span style="font-weight:600; color:var(--color-muted); font-size:11px;">D-Factor (tỷ lệ chiều chủ đạo)</span>
-          <span>↘ Về: <strong id="focus-dfactor-ve-pct" style="color:#10b981;">—</strong></span>
-        </div>
-        <div style="display:flex; height:8px; border-radius:6px; overflow:hidden; background:#e5e7eb;">
-          <div id="focus-dfactor-bar-di" style="background:#6366f1; width:50%; transition:width 0.5s ease;"></div>
-          <div id="focus-dfactor-bar-ve" style="background:#10b981; width:50%; transition:width 0.5s ease;"></div>
-        </div>
-        <div style="margin-top:6px; font-size:11px; text-align:center; color:var(--color-muted);">
-          LOS: <span id="focus-los-badge"
-            style="font-weight:700; padding:1px 7px; border-radius:5px; background:#e5e7eb; color:#374151;">—</span>
-          &nbsp;|&nbsp; PCE/giờ: <strong id="focus-pce">—</strong>
-        </div>
-      </div>
+
       {% else %}
       <div class="monitor-empty-block monitor-empty-large">
         <p>Tải video lên để hiển thị tại đây.</p>
@@ -234,7 +208,7 @@
       {% endif %}
     </div>
 
-    <aside class="monitor-side-panel">
+    <aside class="monitor-side-panel" style="gap: 12px;">
       <section class="card monitor-operator-card">
         <div class="monitor-header-row">
           <div>
@@ -245,13 +219,12 @@
         {% if detected_videos %}
         {% set first_video = detected_videos[0] %}
         <div class="monitor-selected-panel">
-          <div class="monitor-selected-label" id="selected-cam-label">CAM 1</div>
-          <div class="monitor-selected-title" id="selected-video-name">{{ first_video.name }}</div>
-          <div class="monitor-selected-status">
-            <span class="monitor-inline-label">ROI</span>
-            <strong id="selected-roi-status">
-              {% if first_video.roi_ready %}Đã cấu hình{% else %}Chưa cấu hình{% endif %}
-            </strong>
+          <div class="monitor-selected-title" id="selected-video-name">
+            {% if first_video.source_type == 'stream' %}
+              {{ first_video.name }}
+            {% else %}
+              CAM 1
+            {% endif %}
           </div>
         </div>
 
@@ -264,23 +237,6 @@
             hidden>■ Dừng trực tiếp</button>
         </div>
 
-        <!-- ── Bộ lọc loại xe (hiện khi đang live stream) ─── -->
-        <div id="class-filter-panel" class="monitor-class-filter" hidden>
-          <div class="monitor-class-filter-label">Bộ lọc đếm xe</div>
-          <div class="monitor-class-filter-btns">
-            <button type="button" class="class-filter-btn is-active" data-class="car" title="Bật/tắt đếm ô tô">🚗 Ô
-              tô</button>
-            <button type="button" class="class-filter-btn is-active" data-class="motorcycle"
-              title="Bật/tắt đếm xe máy">🏍 Xe máy</button>
-            <button type="button" class="class-filter-btn is-active" data-class="bus" title="Bật/tắt đếm xe buýt">🚌 Xe
-              buýt</button>
-            <button type="button" class="class-filter-btn is-active" data-class="truck" title="Bật/tắt đếm xe tải">🚛 Xe
-              tải</button>
-          </div>
-          <button type="button" id="class-filter-all-btn" class="class-filter-reset-btn">
-            ✓ Đếm tất cả
-          </button>
-        </div>
 
         {% else %}
         <div class="monitor-empty-block">
@@ -288,6 +244,39 @@
         </div>
         {% endif %}
 
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- LICENSE PLATE RECOGNITION (LPR) PANEL                       -->
+      <!-- ============================================================ -->
+      <section class="card monitor-lpr-panel" id="monitor-lpr-panel">
+        <div class="monitor-header-row" style="margin-bottom: 12px;">
+          <div>
+            <h3>🔍 Biển số nhận diện</h3>
+            <p style="font-size: 11px; color: var(--color-muted); margin-top: 2px;">Danh sách biển số xe đọc được realtime.</p>
+          </div>
+          <span class="pill" id="lpr-counter" style="font-size: 11px; background: rgba(99,102,241,0.1); color: #6366f1;">0 biển số</span>
+        </div>
+
+        <div class="monitor-lpr-list-wrapper" style="max-height: 320px; overflow-y: auto;">
+          <table class="monitor-lpr-table" style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
+            <thead>
+              <tr style="border-bottom: 2px solid var(--color-border); color: var(--color-muted); font-weight: 600; font-size: 11px;">
+                <th style="padding: 6px 4px; width: 60px;">Ảnh</th>
+                <th style="padding: 6px 4px;">Biển số</th>
+                <th style="padding: 6px 4px;">Loại xe</th>
+                <th style="padding: 6px 4px; width: 70px;">Độ tin cậy</th>
+              </tr>
+            </thead>
+            <tbody id="lpr-events-tbody">
+              <tr id="lpr-empty-row">
+                <td colspan="4" style="text-align: center; padding: 24px; color: var(--color-muted); font-style: italic;">
+                  Chưa phát hiện biển số nào.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <section class="card monitor-output-panel">
@@ -398,39 +387,6 @@
             <span class="traffic-density-dot"></span>
             <strong id="traffic-density-text">...</strong>
           </div>
-        </div>
-      </section>
-
-      <!-- ============================================================ -->
-      <!-- LICENSE PLATE RECOGNITION (LPR) PANEL                       -->
-      <!-- ============================================================ -->
-      <section class="card monitor-lpr-panel" id="monitor-lpr-panel" style="margin-top: 20px;">
-        <div class="monitor-header-row" style="margin-bottom: 12px;">
-          <div>
-            <h3>🔍 Biển số nhận diện</h3>
-            <p style="font-size: 11px; color: var(--color-muted); margin-top: 2px;">Danh sách biển số xe đọc được realtime.</p>
-          </div>
-          <span class="pill" id="lpr-counter" style="font-size: 11px; background: rgba(99,102,241,0.1); color: #6366f1;">0 biển số</span>
-        </div>
-
-        <div class="monitor-lpr-list-wrapper" style="max-height: 320px; overflow-y: auto;">
-          <table class="monitor-lpr-table" style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
-            <thead>
-              <tr style="border-bottom: 2px solid var(--color-border); color: var(--color-muted); font-weight: 600; font-size: 11px;">
-                <th style="padding: 6px 4px; width: 60px;">Ảnh</th>
-                <th style="padding: 6px 4px;">Biển số</th>
-                <th style="padding: 6px 4px;">Loại xe</th>
-                <th style="padding: 6px 4px; width: 70px;">Độ tin cậy</th>
-              </tr>
-            </thead>
-            <tbody id="lpr-events-tbody">
-              <tr id="lpr-empty-row">
-                <td colspan="4" style="text-align: center; padding: 24px; color: var(--color-muted); font-style: italic;">
-                  Chưa phát hiện biển số nào.
-                </td>
-              </tr>
-            </tbody>
-          </table>
         </div>
       </section>
     </aside>
@@ -924,7 +880,7 @@
         });
     }
 
-    function updateSelection(videoPath, videoUrl, videoName, roiReady, sourceId, camIndex) {
+    function updateSelection(videoPath, videoUrl, videoName, roiReady, sourceId, camIndex, sourceType) {
       // Stop live stream when switching videos
       if (isLiveStreaming) {
         stopLiveStream();
@@ -940,7 +896,13 @@
       // Update CAM label
       var camLabel = document.getElementById("selected-cam-label");
       if (camLabel) camLabel.textContent = "CAM " + (camIndex || "1");
-      if (selectedVideoName) selectedVideoName.textContent = videoName;
+      if (selectedVideoName) {
+        if (sourceType === "stream") {
+          selectedVideoName.textContent = videoName;
+        } else {
+          selectedVideoName.textContent = "CAM " + (camIndex || "1");
+        }
+      }
       if (selectedRoiStatus) {
         selectedRoiStatus.textContent = roiReady === "yes" ? "Đã cấu hình" : "Chưa cấu hình";
       }
@@ -986,7 +948,8 @@
       var roiReady = tile.getAttribute("data-video-roi");
       var sourceId = tile.getAttribute("data-source-id");
       var camIndex = tile.getAttribute("data-cam-index") || "1";
-      updateSelection(videoPath, videoUrl, videoName, roiReady, sourceId, camIndex);
+      var sourceType = tile.getAttribute("data-source-type") || "video";
+      updateSelection(videoPath, videoUrl, videoName, roiReady, sourceId, camIndex, sourceType);
     }
 
     tiles.forEach(function (tile) {
@@ -1001,7 +964,8 @@
         var roiReady = item.getAttribute("data-video-roi");
         var sourceId = item.getAttribute("data-source-id");
         var camIndex = item.getAttribute("data-cam-index") || "1";
-        updateSelection(videoPath, videoUrl, videoName, roiReady, sourceId, camIndex);
+        var sourceType = item.getAttribute("data-source-type") || "video";
+        updateSelection(videoPath, videoUrl, videoName, roiReady, sourceId, camIndex, sourceType);
         var matchingTile = tiles.find(function (t) { return t.getAttribute("data-video-path") === videoPath; });
         if (matchingTile) {
           tiles.forEach(function (t) { t.classList.remove("is-selected"); });
@@ -1232,13 +1196,6 @@
       if (startLiveBtn) startLiveBtn.hidden = true;
       if (stopLiveBtn) stopLiveBtn.hidden = false;
 
-      // Show vehicle class filter panel
-      var filterPanel = document.getElementById("class-filter-panel");
-      if (filterPanel) filterPanel.hidden = false;
-      // Reset all filters to active
-      document.querySelectorAll(".class-filter-btn").forEach(function (btn) {
-        btn.classList.add("is-active");
-      });
 
       setFocusMode("Trực tiếp (LIVE)", "Đang stream video với YOLO detect real-time.");
       updateFocusCounts({ total: 0, per_class: {} });
@@ -1299,9 +1256,6 @@
       if (startLiveBtn) startLiveBtn.hidden = false;
       if (stopLiveBtn) stopLiveBtn.hidden = true;
 
-      // Hide vehicle class filter panel
-      var filterPanel = document.getElementById("class-filter-panel");
-      if (filterPanel) filterPanel.hidden = true;
 
       setFocusMode("Video gốc", "Chạy phân tích để xem kết quả.");
       resetTrafficDensity();
@@ -1316,44 +1270,6 @@
       stopLiveBtn.addEventListener("click", function () { stopLiveStream(); });
     }
 
-    // ========== VEHICLE CLASS FILTER ==========
-    function applyClassFilter() {
-      if (!isLiveStreaming || !liveStreamSourceId) return;
-      var activeBtns = document.querySelectorAll(".class-filter-btn.is-active");
-      var classes = [];
-      activeBtns.forEach(function (btn) {
-        classes.push(btn.getAttribute("data-class"));
-      });
-      // null means count all (all selected = same as no filter)
-      var allBtns = document.querySelectorAll(".class-filter-btn");
-      var payload = (classes.length === allBtns.length) ? { classes: [] } : { classes: classes };
-      fetch("/api/stream/" + liveStreamSourceId + "/set-classes", {
-        method: "POST",
-        credentials: "same-origin",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      }).catch(function () { });
-    }
-
-    document.querySelectorAll(".class-filter-btn").forEach(function (btn) {
-      btn.addEventListener("click", function () {
-        btn.classList.toggle("is-active");
-        // Ensure at least 1 type is selected
-        var anyActive = document.querySelectorAll(".class-filter-btn.is-active").length > 0;
-        if (!anyActive) btn.classList.add("is-active"); // revert if all deselected
-        applyClassFilter();
-      });
-    });
-
-    var classFilterAllBtn = document.getElementById("class-filter-all-btn");
-    if (classFilterAllBtn) {
-      classFilterAllBtn.addEventListener("click", function () {
-        document.querySelectorAll(".class-filter-btn").forEach(function (btn) {
-          btn.classList.add("is-active");
-        });
-        applyClassFilter();
-      });
-    }
 
     var stopAnalysisBtn = document.getElementById("stop-analysis-btn");
     if (stopAnalysisBtn) {
@@ -2028,74 +1944,6 @@
 
 
 <style>
-  /* ── Vehicle Class Filter Panel ───────────────────────────── */
-  .monitor-class-filter {
-    margin-top: 12px;
-    padding: 12px 14px;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.09);
-    border-radius: 12px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-
-  .monitor-class-filter-label {
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--text-muted, #8899aa);
-  }
-
-  .monitor-class-filter-btns {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-  }
-
-  .class-filter-btn {
-    padding: 5px 12px;
-    border-radius: 20px;
-    border: 1.5px solid rgba(255, 255, 255, 0.15);
-    background: rgba(255, 255, 255, 0.05);
-    color: var(--text-muted, #8899aa);
-    font-size: 12px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.18s ease;
-    white-space: nowrap;
-  }
-
-  .class-filter-btn:hover {
-    border-color: rgba(255, 255, 255, 0.3);
-    background: rgba(255, 255, 255, 0.1);
-    color: #fff;
-  }
-
-  .class-filter-btn.is-active {
-    background: rgba(34, 197, 94, 0.18);
-    border-color: rgba(34, 197, 94, 0.55);
-    color: #4ade80;
-    font-weight: 600;
-  }
-
-  .class-filter-reset-btn {
-    align-self: flex-start;
-    padding: 4px 12px;
-    border-radius: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    background: transparent;
-    color: var(--text-muted, #8899aa);
-    font-size: 11px;
-    cursor: pointer;
-    transition: all 0.15s ease;
-  }
-
-  .class-filter-reset-btn:hover {
-    background: rgba(255, 255, 255, 0.06);
-    color: #fff;
-  }
 
   /* ── Delete Button for Camera Tiles ───────────────────────────── */
   .tile-delete-btn {

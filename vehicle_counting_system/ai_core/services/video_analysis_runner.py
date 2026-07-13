@@ -49,6 +49,7 @@ def get_ai_config() -> dict:
         "min_box_area": getattr(det, "min_box_area", 100.0),
         "lpr_debounce_seconds": getattr(settings, "lpr_debounce_seconds", 60),
         "lpr_quality_threshold": getattr(settings, "lpr_quality_threshold", 0.20),
+        "allowed_class_names": list(getattr(det, "allowed_names", ["car", "motorcycle", "bus", "truck"])),
     }
 
 
@@ -57,10 +58,16 @@ def update_ai_config(
     min_box_area: float | None = None,
     lpr_debounce_seconds: int | None = None,
     lpr_quality_threshold: float | None = None,
+    allowed_classes: list[str] | None = None,
 ) -> None:
     """Update active YOLO and LPR parameters."""
     det = _get_shared_yolo_detector()
     det.update_params(conf_thres=conf_thres, min_box_area=min_box_area)
+    if allowed_classes is not None:
+        if not allowed_classes:
+            allowed_classes = ["car", "motorcycle", "bus", "truck"]
+        settings.allowed_class_names = allowed_classes
+        det.allowed_names = set(allowed_classes)
     if lpr_debounce_seconds is not None:
         settings.lpr_debounce_seconds = int(lpr_debounce_seconds)
     if lpr_quality_threshold is not None:

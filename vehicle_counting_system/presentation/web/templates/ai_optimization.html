@@ -71,6 +71,37 @@
         <small class="muted" style="display: block; margin-top: 8px; font-size: 12px;">Mặc định: 0.20. Giảm xuống (ví dụ 0.15 - 0.25) để nhận diện các biển số nhỏ, xa, hoặc bị mờ do góc nghiêng.</small>
       </div>
 
+      <!-- Bộ lọc loại xe đếm (Allowed Classes) -->
+      <div class="form-group" style="margin-bottom: 32px;">
+        <label style="font-weight: 600; margin-bottom: 12px; display: block;">Bộ lọc loại xe đếm</label>
+        <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+          <!-- Car checkbox -->
+          <label style="display: flex; align-items: center; gap: 6px; padding: 6px 14px; border: 1.5px solid {% if 'car' in ai_config.allowed_class_names %}#3b82f6{% else %}#d1d5db{% endif %}; border-radius: 20px; font-size: 13px; font-weight: 500; cursor: pointer; background: {% if 'car' in ai_config.allowed_class_names %}rgba(59, 130, 246, 0.08){% else %}transparent{% endif %}; color: {% if 'car' in ai_config.allowed_class_names %}#2563eb{% else %}inherit{% endif %}; transition: all 0.2s;" class="class-filter-label">
+            <input type="checkbox" name="allowed_classes" value="car" {% if 'car' in ai_config.allowed_class_names %}checked{% endif %} style="accent-color: #3b82f6; display: none;" onchange="toggleLabelStyle(this)">
+            🚗 Ô tô
+          </label>
+          
+          <!-- Motorcycle checkbox -->
+          <label style="display: flex; align-items: center; gap: 6px; padding: 6px 14px; border: 1.5px solid {% if 'motorcycle' in ai_config.allowed_class_names %}#3b82f6{% else %}#d1d5db{% endif %}; border-radius: 20px; font-size: 13px; font-weight: 500; cursor: pointer; background: {% if 'motorcycle' in ai_config.allowed_class_names %}rgba(59, 130, 246, 0.08){% else %}transparent{% endif %}; color: {% if 'motorcycle' in ai_config.allowed_class_names %}#2563eb{% else %}inherit{% endif %}; transition: all 0.2s;" class="class-filter-label">
+            <input type="checkbox" name="allowed_classes" value="motorcycle" {% if 'motorcycle' in ai_config.allowed_class_names %}checked{% endif %} style="accent-color: #3b82f6; display: none;" onchange="toggleLabelStyle(this)">
+            🏍 Xe máy
+          </label>
+          
+          <!-- Bus checkbox -->
+          <label style="display: flex; align-items: center; gap: 6px; padding: 6px 14px; border: 1.5px solid {% if 'bus' in ai_config.allowed_class_names %}#3b82f6{% else %}#d1d5db{% endif %}; border-radius: 20px; font-size: 13px; font-weight: 500; cursor: pointer; background: {% if 'bus' in ai_config.allowed_class_names %}rgba(59, 130, 246, 0.08){% else %}transparent{% endif %}; color: {% if 'bus' in ai_config.allowed_class_names %}#2563eb{% else %}inherit{% endif %}; transition: all 0.2s;" class="class-filter-label">
+            <input type="checkbox" name="allowed_classes" value="bus" {% if 'bus' in ai_config.allowed_class_names %}checked{% endif %} style="accent-color: #3b82f6; display: none;" onchange="toggleLabelStyle(this)">
+            🚌 Xe buýt
+          </label>
+          
+          <!-- Truck checkbox -->
+          <label style="display: flex; align-items: center; gap: 6px; padding: 6px 14px; border: 1.5px solid {% if 'truck' in ai_config.allowed_class_names %}#3b82f6{% else %}#d1d5db{% endif %}; border-radius: 20px; font-size: 13px; font-weight: 500; cursor: pointer; background: {% if 'truck' in ai_config.allowed_class_names %}rgba(59, 130, 246, 0.08){% else %}transparent{% endif %}; color: {% if 'truck' in ai_config.allowed_class_names %}#2563eb{% else %}inherit{% endif %}; transition: all 0.2s;" class="class-filter-label">
+            <input type="checkbox" name="allowed_classes" value="truck" {% if 'truck' in ai_config.allowed_class_names %}checked{% endif %} style="accent-color: #3b82f6; display: none;" onchange="toggleLabelStyle(this)">
+            🚛 Xe tải
+          </label>
+        </div>
+        <small class="muted" style="display: block; margin-top: 10px; font-size: 12px;">Nhấp chọn các loại phương tiện muốn đếm. Thay đổi sẽ cập nhật vào mô hình AI bên dưới.</small>
+      </div>
+
       <button type="submit" class="btn btn-primary" style="width: 100%; border-radius: 8px; padding: 12px;">Cập nhật Mô hình AI</button>
     </form>
   </div>
@@ -82,7 +113,7 @@
     </div>
     
     {% if logs %}
-    <div class="table-container">
+    <div class="table-container" style="max-height: 480px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 8px; padding: 4px;">
       <table class="table" style="width: 100%;">
         <thead>
           <tr>
@@ -126,4 +157,19 @@
     {% endif %}
   </div>
 </div>
+
+<script>
+function toggleLabelStyle(checkbox) {
+  var label = checkbox.parentElement;
+  if (checkbox.checked) {
+    label.style.background = 'rgba(59, 130, 246, 0.08)';
+    label.style.borderColor = '#3b82f6';
+    label.style.color = '#2563eb';
+  } else {
+    label.style.background = 'transparent';
+    label.style.borderColor = '#d1d5db';
+    label.style.color = 'inherit';
+  }
+}
+</script>
 {% endblock %}
