@@ -34,4 +34,21 @@ def build_router(templates) -> APIRouter:
             ),
         )
 
+    @router.get("/api/reports/{session_id}")
+    def get_report_details_api(request: Request, session_id: int):
+        user = require_login(request)
+        if hasattr(user, "status_code"):
+            return {"error": "Unauthorized"}
+        
+        container = get_container(request)
+        details = container.report_service.get_report_details(session_id)
+        if not details:
+            return {"error": "Report not found"}
+        
+        # Build media url if possible
+        output_path = details["metadata"].get("output_video_path")
+        details["metadata"]["media_url"] = to_media_url(output_path) if output_path else None
+        
+        return details
+
     return router

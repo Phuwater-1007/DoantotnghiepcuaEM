@@ -147,6 +147,15 @@ print(f"  Status: {brand_settings_result['status']}, Title: {brand_settings_resu
 print(f"  Vietnamese text: {brand_settings_result['has_vietnamese']}")
 print(f"  Errors: {brand_settings_result['errors']}")
 
+# 4.7. Test API /api/reports/1
+print("\nTesting /api/reports/1...")
+try:
+    api_response = session.get(f'{base_url}/api/reports/1', timeout=10)
+    print(f"  API Response Status: {api_response.status_code}")
+    print(f"  API Response Content: {api_response.text[:200]}")
+except Exception as e:
+    print(f"  Error checking API details: {e}")
+
 # 5. Test /sources
 print("\nTesting /sources...")
 sources_result = check_page(f'{base_url}/sources', 'Sources', session)
