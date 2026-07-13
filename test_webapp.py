@@ -156,6 +156,16 @@ try:
 except Exception as e:
     print(f"  Error checking API details: {e}")
 
+# 4.8. Test API /api/export-reports?sessions=1
+print("\nTesting /api/export-reports?sessions=1...")
+try:
+    export_response = session.get(f'{base_url}/api/export-reports?sessions=1', timeout=10)
+    print(f"  Export API Response Status: {export_response.status_code}")
+    print(f"  Export API Content-Type: {export_response.headers.get('Content-Type')}")
+    print(f"  Export API First 150 chars: {export_response.text[:150]}")
+except Exception as e:
+    print(f"  Error checking Export API details: {e}")
+
 # 5. Test /sources
 print("\nTesting /sources...")
 sources_result = check_page(f'{base_url}/sources', 'Sources', session)

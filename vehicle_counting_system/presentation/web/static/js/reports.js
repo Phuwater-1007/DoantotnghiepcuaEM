@@ -5,6 +5,8 @@ document.addEventListener('DOMContentLoaded', function() {
   const searchInput = document.getElementById('search-input');
   const statusFilter = document.getElementById('status-filter');
   const exportBtn = document.getElementById('export-csv-btn');
+  const selectAllCheckbox = document.getElementById('select-all-reports');
+  const rowCheckboxes = document.querySelectorAll('.report-checkbox');
   
   if (searchInput && statusFilter) {
     searchInput.addEventListener('input', applyFilters);
@@ -29,9 +31,19 @@ document.addEventListener('DOMContentLoaded', function() {
         visibleCount++;
       } else {
         row.style.display = 'none';
+        // Uncheck checkbox if row gets hidden by filters
+        const cb = row.querySelector('.report-checkbox');
+        if (cb && cb.checked) {
+          cb.checked = false;
+        }
       }
     });
     
+    if (selectAllCheckbox) {
+      selectAllCheckbox.checked = false;
+    }
+    updateExportButton();
+
     const noResults = document.getElementById('no-results');
     const thead = document.querySelector('.premium-table thead');
     if (noResults && thead) {
@@ -44,68 +56,76 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     }
   }
+
+  // Checkbox interactions
+  if (selectAllCheckbox) {
+    selectAllCheckbox.addEventListener('change', function() {
+      const isChecked = selectAllCheckbox.checked;
+      const visibleRows = document.querySelectorAll('.report-row');
+      visibleRows.forEach(row => {
+        if (row.style.display !== 'none') {
+          const cb = row.querySelector('.report-checkbox');
+          if (cb) {
+            cb.checked = isChecked;
+          }
+        }
+      });
+      updateExportButton();
+    });
+  }
+
+  rowCheckboxes.forEach(cb => {
+    cb.addEventListener('change', function() {
+      if (!cb.checked && selectAllCheckbox) {
+        selectAllCheckbox.checked = false;
+      }
+      updateExportButton();
+    });
+  });
+
+  function updateExportButton() {
+    if (!exportBtn) return;
+    const checkedCount = document.querySelectorAll('.report-checkbox:checked').length;
+    const svgIcon = `<svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right: 6px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>`;
+    
+    if (checkedCount > 0) {
+      exportBtn.innerHTML = svgIcon + `Xuất CSV (${checkedCount})`;
+      exportBtn.style.background = '#059669'; // Green active status
+    } else {
+      exportBtn.innerHTML = svgIcon + 'Xuất CSV (Tất cả)';
+      exportBtn.style.background = ''; // Default
+    }
+  }
+
+  // Initial call
+  updateExportButton();
   
   if (exportBtn) {
     exportBtn.addEventListener('click', function() {
-      const now = new Date();
-      const timeString = now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-      const dateString = now.toLocaleDateString('vi-VN');
+      let selectedSessions = [];
+      const checkedBoxes = document.querySelectorAll('.report-checkbox:checked');
       
-      let csv = "\ufeffTHỐNG KÊ LƯU LƯỢNG PHƯƠNG TIỆN GIAO THÔNG\n";
-      csv += "Ứng dụng Hệ thống Giám sát Cơ sở hạ tầng AI\n";
-      csv += `Thời gian xuất báo cáo: ${timeString} - ${dateString}\n\n`;
-      csv += "Phiên,Ngày,Giờ,Nguồn phân tích,Tổng lượng xe,Ô tô,Xe máy,Xe buýt,Xe tải,Chiều Đi,Chiều Về,Lưu lượng (xe/giờ),Khung giờ cao điểm,Trạng thái\n";
-      
-      const rows = document.querySelectorAll('.report-row');
-      rows.forEach(row => {
-        if (row.style.display !== 'none') {
-          const session = row.getAttribute('data-session') || '';
-          const dateFull = row.getAttribute('data-date') || '';
-          const source = row.getAttribute('data-source') || '';
-          const total = row.getAttribute('data-total') || '0';
-          const car = row.getAttribute('data-car') || '0';
-          const moto = row.getAttribute('data-moto') || '0';
-          const bus = row.getAttribute('data-bus') || '0';
-          const truck = row.getAttribute('data-truck') || '0';
-          const di = row.getAttribute('data-di') || '0';
-          const ve = row.getAttribute('data-ve') || '0';
-          const flowrate = row.getAttribute('data-flowrate') || 'N/A';
-          const peak = row.getAttribute('data-peak') && row.getAttribute('data-peak') !== 'N/A' ? row.getAttribute('data-peak') : 'Không xác định';
-          const status = row.getAttribute('data-status-label') || '';
-          
-          let dateParts = dateFull.split(' ');
-          let dateOnly = dateParts[0] || dateFull;
-          let timeOnly = dateParts[1] || '';
-          
-          const cols = [
-            `#${session}`,
-            dateOnly,
-            timeOnly,
-            source,
-            total,
-            car,
-            moto,
-            bus,
-            truck,
-            di,
-            ve,
-            flowrate,
-            peak,
-            status
-          ];
-          
-          const data = cols.map(c => `"${c.replace(/"/g, '""')}"`);
-          csv += data.join(',') + "\n";
-        }
-      });
-      
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = `BaoCao_GiaoThong_${dateString.replace(/\//g, '')}.csv`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      if (checkedBoxes.length > 0) {
+        checkedBoxes.forEach(cb => {
+          selectedSessions.push(cb.getAttribute('data-session'));
+        });
+      } else {
+        const allRows = document.querySelectorAll('.report-row');
+        allRows.forEach(row => {
+          if (row.style.display !== 'none') {
+            selectedSessions.push(row.getAttribute('data-session'));
+          }
+        });
+      }
+
+      if (selectedSessions.length === 0) {
+        alert('Không có dữ liệu báo cáo nào để xuất!');
+        return;
+      }
+
+      // Trực tiếp gọi API xuất báo cáo phương tiện chi tiết
+      const sessionsParam = selectedSessions.join(',');
+      window.location.href = `/api/export-reports?sessions=${sessionsParam}`;
     });
   }
 

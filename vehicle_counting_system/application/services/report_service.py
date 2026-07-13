@@ -295,3 +295,68 @@ class ReportService:
             "direction_counts": direction_counts,
             "duration_formatted": f"{int(duration_sec // 60)} phút {int(duration_sec % 60)} giây" if duration_sec > 0 else "N/A"
         }
+
+    def get_detailed_vehicles_csv(self, session_ids: list[int]) -> str:
+        if not session_ids:
+            return ""
+        
+        # Build query placeholders
+        placeholders = ",".join("?" for _ in session_ids)
+        query = f"""
+            SELECT
+                datetime(vc.counted_at, ?) AS time_formatted,
+                vc.class_name,
+                vc.track_id,
+                vc.confidence,
+                src.name AS source_name,
+                vc.session_id
+            FROM vehicle_counts vc
+            JOIN sources src ON src.id = vc.source_id
+            WHERE vc.session_id IN ({placeholders})
+            ORDER BY vc.session_id DESC, vc.counted_at ASC
+        """
+        
+        params = [VN_SQLITE_TZ_MOD] + session_ids
+        rows = self.db.fetchall(query, tuple(params))
+        
+        # Translate helper
+        def translate_class(cls_name: str) -> str:
+            c = cls_name.lower().strip()
+            if c in ["car", "automobile"]:
+                return "Ô tô"
+            elif c in ["motorcycle", "motorbike", "bicycle"]:
+                return "Xe máy"
+            elif c in ["bus"]:
+                return "Xe buýt"
+            elif c in ["truck"]:
+                return "Xe tải"
+            return cls_name.capitalize()
+
+        import io
+        import csv
+        
+        output = io.StringIO()
+        
+        writer = csv.writer(output, lineterminator="\n")
+        # Write headers
+        writer.writerow(["Thời gian", "Loại xe", "Track ID", "Độ tin cậy", "Camera", "Phiên"])
+        
+        for r in rows:
+            conf = float(r["confidence"])
+            conf_str = f"{int(round(conf * 100))}%" if conf > 0 else "N/A"
+            
+            # Format time to show only HH:MM:SS as in user's request screenshot
+            time_str = r["time_formatted"]
+            if time_str and " " in time_str:
+                time_str = time_str.split(" ")[1]
+
+            writer.writerow([
+                time_str,
+                translate_class(r["class_name"]),
+                r["track_id"],
+                conf_str,
+                r["source_name"],
+                f"#{r['session_id']}"
+            ])
+            
+        return output.getvalue()
