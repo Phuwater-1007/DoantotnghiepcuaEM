@@ -80,10 +80,12 @@
     if (!canvas) return;
     if (donutChart) return;
     var ctx = canvas.getContext('2d');
+    var isEn = (localStorage.getItem("lang") || "vi") === "en";
+    var donutLabels = isEn ? ['Cars', 'Motorcycles', 'Buses', 'Trucks'] : ['Ô tô', 'Xe máy', 'Xe buýt', 'Xe tải'];
     donutChart = new Chart(ctx, {
       type: 'doughnut',
       data: {
-        labels: ['Ô tô', 'Xe máy', 'Xe buýt', 'Xe tải'],
+        labels: donutLabels,
         datasets: [{
           data: [dbAutomobile, dbMotorcycle, dbBus, dbTruck],
           backgroundColor: CHART_COLORS,
@@ -140,12 +142,15 @@
     else if (maxVal <= 500) yStep = 50;
     else yStep = Math.ceil(maxVal / 8 / 10) * 10;
 
+    var isEn = (localStorage.getItem("lang") || "vi") === "en";
+    var barLabel = isEn ? 'Vehicles' : 'Phương tiện';
+
     return {
       type: 'bar',
       data: {
         labels: labels,
         datasets: [{
-          label: 'Phương tiện',
+          label: barLabel,
           data: values,
           backgroundColor: barGradient,
           hoverBackgroundColor: hoverGradient,
@@ -172,7 +177,7 @@
             callbacks: {
               title: function (items) { return '🕐 ' + items[0].label; },
               label: function (c) {
-                return c.raw + ' phương tiện qua lại';
+                return c.raw + (isEn ? ' vehicles passed' : ' phương tiện qua lại');
               }
             }
           }
@@ -824,4 +829,18 @@
     // Periodic fallback: poll every 2s to ensure sync even if WS drops
     setInterval(pollAll, 2000);
   }
+
+  // Listen for language changes to recreate charts with new labels
+  window.addEventListener("langchanged", function () {
+    if (donutChart) {
+      donutChart.destroy();
+      donutChart = null;
+    }
+    if (hourlyChart) {
+      hourlyChart.destroy();
+      hourlyChart = null;
+    }
+    if (document.getElementById('donut-chart')) initDonutChart();
+    if (document.getElementById('hourly-chart')) initHourlyChart();
+  });
 })();

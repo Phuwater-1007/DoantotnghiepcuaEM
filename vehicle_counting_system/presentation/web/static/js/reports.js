@@ -1,6 +1,13 @@
 // ==========================================================
 // THAO TÁC JS TRÊN BẢNG BÁO CÁO (Lọc, Tìm kiếm, Xuất CSV, Modal Chi tiết)
 // ==========================================================
+function _t(text) {
+  if (typeof window._t === 'function') {
+    return window._t(text);
+  }
+  return text;
+}
+
 document.addEventListener('DOMContentLoaded', function() {
   const searchInput = document.getElementById('search-input');
   const statusFilter = document.getElementById('status-filter');
@@ -305,7 +312,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // 1. Doughnut Chart
     const ctxDoughnut = document.getElementById('modal-doughnut-chart');
     if (ctxDoughnut) {
-      const labels = ['Ô tô', 'Xe máy', 'Xe buýt', 'Xe tải'];
+      const labels = [_t('Ô tô'), _t('Xe máy'), _t('Xe buýt'), _t('Xe tải')];
       const counts = [
         perClass.car || perClass.automobile || 0,
         perClass.motorcycle || 0,
@@ -357,7 +364,7 @@ document.addEventListener('DOMContentLoaded', function() {
           labels: timeSeries.labels || [],
           datasets: [
             {
-              label: 'Tổng số xe',
+              label: _t('Tổng số xe'),
               data: timeSeries.total || [],
               borderColor: '#6366f1',
               backgroundColor: 'rgba(99, 102, 241, 0.1)',
@@ -366,7 +373,7 @@ document.addEventListener('DOMContentLoaded', function() {
               borderWidth: 2.5
             },
             {
-              label: 'Ô tô',
+              label: _t('Ô tô'),
               data: timeSeries.car || [],
               borderColor: '#2563eb',
               borderWidth: 1.5,
@@ -375,7 +382,7 @@ document.addEventListener('DOMContentLoaded', function() {
               hidden: true
             },
             {
-              label: 'Xe máy',
+              label: _t('Xe máy'),
               data: timeSeries.motorcycle || [],
               borderColor: '#f59e0b',
               borderWidth: 1.5,
@@ -436,24 +443,24 @@ document.addEventListener('DOMContentLoaded', function() {
       let timeStr = timeParts[1] || ev.created_at;
 
       // Class badge color
-      let classLabel = 'Xe';
+      let classLabel = _t('Xe');
       let classColor = '#475569';
       let classBg = '#f1f5f9';
       let c = ev.vehicle_class.toLowerCase();
       if (c === 'car' || c === 'automobile') {
-        classLabel = '🚗 Ô tô';
+        classLabel = _t('🚗 Ô tô');
         classColor = '#1e3a8a';
         classBg = '#dbeafe';
       } else if (c === 'motorcycle' || c === 'motorbike') {
-        classLabel = '🏍️ Xe máy';
+        classLabel = _t('🏍️ Xe máy');
         classColor = '#78350f';
         classBg = '#fef3c7';
       } else if (c === 'bus') {
-        classLabel = '🚌 Xe buýt';
+        classLabel = _t('🚌 Xe buýt');
         classColor = '#064e3b';
         classBg = '#d1fae5';
       } else if (c === 'truck') {
-        classLabel = '🚛 Xe tải';
+        classLabel = _t('🚛 Xe tải');
         classColor = '#7f1d1d';
         classBg = '#fee2e2';
       }

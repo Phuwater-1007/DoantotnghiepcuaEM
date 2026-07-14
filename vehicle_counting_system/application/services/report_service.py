@@ -337,7 +337,7 @@ class ReportService:
         
         output = io.StringIO()
         
-        writer = csv.writer(output, lineterminator="\n")
+        writer = csv.writer(output, delimiter=";", lineterminator="\n")
         # Write headers
         writer.writerow(["Thời gian", "Loại xe", "Track ID", "Độ tin cậy", "Camera", "Phiên"])
         

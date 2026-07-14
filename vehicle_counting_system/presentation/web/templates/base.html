@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/app.css">
+  <link rel="stylesheet" href="/static/app.css?v=2.7">
 </head>
 <body>
   <div class="app-shell">
@@ -24,65 +24,92 @@
           <img src="{{ system_settings.logo_url }}" alt="Logo" style="width: 100%; height: 100%; object-fit: cover; border-radius: inherit;">
         </div>
         <div>
-          <div class="brand-title">Giám sát Giao thông</div>
-          <div class="brand-subtitle">Đồ án tốt nghiệp</div>
+          <div class="brand-title" data-i18n="brand-title">Giám sát Giao thông</div>
+          <div class="brand-subtitle" data-i18n="brand-subtitle">Đồ án tốt nghiệp</div>
         </div>
       </div>
+      
+      <!-- MODULE CHÍNH -->
+      <div class="nav-section-title" data-i18n="menu-main">MODULE CHÍNH</div>
       <nav class="nav-links">
-        <a href="/dashboard" class="{% if request.url.path in ['/', '/dashboard'] %}active{% endif %}">
+        <a href="/dashboard" class="{% if request.url.path in ['/', '/dashboard'] %}active{% endif %}" title="Tổng quan">
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-          Bảng điều khiển
+          <span data-i18n="nav-dashboard">Tổng quan</span>
         </a>
-        <a href="/monitoring" id="nav-monitoring" class="{% if request.url.path == '/monitoring' %}active{% endif %}">
+        <a href="/monitoring" id="nav-monitoring" class="{% if request.url.path == '/monitoring' %}active{% endif %}" title="Giám sát đơn luồng">
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
-          Giám sát đơn luồng
+          <span data-i18n="nav-single">Giám sát đơn luồng</span>
           <span id="nav-live-dot" class="nav-live-dot" style="display:none;"></span>
         </a>
-        <a href="/multi-monitoring" id="nav-multi-monitoring" class="{% if request.url.path == '/multi-monitoring' %}active{% endif %}">
+        <a href="/multi-monitoring" id="nav-multi-monitoring" class="{% if request.url.path == '/multi-monitoring' %}active{% endif %}" title="Giám sát đa luồng">
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-          Giám sát đa luồng
+          <span data-i18n="nav-multi">Giám sát đa luồng</span>
         </a>
-        <a href="/ai-config" class="{% if request.url.path == '/ai-config' %}active{% endif %}">
+        <a href="/ai-config" class="{% if request.url.path == '/ai-config' %}active{% endif %}" title="Tối ưu & Cảnh báo">
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-          Tối ưu & Cảnh báo
+          <span data-i18n="nav-config">Tối ưu & Cảnh báo</span>
         </a>
-        <a href="/reports" class="{% if request.url.path == '/reports' %}active{% endif %}">
+        <a href="/reports" class="{% if request.url.path == '/reports' %}active{% endif %}" title="Báo cáo kỹ thuật">
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
-          Báo cáo
+          <span data-i18n="nav-report">Báo cáo kỹ thuật</span>
         </a>
-        {% if current_user and current_user.role == "admin" %}
-        <a href="/brand-settings" class="{% if request.url.path == '/brand-settings' %}active{% endif %}">
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="9" y1="22" x2="9" y2="16"></line><line x1="15" y1="22" x2="15" y2="16"></line><line x1="9" y1="16" x2="15" y2="16"></line><path d="M9 8h.01"></path><path d="M15 8h.01"></path><path d="M9 12h.01"></path><path d="M15 12h.01"></path></svg>
-          Đơn vị sử dụng
-        </a>
-        <a href="/users" class="{% if request.url.path == '/users' %}active{% endif %}">
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-          Người dùng
-        </a>
-        <a href="/admin" class="{% if request.url.path == '/admin' %}active{% endif %}">
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect><rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>
-          Quản trị hệ thống
-        </a>
-        {% endif %}
       </nav>
+
+      <!-- QUẢN TRỊ -->
+      {% if current_user and current_user.role == "admin" %}
+      <div class="nav-section-title admin-section" data-i18n="menu-admin">QUẢN TRỊ</div>
+      <nav class="nav-links">
+        <a href="/brand-settings" class="{% if request.url.path == '/brand-settings' %}active{% endif %}" title="Đơn vị sử dụng">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="9" y1="22" x2="9" y2="16"></line><line x1="15" y1="22" x2="15" y2="16"></line><line x1="9" y1="16" x2="15" y2="16"></line><path d="M9 8h.01"></path><path d="M15 8h.01"></path><path d="M9 12h.01"></path><path d="M15 12h.01"></path></svg>
+          <span data-i18n="nav-sources">Đơn vị sử dụng</span>
+        </a>
+        <a href="/users" class="{% if request.url.path == '/users' %}active{% endif %}" title="Người dùng">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+          <span data-i18n="nav-users">Người dùng</span>
+        </a>
+        <a href="/admin" class="{% if request.url.path == '/admin' %}active{% endif %}" title="Quản trị hệ thống">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect><rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>
+          <span data-i18n="nav-system">Quản trị hệ thống</span>
+        </a>
+      </nav>
+      {% endif %}
+
       <div class="sidebar-footer">
-        <button class="theme-toggle-btn" id="theme-toggle" type="button" title="Chuyển đổi sáng/tối">
-          <svg class="icon-sun" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
-          <svg class="icon-moon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
-        </button>
         {% if current_user %}
-        <div class="user-chip">
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-          {{ current_user.full_name }} <span class="user-role-badge">{{ current_user.role }}</span>
+        <div class="nav-links" style="margin-top: 0;">
+          <a href="#" id="profile-trigger" title="Hồ sơ cá nhân">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+            <span data-i18n="nav-profile">Hồ sơ cá nhân</span>
+          </a>
         </div>
-        <form method="post" action="/logout" style="display:inline;">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-          <button type="submit" class="logout-btn">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
-            Đăng xuất
-          </button>
-        </form>
         {% endif %}
+        
+        <div class="sidebar-footer-row">
+          <button class="theme-toggle-btn" id="theme-toggle" type="button" title="Chuyển đổi sáng/tối">
+            <svg class="icon-sun" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+            <svg class="icon-moon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+          </button>
+          <button class="lang-toggle-btn" id="lang-toggle" type="button" title="Chuyển đổi ngôn ngữ / Switch language">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+            <span class="lang-text">EN</span>
+          </button>
+          {% if current_user %}
+          <form method="post" action="/logout" style="display:inline; flex: 1;" id="logout-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button type="submit" class="logout-btn" title="Đăng xuất">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+              <span data-i18n="btn-logout">Đăng xuất</span>
+            </button>
+          </form>
+          {% endif %}
+        </div>
+
+        <button class="collapse-btn" id="sidebar-collapse-btn" type="button" title="Thu gọn menu">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+          <span data-i18n="btn-collapse">Thu gọn</span>
+        </button>
+
+        <div class="sidebar-version">v1.8 • 2026</div>
       </div>
     </aside>
 
@@ -102,9 +129,40 @@
     </main>
   </div>
 
+  {% if current_user %}
+  <!-- Profile Modal -->
+  <div class="profile-modal" id="profile-modal">
+    <div class="profile-modal-overlay" id="profile-modal-overlay"></div>
+    <div class="profile-modal-card">
+      <button class="profile-modal-close" id="profile-modal-close" title="Đóng">&times;</button>
+      <div class="profile-modal-header">
+        <div class="profile-avatar">
+          <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+        </div>
+        <h3 class="profile-name">{{ current_user.full_name }}</h3>
+        <span class="profile-badge">{{ current_user.role }}</span>
+      </div>
+      <div class="profile-modal-body">
+        <div class="profile-info-row">
+          <span class="profile-info-label">Tên đăng nhập:</span>
+          <span class="profile-info-value">{{ current_user.username }}</span>
+        </div>
+        <div class="profile-info-row">
+          <span class="profile-info-label">Vai trò hệ thống:</span>
+          <span class="profile-info-value" style="text-transform: capitalize;">{{ current_user.role }}</span>
+        </div>
+        <div class="profile-info-row">
+          <span class="profile-info-label">Đơn vị quản lý:</span>
+          <span class="profile-info-value">{{ system_settings.title or 'Hệ thống Giám sát Giao thông' }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
   <!-- Toast container -->
   <div class="toast-container" id="toast-container"></div>
 
-  <script src="/static/js/app.js"></script>
+  <script src="/static/js/app.js?v=2.7"></script>
 </body>
 </html>

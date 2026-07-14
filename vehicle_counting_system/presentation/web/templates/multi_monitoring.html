@@ -68,12 +68,28 @@
     width: 100%;
     min-height: 480px;
     transition: all 0.3s ease;
+    margin: 0 auto; /* Center the grid container horizontally */
   }
   
-  .grid-1x1 { grid-template-columns: repeat(1, 1fr); }
-  .grid-2x2 { grid-template-columns: repeat(2, 1fr); }
-  .grid-3x3 { grid-template-columns: repeat(3, 1fr); }
-  .grid-4x4 { grid-template-columns: repeat(4, 1fr); }
+  .grid-1x1 { 
+    grid-template-columns: repeat(1, 1fr); 
+    max-width: calc(72vh * 16 / 9);
+  }
+  
+  .grid-2x2 { 
+    grid-template-columns: repeat(2, 1fr); 
+    max-width: calc((35vh * 16 / 9) * 2 + 16px);
+  }
+  
+  .grid-3x3 { 
+    grid-template-columns: repeat(3, 1fr); 
+    max-width: calc((23vh * 16 / 9) * 3 + 32px);
+  }
+  
+  .grid-4x4 { 
+    grid-template-columns: repeat(4, 1fr); 
+    max-width: calc((17vh * 16 / 9) * 4 + 48px);
+  }
 
   .layout-btn {
     background: #f3f4f6;
@@ -106,6 +122,32 @@
     position: relative;
     box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
     transition: border-color 0.2s, box-shadow 0.2s;
+    width: 100%;
+  }
+
+  /* Limit max height per layout to fit on screen without vertical scrolling */
+  .grid-1x1 .ms-slot-card {
+    max-height: 72vh;
+    max-width: calc(72vh * 16 / 9);
+    margin: 0 auto;
+  }
+  
+  .grid-2x2 .ms-slot-card {
+    max-height: 35vh;
+    max-width: calc(35vh * 16 / 9);
+    margin: 0 auto;
+  }
+  
+  .grid-3x3 .ms-slot-card {
+    max-height: 23vh;
+    max-width: calc(23vh * 16 / 9);
+    margin: 0 auto;
+  }
+  
+  .grid-4x4 .ms-slot-card {
+    max-height: 17vh;
+    max-width: calc(17vh * 16 / 9);
+    margin: 0 auto;
   }
 
   .ms-slot-card:hover {
