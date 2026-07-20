@@ -85,6 +85,8 @@ def analyze_video_source(
     counting_persistence_callback=None,
     lpr_persistence_callback=None,
     session_id: int = 0,
+    analysis_mode: str = "line",
+    min_track_frames: int = 5,
 ) -> dict:
     """
     Phân tích video: detect -> track -> count -> ghi output.
@@ -113,6 +115,8 @@ def analyze_video_source(
         frame_size=info.frame_size,
         counting_persistence_callback=counting_persistence_callback,
         lpr_persistence_callback=lpr_persistence_callback,
+        analysis_mode=analysis_mode,
+        min_track_frames=min_track_frames,
     )
     processor.session_id = session_id
     writer = VideoWriter(str(output_path), "mp4v", info.fps, info.frame_size)
@@ -186,6 +190,13 @@ def analyze_video_source(
         total = int(stats.total) if stats is not None else 0
         per_class = dict(stats.per_class) if stats is not None else {}
 
+    # Stable API shape for both modes and for videos where a class is absent.
+    per_class = {
+        name: int(per_class.get(name, 0) or 0)
+        for name in ("motorcycle", "car", "bus", "truck")
+    }
+    total = sum(per_class.values())
+
     elapsed = max(0.001, time.time() - started_at)
     logger.info(
         "Headless analysis finished. source=%s status=%s frames=%s elapsed=%.2fs total=%s",
@@ -202,6 +213,8 @@ def analyze_video_source(
         "output_video_path": str(output_path),
         "total": total,
         "per_class": per_class,
+        "analysis_mode": analysis_mode,
+        "min_track_frames": min_track_frames,
     }
 
 

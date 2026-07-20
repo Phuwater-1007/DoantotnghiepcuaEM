@@ -20,6 +20,8 @@
   var latestTotalCount = document.getElementById("latest-total-count");
   var latestCarCount = document.getElementById("latest-car-count");
   var latestMotorcycleCount = document.getElementById("latest-motorcycle-count");
+  var latestBusCount = document.getElementById("latest-bus-count");
+  var latestTruckCount = document.getElementById("latest-truck-count");
   var focusTotalCount = document.getElementById("focus-total-count");
   var focusCarCount = document.getElementById("focus-car-count");
   var focusMotorcycleCount = document.getElementById("focus-motorcycle-count");
@@ -95,7 +97,10 @@
     return {
       total: total,
       automobile: (perClass.car || 0) + (perClass.truck || 0) + (perClass.bus || 0),
-      motorcycle: perClass.motorcycle || 0
+      car: perClass.car || 0,
+      motorcycle: perClass.motorcycle || 0,
+      bus: perClass.bus || 0,
+      truck: perClass.truck || 0
     };
   }
 
@@ -158,8 +163,10 @@
   function updateResultCounts(summary) {
     var counts = getVehicleSummary(summary || {});
     if (latestTotalCount) latestTotalCount.textContent = counts.total;
-    if (latestCarCount) latestCarCount.textContent = counts.automobile;
+    if (latestCarCount) latestCarCount.textContent = counts.car;
     if (latestMotorcycleCount) latestMotorcycleCount.textContent = counts.motorcycle;
+    if (latestBusCount) latestBusCount.textContent = counts.bus;
+    if (latestTruckCount) latestTruckCount.textContent = counts.truck;
   }
 
   function setResultMeta(statusText, sourceName, noteText) {
@@ -404,12 +411,24 @@
       return;
     }
     var runBtn = document.getElementById("run-analysis-btn");
+    var modeEl = document.getElementById("analysis-mode");
+    var minFramesEl = document.getElementById("min-track-frames");
+    var analysisMode = modeEl ? modeEl.value : "line";
+    var minTrackFrames = minFramesEl ? parseInt(minFramesEl.value, 10) : 5;
+    if (!Number.isFinite(minTrackFrames) || minTrackFrames < 1 || minTrackFrames > 300) {
+      alert("Số frame tối thiểu phải từ 1 đến 300.");
+      return;
+    }
     if (runBtn) { runBtn.disabled = true; runBtn.textContent = "Đang chạy..."; }
     fetch("/api/monitoring/start-with-video", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "same-origin",
-      body: JSON.stringify({ source_id: currentSourceId })
+      body: JSON.stringify({
+        source_id: currentSourceId,
+        analysis_mode: analysisMode,
+        min_track_frames: minTrackFrames
+      })
     })
       .then(function (r) { return r.json(); })
       .then(function (data) {
@@ -483,6 +502,17 @@
 
   var runAnalysisBtn = document.getElementById("run-analysis-btn");
   if (runAnalysisBtn) runAnalysisBtn.addEventListener("click", function () { startAnalysis(); });
+
+  var analysisModeSelect = document.getElementById("analysis-mode");
+  if (analysisModeSelect) {
+    analysisModeSelect.addEventListener("change", function () {
+      var panorama = analysisModeSelect.value === "panorama";
+      var input = document.getElementById("min-track-frames");
+      var label = document.getElementById("min-track-frames-label");
+      if (input) input.style.display = panorama ? "" : "none";
+      if (label) label.style.display = panorama ? "" : "none";
+    });
+  }
 
 
 

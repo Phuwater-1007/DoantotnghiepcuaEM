@@ -305,6 +305,14 @@
               <span>Xe máy</span>
               <strong id="latest-motorcycle-count">0</strong>
             </div>
+            <div class="monitor-result-stat">
+              <span>Xe buýt</span>
+              <strong id="latest-bus-count">0</strong>
+            </div>
+            <div class="monitor-result-stat">
+              <span>Xe tải</span>
+              <strong id="latest-truck-count">0</strong>
+            </div>
             <div class="monitor-result-stat" id="result-di-stat" style="display:none">
               <span>↗ Đi</span>
               <strong id="latest-di-count">0</strong>
@@ -455,6 +463,8 @@
     var latestTotalCount = document.getElementById("latest-total-count");
     var latestCarCount = document.getElementById("latest-car-count");
     var latestMotorcycleCount = document.getElementById("latest-motorcycle-count");
+    var latestBusCount = document.getElementById("latest-bus-count");
+    var latestTruckCount = document.getElementById("latest-truck-count");
     var focusTotalCount = document.getElementById("focus-total-count");
     var focusCarCount = document.getElementById("focus-car-count");
     var focusMotorcycleCount = document.getElementById("focus-motorcycle-count");
@@ -580,7 +590,10 @@
       return {
         total: total,
         automobile: (perClass.car || 0) + (perClass.truck || 0) + (perClass.bus || 0),
-        motorcycle: perClass.motorcycle || 0
+        car: perClass.car || 0,
+        motorcycle: perClass.motorcycle || 0,
+        bus: perClass.bus || 0,
+        truck: perClass.truck || 0
       };
     }
 
@@ -601,8 +614,10 @@
     function updateResultCounts(summary) {
       var counts = getVehicleSummary(summary || {});
       if (latestTotalCount) latestTotalCount.textContent = counts.total;
-      if (latestCarCount) latestCarCount.textContent = counts.automobile;
+      if (latestCarCount) latestCarCount.textContent = counts.car;
       if (latestMotorcycleCount) latestMotorcycleCount.textContent = counts.motorcycle;
+      if (latestBusCount) latestBusCount.textContent = counts.bus;
+      if (latestTruckCount) latestTruckCount.textContent = counts.truck;
     }
 
     function setResultMeta(statusText, sourceName, noteText) {
@@ -623,7 +638,7 @@
         focusPlayer.load();
         focusPlayer.play().catch(function () { });
       }
-      setFocusMode("Video gốc", "Chạy phân tích để xem kết quả.");
+      setFocusMode("Video gốc", "Chọn Xem trực tiếp để bắt đầu.");
       setResultMeta("Chưa xem kết quả", "—", "");
       updateResultCounts({});
       resetTrafficDensity();
@@ -722,20 +737,8 @@
         selectedRoiStatus.textContent = roiReady === "yes" ? "Đã cấu hình" : "Chưa cấu hình";
       }
       if (editRoiLink) editRoiLink.href = "/monitoring/edit-roi-for-video?path=" + encodeURIComponent(videoPath);
-      var runAnalysisBtn = document.getElementById("run-analysis-btn");
       // Enable live button
       if (startLiveBtn) startLiveBtn.disabled = roiReady !== "yes" || !currentSourceId;
-      refreshStopButtonState();
-    }
-
-    function refreshStopButtonState() {
-      fetch("/api/monitoring/status", { credentials: "same-origin" })
-        .then(function (r) { return r.json(); })
-        .then(function (data) {
-          var stopBtn = document.getElementById("stop-analysis-btn");
-          if (stopBtn) stopBtn.disabled = !data.active_session_id;
-        })
-        .catch(function () { });
     }
 
     function stopLiveStatePoll() {
@@ -747,10 +750,6 @@
 
     function pollLiveState() {
       // Left empty here as it's not needed for the live stream view
-    }
-
-    function startAnalysis() {
-      // Left empty
     }
 
     function setSelectedTile(tile) {
@@ -1072,7 +1071,7 @@
       if (stopLiveBtn) stopLiveBtn.hidden = true;
 
 
-      setFocusMode("Video gốc", "Chạy phân tích để xem kết quả.");
+      setFocusMode("Video gốc", "Chọn Xem trực tiếp để bắt đầu.");
       resetTrafficDensity();
       hideDirectionStats();
       _hideLiveAnalytics();  // Quảy lại panel "Kết quả mới nhất"
@@ -1085,23 +1084,6 @@
       stopLiveBtn.addEventListener("click", function () { stopLiveStream(); });
     }
 
-
-    var stopAnalysisBtn = document.getElementById("stop-analysis-btn");
-    if (stopAnalysisBtn) {
-      stopAnalysisBtn.addEventListener("click", function () {
-        stopAnalysisBtn.disabled = true;
-        fetch("/api/monitoring/stop", { method: "POST", credentials: "same-origin" })
-          .then(function (r) { return r.json(); })
-          .then(function () {
-            stopLiveStatePoll();
-            refreshStopButtonState();
-            setResultMeta("Đã dừng phân tích", currentVideoName, "Phiên đã dừng. Bạn có thể chạy lại khi cần.");
-          })
-          .catch(function () { refreshStopButtonState(); });
-      });
-    }
-
-    refreshStopButtonState();
 
     // ========== WEBSOCKET LIVE STATE & LPR REALTIME ==========
     var _monitoringWS = null;
@@ -1185,10 +1167,6 @@
     function _handleMonitoringMessage(data) {
       var live = data.live_state;
       var activeId = data.active_session_id;
-
-      // Update stop button
-      var stopBtn = document.getElementById("stop-analysis-btn");
-      if (stopBtn) stopBtn.disabled = !activeId;
 
       // Update LPR events table
       if (data.lpr_events) {
@@ -1299,10 +1277,6 @@
 
           if (activeId && (status === "running" || status === "queued")) {
             headlessActive = true;
-            var stopBtn = document.getElementById("stop-analysis-btn");
-            if (stopBtn) {
-              stopBtn.disabled = false;
-            }
             updateFocusCounts(summary);
             updateResultCounts(summary);
             setResultMeta("Đang chạy phân tích", sourceName, "Đang xử lý video, vui lòng đợi.");

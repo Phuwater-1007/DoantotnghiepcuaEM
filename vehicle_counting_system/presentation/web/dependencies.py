@@ -162,6 +162,24 @@ def base_context(request: Request, **extra: Any) -> dict[str, Any]:
         except Exception:
             pass
 
+    # Cache busting for logo to prevent browser caching old images
+    def _add_cache_buster(url_str: str) -> str:
+        if url_str and url_str.startswith("/static/"):
+            static_dir = Path(__file__).resolve().parent / "static"
+            logo_rel_path = url_str[len("/static/"):]
+            logo_path = static_dir / logo_rel_path
+            if logo_path.exists():
+                mtime = int(logo_path.stat().st_mtime)
+                base_url = url_str.split("?")[0]
+                return f"{base_url}?t={mtime}"
+        return url_str
+
+    if settings.get("logo_url"):
+        settings["logo_url"] = _add_cache_buster(settings["logo_url"])
+
+    if "settings" in extra and isinstance(extra["settings"], dict) and extra["settings"].get("logo_url"):
+        extra["settings"]["logo_url"] = _add_cache_buster(extra["settings"]["logo_url"])
+
     return {
         "request": request,
         "current_user": get_current_user(request),

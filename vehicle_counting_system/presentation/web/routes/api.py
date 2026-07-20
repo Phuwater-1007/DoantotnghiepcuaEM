@@ -31,6 +31,8 @@ class SaveConfigBody(BaseModel):
 class StartWithVideoBody(BaseModel):
     source_id: int | None = None
     video_path: str | None = None
+    analysis_mode: str = "line"
+    min_track_frames: int = 5
 
 
 def build_router() -> APIRouter:
@@ -590,7 +592,16 @@ def build_router() -> APIRouter:
         if container.monitoring_service.get_active_session_id() is not None:
             return JSONResponse(status_code=409, content={"error": "Đang có phiên phân tích chạy, vui lòng đợi hoặc dừng"})
         try:
-            session_id = container.monitoring_service.start_session(source_id, user_id=user.id)
+            if body.analysis_mode not in {"line", "panorama"}:
+                return JSONResponse(status_code=400, content={"error": "Chế độ phân tích không hợp lệ"})
+            if not 1 <= body.min_track_frames <= 300:
+                return JSONResponse(status_code=400, content={"error": "Số frame tối thiểu phải từ 1 đến 300"})
+            session_id = container.monitoring_service.start_session(
+                source_id,
+                user_id=user.id,
+                analysis_mode=body.analysis_mode,
+                min_track_frames=body.min_track_frames,
+            )
         except ValueError as e:
             return JSONResponse(status_code=400, content={"error": str(e)})
         except Exception as e:
@@ -603,7 +614,14 @@ def build_router() -> APIRouter:
             username=user.username,
             ip_address=request.client.host if request.client else "",
         )
-        return {"ok": True, "session_id": session_id, "source_id": source_id, "source_name": source.name}
+        return {
+            "ok": True,
+            "session_id": session_id,
+            "source_id": source_id,
+            "source_name": source.name,
+            "analysis_mode": body.analysis_mode,
+            "min_track_frames": body.min_track_frames,
+        }
 
     @router.post("/monitoring/stop")
     def api_monitoring_stop(request: Request):

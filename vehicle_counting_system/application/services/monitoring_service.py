@@ -82,20 +82,35 @@ class MonitoringService:
                 return None
             return copy.deepcopy(self._live_state)
 
-    def start_session(self, source_id: int, user_id: int) -> int:
+    def start_session(
+        self,
+        source_id: int,
+        user_id: int,
+        analysis_mode: str = "line",
+        min_track_frames: int = 5,
+    ) -> int:
         source = self.source_service.get_source(source_id)
         if source is None:
             raise ValueError("Không tìm thấy nguồn.")
-        if not source.counting_config_path:
+        analysis_mode = "panorama" if analysis_mode == "panorama" else "line"
+        if analysis_mode == "line" and not source.counting_config_path:
             raise ValueError("Video này chưa có ROI. Vui lòng chỉnh ROI trước khi chạy phân tích.")
 
         with self._lock:
             if self._active_session_id is not None:
                 raise RuntimeError("Đã có phiên phân tích đang chạy. Dùng queue_session() để xếp hàng.")
 
-            return self._start_session_locked(source_id, user_id)
+            return self._start_session_locked(
+                source_id, user_id, analysis_mode, min_track_frames
+            )
 
-    def _start_session_locked(self, source_id: int, user_id: int) -> int:
+    def _start_session_locked(
+        self,
+        source_id: int,
+        user_id: int,
+        analysis_mode: str = "line",
+        min_track_frames: int = 5,
+    ) -> int:
         """Internal: start a session (must be called with self._lock held or no active session)."""
         session_id = self.db.execute_and_get_id(
             """
@@ -108,7 +123,7 @@ class MonitoringService:
         stop_event = threading.Event()
         worker = threading.Thread(
             target=self._run_session,
-            args=(session_id, source_id, stop_event),
+            args=(session_id, source_id, stop_event, analysis_mode, min_track_frames),
             name=f"analysis-session-{session_id}",
             daemon=True,
         )
@@ -284,7 +299,14 @@ class MonitoringService:
             # sqlite_sequence may not exist in some edge cases; safe to ignore.
             pass
 
-    def _run_session(self, session_id: int, source_id: int, stop_event: threading.Event) -> None:
+    def _run_session(
+        self,
+        session_id: int,
+        source_id: int,
+        stop_event: threading.Event,
+        analysis_mode: str = "line",
+        min_track_frames: int = 5,
+    ) -> None:
         source = self.source_service.get_source(source_id)
         if source is None:
             self._mark_failed(session_id, "Source not found.")
@@ -375,6 +397,8 @@ class MonitoringService:
                     if self.lpr_persistence_service else None
                 ),
                 session_id=session_id,
+                analysis_mode=analysis_mode,
+                min_track_frames=min_track_frames,
             )
             finished_status = result["status"]
             summary = {
@@ -382,6 +406,8 @@ class MonitoringService:
                 "per_class": result["per_class"],
                 "frames_processed": result["frames_processed"],
                 "elapsed_seconds": result["elapsed_seconds"],
+                "analysis_mode": result["analysis_mode"],
+                "min_track_frames": result["min_track_frames"],
             }
             self.db.execute(
                 """

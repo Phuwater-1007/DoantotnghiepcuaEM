@@ -17,6 +17,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import List, Tuple, Optional
 
 from vehicle_counting_system.counters.line_counter import LineCounter
+from vehicle_counting_system.counters.panorama_counter import PanoramaCounter
 from vehicle_counting_system.configs.counting_config import load_counting_config
 from vehicle_counting_system.configs.settings import settings
 from vehicle_counting_system.classifiers.vehicle_classifier import VehicleClassifier
@@ -64,12 +65,15 @@ class FrameProcessor:
         frame_size: Optional[Tuple[int, int]] = None,
         counting_persistence_callback=None,
         lpr_persistence_callback=None,
+        analysis_mode: str = "line",
+        min_track_frames: int = 5,
     ):
         # Detector/tracker được inject từ ngoài để giữ module này độc lập.
         self.detector = detector
         self.tracker = tracker
         self.session_id = 0
         self._lpr_persistence_callback = lpr_persistence_callback
+        self.analysis_mode = "panorama" if analysis_mode == "panorama" else "line"
 
         cfg = load_counting_config(counting_lines_path, frame_size=frame_size)
 
@@ -98,7 +102,11 @@ class FrameProcessor:
         else:
             self.roi_bbox = None
 
-        self.counter = LineCounter(self.lines, line_directions=self.line_directions)
+        self.counter = (
+            PanoramaCounter(min_track_frames=min_track_frames)
+            if self.analysis_mode == "panorama"
+            else LineCounter(self.lines, line_directions=self.line_directions)
+        )
         self.classifier = VehicleClassifier()
         self.last_stats = None
         self._last_ts = time.perf_counter()
@@ -471,7 +479,12 @@ class FrameProcessor:
         detections = self._detect_with_optional_crop(frame)
         tracks: List[TrackedObject] = self.tracker.update(detections)
         tracks = self.classifier.classify(tracks)
-        stats = self.counter.process(tracks) # Đếm xe độc lập dựa trên vạch đếm
+        stats = self.counter.process(tracks)
+
+        # Full-frame analysis deliberately ignores ROI, line and capture-zone rules.
+        if self.analysis_mode == "panorama":
+            self.last_stats = stats
+            return tracks, stats
 
         h_frame, w_frame = frame.shape[:2]
         current_time = time.time()
@@ -634,12 +647,15 @@ class FrameProcessor:
         alpha = getattr(settings, "display_smooth_alpha", 0.0)
         active_ids = {tr.track_id for tr in tracks}
         
-        # Chỉ hiển thị bounding box của phương tiện nằm bên trong ROI
-        visible_tracks = []
-        for tr in tracks:
-            ax, ay = get_bbox_bottom_center(tr.bbox)
-            if _point_in_polygon((int(ax), int(ay)), self.roi_polygon):
-                visible_tracks.append(tr)
+        # Full-frame mode displays every track; line mode retains ROI rendering.
+        if self.analysis_mode == "panorama":
+            visible_tracks = tracks
+        else:
+            visible_tracks = []
+            for tr in tracks:
+                ax, ay = get_bbox_bottom_center(tr.bbox)
+                if _point_in_polygon((int(ax), int(ay)), self.roi_polygon):
+                    visible_tracks.append(tr)
 
         for tr in visible_tracks:
             bbox_override = None
@@ -667,17 +683,13 @@ class FrameProcessor:
                 if tid not in active_ids:
                     del self._smoothed_bbox[tid]
 
-        for idx, (start, end) in enumerate(self.lines):
-            line_label = None
-            if idx == 0:
-                line_label = "L1"
-            draw_counting_line(frame, start, end, label=line_label)
-
-        draw_roi_polygon(frame, self.roi_polygon)
-        
-        # Vẽ Capture Zone bằng style riêng biệt (tím nhạt, dashed border)
-        if self.capture_box_polygon:
-            draw_capture_zone(frame, self.capture_box_polygon)
+        if self.analysis_mode != "panorama":
+            for idx, (start, end) in enumerate(self.lines):
+                line_label = "L1" if idx == 0 else None
+                draw_counting_line(frame, start, end, label=line_label)
+            draw_roi_polygon(frame, self.roi_polygon)
+            if self.capture_box_polygon:
+                draw_capture_zone(frame, self.capture_box_polygon)
 
         if settings.show_stats:
             draw_statistics(

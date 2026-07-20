@@ -805,6 +805,7 @@ def build_router() -> APIRouter:
                 "total": stats.get("total", 0),
                 "per_class": stats.get("per_class", {}),
                 "elapsed_sec": elapsed,
+                "streaming": True,
             })
 
         agg_total = 0
