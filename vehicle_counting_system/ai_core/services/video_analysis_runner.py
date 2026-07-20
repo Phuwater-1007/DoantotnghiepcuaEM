@@ -11,6 +11,7 @@ import cv2
 from vehicle_counting_system.configs.paths import OUTPUT_VIDEOS_DIR
 from vehicle_counting_system.configs.settings import settings
 from vehicle_counting_system.core.frame_processor import FrameProcessor
+from vehicle_counting_system.core.independent_pipelines import IndependentAnalysisPipelines
 from vehicle_counting_system.core.hardware_manager import empty_gpu_cache_if_needed
 from vehicle_counting_system.detectors.yolo_detector import YOLODetector
 from vehicle_counting_system.services.video_writer import VideoWriter
@@ -50,6 +51,8 @@ def get_ai_config() -> dict:
         "lpr_debounce_seconds": getattr(settings, "lpr_debounce_seconds", 60),
         "lpr_quality_threshold": getattr(settings, "lpr_quality_threshold", 0.20),
         "allowed_class_names": list(getattr(det, "allowed_names", ["car", "motorcycle", "bus", "truck"])),
+        "enable_counting_pipeline": bool(getattr(settings, "enable_counting_pipeline", True)),
+        "enable_lpr_pipeline": bool(getattr(settings, "enable_lpr_pipeline", True)),
     }
 
 
@@ -59,8 +62,14 @@ def update_ai_config(
     lpr_debounce_seconds: int | None = None,
     lpr_quality_threshold: float | None = None,
     allowed_classes: list[str] | None = None,
+    enable_counting_pipeline: bool | None = None,
+    enable_lpr_pipeline: bool | None = None,
 ) -> None:
     """Update active YOLO and LPR parameters."""
+    next_counting = settings.enable_counting_pipeline if enable_counting_pipeline is None else bool(enable_counting_pipeline)
+    next_lpr = settings.enable_lpr_pipeline if enable_lpr_pipeline is None else bool(enable_lpr_pipeline)
+    if not next_counting and not next_lpr:
+        raise ValueError("Phải chọn ít nhất một pipeline: đếm xe hoặc nhận diện biển số.")
     det = _get_shared_yolo_detector()
     det.update_params(conf_thres=conf_thres, min_box_area=min_box_area)
     if allowed_classes is not None:
@@ -72,6 +81,10 @@ def update_ai_config(
         settings.lpr_debounce_seconds = int(lpr_debounce_seconds)
     if lpr_quality_threshold is not None:
         settings.lpr_quality_threshold = float(lpr_quality_threshold)
+    if enable_counting_pipeline is not None:
+        settings.enable_counting_pipeline = bool(enable_counting_pipeline)
+    if enable_lpr_pipeline is not None:
+        settings.enable_lpr_pipeline = bool(enable_lpr_pipeline)
 
 
 def analyze_video_source(
@@ -87,6 +100,8 @@ def analyze_video_source(
     session_id: int = 0,
     analysis_mode: str = "line",
     min_track_frames: int = 5,
+    enable_counting: bool | None = None,
+    enable_lpr: bool | None = None,
 ) -> dict:
     """
     Phân tích video: detect -> track -> count -> ghi output.
@@ -106,28 +121,40 @@ def analyze_video_source(
     stride = vid_stride if vid_stride is not None else getattr(settings, "vid_stride", 1)
     stride = max(1, int(stride))
 
-    # Reuse YOLO model between sessions to reduce startup time/VRAM churn.
+    enable_counting = bool(getattr(settings, "enable_counting_pipeline", True)) if enable_counting is None else bool(enable_counting)
+    enable_lpr = bool(getattr(settings, "enable_lpr_pipeline", True)) if enable_lpr is None else bool(enable_lpr)
+    if not enable_counting and not enable_lpr:
+        raise ValueError("At least one analysis pipeline must be enabled.")
+
+    # The detector model is immutable/shared; tracker, classifier, counter and LPR state are not.
     _shared_detector = _get_shared_yolo_detector()
-    processor = FrameProcessor(
+    pipelines = IndependentAnalysisPipelines(
         detector=_shared_detector,
-        tracker=ByteTrackTracker(),
         counting_lines_path=counting_lines_path,
         frame_size=info.frame_size,
         counting_persistence_callback=counting_persistence_callback,
         lpr_persistence_callback=lpr_persistence_callback,
         analysis_mode=analysis_mode,
         min_track_frames=min_track_frames,
+        enable_counting=enable_counting,
+        enable_lpr=enable_lpr,
+        session_id=session_id,
     )
-    processor.session_id = session_id
+    counting_processor = pipelines.counting
+    lpr_processor = pipelines.lpr
     writer = VideoWriter(str(output_path), "mp4v", info.fps, info.frame_size)
     if not writer.is_open:
-        processor.close()
+        for processor in (counting_processor, lpr_processor):
+            if processor is not None:
+                processor.close()
         raise IOError(f"Không tạo được file output: {output_path}")
 
     cap = cv2.VideoCapture(source_uri)
     if not cap.isOpened():
         writer.release()
-        processor.close()
+        for processor in (counting_processor, lpr_processor):
+            if processor is not None:
+                processor.close()
         raise IOError(f"Không mở được video: {source_uri}")
 
     started_at = time.time()
@@ -148,10 +175,10 @@ def analyze_video_source(
                 break
 
             if frame_index % stride == 0:
-                last_processed = processor.process(frame)
+                last_processed = pipelines.process(frame)
                 frames_processed += 1
                 # Snapshot stats at each processed frame so the final summary is consistent.
-                stats = processor.last_stats
+                stats = counting_processor.last_stats if counting_processor is not None else None
                 if stats is not None:
                     try:
                         last_stats_snapshot = {
@@ -161,7 +188,7 @@ def analyze_video_source(
                     except Exception:
                         pass
                 if progress_callback is not None and last_processed is not None:
-                    progress_callback(last_processed, processor.last_stats, frame_index, frames_processed)
+                    progress_callback(last_processed, stats, frame_index, frames_processed)
 
             if last_processed is not None:
                 writer.write(last_processed)
@@ -177,12 +204,14 @@ def analyze_video_source(
         except Exception:
             pass
         try:
-            processor.close()
+            for processor in (counting_processor, lpr_processor):
+                if processor is not None:
+                    processor.close()
         except Exception:
             pass
         empty_gpu_cache_if_needed()
 
-    stats = processor.last_stats
+    stats = counting_processor.last_stats if counting_processor is not None else None
     if last_stats_snapshot is not None:
         total = int(last_stats_snapshot.get("total", 0) or 0)
         per_class = dict(last_stats_snapshot.get("per_class", {}) or {})
@@ -215,6 +244,7 @@ def analyze_video_source(
         "per_class": per_class,
         "analysis_mode": analysis_mode,
         "min_track_frames": min_track_frames,
+        "pipelines": {"counting": enable_counting, "lpr": enable_lpr},
     }
 
 

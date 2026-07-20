@@ -24,7 +24,10 @@ def main() -> None:
     p.add_argument("--frames", type=int, default=200, help="Number of frames to process")
     args = p.parse_args()
 
-    processor = FrameProcessor(detector=YOLODetector(), tracker=ByteTrackTracker())
+    processor = FrameProcessor(
+        detector=YOLODetector(), tracker=ByteTrackTracker(),
+        enable_counting=True, enable_lpr=False,
+    )
     cap = cv2.VideoCapture(args.video)
     if not cap.isOpened():
         raise IOError(f"Cannot open video: {args.video}")

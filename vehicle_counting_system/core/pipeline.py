@@ -13,6 +13,7 @@ import cv2
 
 from vehicle_counting_system.configs.settings import settings
 from vehicle_counting_system.core.frame_processor import FrameProcessor
+from vehicle_counting_system.core.independent_pipelines import IndependentAnalysisPipelines
 from vehicle_counting_system.core.hardware_manager import empty_gpu_cache_if_needed
 from vehicle_counting_system.core.shutdown_manager import run_cleanup_step
 from vehicle_counting_system.detectors.yolo_detector import YOLODetector
@@ -158,12 +159,13 @@ class Pipeline:
             fps = 30.0
             
         detector = YOLODetector()
-        tracker = ByteTrackTracker(frame_rate=int(fps))
-        self.processor = FrameProcessor(
+        self.processor = IndependentAnalysisPipelines(
             detector=detector,
-            tracker=tracker,
             counting_lines_path=self.counting_lines_path,
             frame_size=(width, height),
+            enable_counting=bool(getattr(settings, "enable_counting_pipeline", True)),
+            enable_lpr=bool(getattr(settings, "enable_lpr_pipeline", True)),
+            tracker_factory=lambda: ByteTrackTracker(frame_rate=int(fps)),
         )
         return cap
 

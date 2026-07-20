@@ -23,6 +23,7 @@ def build_router(templates) -> APIRouter:
         report_summary = {
             "total_reports": len(reports),
             "total_vehicles": sum(r["total"] for r in reports),
+            "total_plates": sum(r["lpr_total"] for r in reports),
         }
         return templates.TemplateResponse(
             "reports.html",

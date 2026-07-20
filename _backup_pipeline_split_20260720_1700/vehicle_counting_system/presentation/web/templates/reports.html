@@ -1,0 +1,375 @@
+{% extends "base.html" %}
+{% block content %}
+
+<!-- Nạp thư viện Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+
+<style>
+  /* CSS cho Modal và hiệu ứng hàng dữ liệu */
+  .premium-table tbody tr {
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+  .premium-table tbody tr:hover {
+    background-color: #f1f5f9;
+  }
+  
+  @keyframes modalFadeIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  .modal-tab-btn.active {
+    color: #4f46e5 !important;
+    border-bottom-color: #4f46e5 !important;
+  }
+  
+  .lpr-plate-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    background: #1e293b;
+    color: #fff;
+    font-family: monospace;
+    font-weight: 700;
+    font-size: 13px;
+    border-radius: 6px;
+    border: 1px solid #334155;
+  }
+
+  .lpr-v-badge {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+  
+  .modal-lpr-table th, .modal-lpr-table td {
+    border-bottom: 1px solid var(--color-border);
+  }
+</style>
+
+<!-- Header với liên kết nhanh -->
+<section class="card" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+  <div>
+    <h2 style="margin: 0 0 4px 0;">Báo cáo phiên phân tích</h2>
+    <p style="margin: 0; font-size: 13px; color: var(--color-muted);">
+      Tất cả kết quả phân tích được lưu lại tại đây. Dữ liệu tự động cập nhật khi có phiên mới hoàn thành.
+    </p>
+  </div>
+  <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+    <a href="/monitoring" class="btn btn-primary" style="font-size: 13px; padding: 8px 16px; text-decoration: none;">
+      🎥 Mở giám sát
+    </a>
+    <a href="/dashboard" class="btn btn-outline" style="font-size: 13px; padding: 8px 16px; text-decoration: none;">
+      📊 Bảng điều khiển
+    </a>
+  </div>
+</section>
+
+<!-- Live analysis banner -->
+<section class="card" id="report-live-banner" style="display: none; background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%); color: #fff; border: none;">
+  <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <span class="live-dot-inline" style="width: 12px; height: 12px;"></span>
+      <div>
+        <div style="font-weight: 600; font-size: 15px;" id="report-live-title">Đang phân tích video...</div>
+        <div style="font-size: 13px; opacity: 0.8;">Kết quả sẽ tự động xuất hiện trong bảng khi hoàn thành</div>
+      </div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 16px;">
+      <div style="text-align: center;">
+        <div style="font-size: 20px; font-weight: 700;" id="report-live-total">0</div>
+        <div style="font-size: 11px; opacity: 0.7;">Tổng xe (đang đếm)</div>
+      </div>
+      <a href="/monitoring" class="btn" style="background: rgba(255,255,255,0.15); color: #fff; border: 1px solid rgba(255,255,255,0.3); padding: 8px 16px; font-size: 13px; text-decoration: none;">
+        Xem trực tiếp →
+      </a>
+    </div>
+  </div>
+</section>
+
+{% if reports %}
+<!-- PREMIUM STATS GRID -->
+<div class="report-stats-grid">
+  <div class="report-stat-card">
+    <div class="report-stat-label">Tổng số báo cáo</div>
+    <div class="report-stat-val">{{ report_summary.total_reports }} <span style="font-size: 14px; color: var(--color-muted); font-weight: 500;">phiên</span></div>
+  </div>
+  <div class="report-stat-card total-vehicles">
+    <div class="report-stat-label">Tổng lượng phương tiện</div>
+    <div class="report-stat-val" style="color: #10b981;">{{ report_summary.total_vehicles }} <span style="font-size: 14px; color: var(--color-muted); font-weight: 500;">xe</span></div>
+  </div>
+</div>
+
+<!-- TOOLBAR -->
+<div class="report-toolbar">
+  <div class="toolbar-group">
+    <input type="text" id="search-input" class="search-input" placeholder="Tìm kiếm tên video, camera...">
+    <select id="status-filter" class="filter-select">
+      <option value="all">Tất cả trạng thái</option>
+      <option value="completed">Hoàn thành</option>
+      <option value="running">Đang chạy</option>
+      <option value="failed">Thất bại</option>
+      <option value="stopped">Đã dừng</option>
+    </select>
+  </div>
+  <button id="export-csv-btn" class="btn-export">
+    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+    Xuất CSV
+  </button>
+</div>
+{% endif %}
+
+<div class="card" style="padding: 0; overflow: auto; border: 1px solid var(--color-border); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+  {% if reports %}
+  <table class="premium-table">
+    <thead>
+      <tr>
+        <th style="width: 40px; text-align: center;"><input type="checkbox" id="select-all-reports" style="cursor: pointer;"></th>
+        <th>Phiên</th>
+        <th>Thời gian</th>
+        <th>Nguồn</th>
+        <th>Tổng phân tích</th>
+        <th>Cơ cấu phương tiện</th>
+        <th>Giờ cao điểm</th>
+        <th>Trạng thái</th>
+        <th style="text-align: center;">Thao tác</th>
+      </tr>
+    </thead>
+    <tbody id="report-table-body">
+      {% for report in reports %}
+      {% set c_car = report.per_class.get('car', report.per_class.get('automobile', 0)) %}
+      {% set c_moto = report.per_class.get('motorcycle', 0) %}
+      {% set c_bus = report.per_class.get('bus', 0) %}
+      {% set c_truck = report.per_class.get('truck', 0) %}
+      {% set total = report.total if report.total > 0 else 1 %}
+      
+      <tr class="report-row" 
+          data-status="{{ report.status }}"
+          data-session="{{ report.session_id }}"
+          data-date="{{ report.started_at }}"
+          data-source="{{ report.source_name }}"
+          data-total="{{ report.total }}"
+          data-car="{{ c_car }}"
+          data-moto="{{ c_moto }}"
+          data-bus="{{ c_bus }}"
+          data-truck="{{ c_truck }}"
+          data-di="0"
+          data-ve="0"
+          data-flowrate="N/A"
+          data-peak="{{ report.peak_hour_label }}"
+          data-status-label="{% if report.status == 'completed' %}Hoàn thành{% elif report.status == 'running' %}Đang chạy{% elif report.status == 'queued' %}Đang chờ{% elif report.status == 'failed' %}Thất bại{% elif report.status == 'stopped' %}Đã dừng{% else %}{{ report.status }}{% endif %}">
+        <td style="text-align: center; width: 40px;" onclick="event.stopPropagation();">
+          <input type="checkbox" class="report-checkbox" data-session="{{ report.session_id }}" style="cursor: pointer;">
+        </td>
+        <td style="font-family: inherit; font-weight: 700; color: #4f46e5;">#{{ report.session_id }}</td>
+        <td>
+          <div style="font-weight: 600; color: #1e293b;">{{ report.started_at.split(' ')[0] if ' ' in report.started_at else report.started_at }}</div>
+          {% if ' ' in report.started_at %}
+          <div style="font-size: 11px; color: var(--color-muted); font-weight: 500; margin-top: 2px;">{{ report.started_at.split(' ')[1] }}</div>
+          {% endif %}
+        </td>
+        <td>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 15px; background: #e2e8f0; padding: 4px; border-radius: 6px;">📹</span>
+            <span style="font-weight: 600; color: #334155;">{{ report.source_name }}</span>
+          </div>
+        </td>
+        <td>
+          <div style="font-size: 18px; font-weight: 800; color: #1e293b; line-height: 1;">{{ report.total }} <span style="font-size: 11px; font-weight: 600; color: #94a3b8; text-transform: uppercase;">xe</span></div>
+          {% if report.total > 0 %}
+          <div class="mini-mix-bar">
+            <div class="mix-segment bg-car" style="width: {{ (c_car / total * 100) }}%" title="Ô tô"></div>
+            <div class="mix-segment bg-moto" style="width: {{ (c_moto / total * 100) }}%" title="Xe máy"></div>
+            <div class="mix-segment bg-bus" style="width: {{ (c_bus / total * 100) }}%" title="Xe buýt"></div>
+            <div class="mix-segment bg-truck" style="width: {{ (c_truck / total * 100) }}%" title="Xe tải"></div>
+          </div>
+          {% else %}
+          <div class="mini-mix-bar" style="background: #f1f5f9;"></div>
+          {% endif %}
+        </td>
+        <td>
+          <div style="display: flex; flex-wrap: wrap; max-width: 250px;">
+            {% if c_car > 0 %}<span class="vehicle-badge v-car">🚗 Ô tô: {{ c_car }}</span>{% endif %}
+            {% if c_moto > 0 %}<span class="vehicle-badge v-motorcycle">🏍️ Xe máy: {{ c_moto }}</span>{% endif %}
+            {% if c_bus > 0 %}<span class="vehicle-badge v-bus">🚌 Buýt: {{ c_bus }}</span>{% endif %}
+            {% if c_truck > 0 %}<span class="vehicle-badge v-truck">🚛 Tải: {{ c_truck }}</span>{% endif %}
+            {% if c_car == 0 and c_moto == 0 and c_bus == 0 and c_truck == 0 %}
+              <span style="font-size: 13px; color: #94a3b8; font-style: italic;">Chưa có phương tiện</span>
+            {% endif %}
+          </div>
+        </td>
+        <td>
+          {% if report.peak_hour_label and report.peak_hour_label != 'N/A' %}
+            <span style="display:inline-flex; align-items:center; gap:4px; font-size:12px; background:#fef2f2; border:1px solid #fee2e2; color: #b91c1c; padding:3px 8px; border-radius:6px; font-weight:600;"><span style="color:#ef4444;">🔥</span> {{ report.peak_hour_label }}</span>
+          {% else %}
+            <span style="color: #cbd5e1; font-weight: 500;">—</span>
+          {% endif %}
+        </td>
+        <td>
+          <span class="pill status-{{ report.status }}" style="padding: 4px 10px; font-size: 12px; border-radius: 8px;">
+            {% if report.status == 'completed' %}Hoàn thành
+            {% elif report.status == 'running' %}Đang chạy
+            {% elif report.status == 'queued' %}Đang chờ
+            {% elif report.status == 'failed' %}Thất bại
+            {% elif report.status == 'stopped' %}Đã dừng
+            {% else %}{{ report.status }}{% endif %}
+          </span>
+        </td>
+        <td style="text-align: center;">
+          {% if report.media_url %}
+          <a href="{{ report.media_url }}" target="_blank" class="action-btn" title="Mở Video góc nhìn AI">
+            🎥
+          </a>
+          {% else %}
+          <span style="opacity: 0.3; cursor: not-allowed;" class="action-btn" title="Không có bản ghi video">➖</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  
+  <div id="no-results" style="display: none; padding: 60px 20px; text-align: center; color: var(--color-muted);">
+    <div style="font-size: 42px; margin-bottom: 12px;">🕵️‍♂️</div>
+    <h3 style="margin: 0 0 8px 0; color: var(--color-text);">Không tìm thấy báo cáo</h3>
+    <p>Thử điều chỉnh bộ lọc hoặc từ khóa tìm kiếm của bạn.</p>
+  </div>
+  
+  {% else %}
+  <div class="empty-state" style="padding: 80px 20px;">
+    <div class="empty-state-icon" style="font-size: 56px; margin-bottom: 20px;">📋</div>
+    <h3 style="margin: 0 0 8px 0;">Hệ thống chưa có báo cáo nào</h3>
+    <p style="color: var(--color-muted); max-width: 420px; margin: 0 auto; line-height: 1.5;">Kết quả phân tích giao thông sẽ tự động được thu thập và lưu trữ vĩnh viễn tại đây ngay khi một phiên giám sát hoàn thành.</p>
+    <br>
+    <a href="/monitoring" class="btn btn-primary" style="padding: 10px 20px; box-shadow: 0 4px 12px rgba(99,102,241,0.25);">🚀 Bắt đầu ngay phiên phân tích đầu tiên</a>
+  </div>
+  {% endif %}
+</div>
+
+
+<!-- REPORT DETAIL MODAL -->
+<div id="report-detail-modal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
+  <div class="modal-container" style="background: #fff; width: 90%; max-width: 1000px; height: 85vh; border-radius: 16px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04); animation: modalFadeIn 0.3s ease;">
+    
+    <!-- Modal Header -->
+    <div style="padding: 16px 24px; border-bottom: 1px solid var(--color-border); display: flex; align-items: center; justify-content: space-between; background: #fafafa;">
+      <div>
+        <h3 id="modal-session-title" style="margin: 0; font-size: 16px; font-weight: 700; color: #1e1b4b;">Chi tiết Phiên phân tích #--</h3>
+        <p id="modal-session-source" style="margin: 4px 0 0 0; font-size: 12px; color: var(--color-muted);">Nguồn: --</p>
+      </div>
+      <button id="close-modal-btn" style="background: none; border: none; font-size: 28px; color: #9ca3af; cursor: pointer; padding: 4px; line-height: 1; transition: color 0.2s;" onmouseover="this.style.color='#4b5563'" onmouseout="this.style.color='#9ca3af'">&times;</button>
+    </div>
+
+    <!-- Modal Tabs -->
+    <div style="display: flex; background: #f3f4f6; border-bottom: 1px solid var(--color-border); padding: 0 12px;">
+      <button class="modal-tab-btn active" data-tab="tab-overview" style="padding: 12px 18px; background: none; border: none; font-size: 13px; font-weight: 600; color: #4b5563; border-bottom: 3px solid transparent; cursor: pointer; transition: all 0.2s;">📊 Tổng quan & Biểu đồ</button>
+      <button class="modal-tab-btn" data-tab="tab-lpr" style="padding: 12px 18px; background: none; border: none; font-size: 13px; font-weight: 600; color: #4b5563; border-bottom: 3px solid transparent; cursor: pointer; transition: all 0.2s;">🚗 Log Biển số nhận dạng</button>
+      <button class="modal-tab-btn" data-tab="tab-video" style="padding: 12px 18px; background: none; border: none; font-size: 13px; font-weight: 600; color: #4b5563; border-bottom: 3px solid transparent; cursor: pointer; transition: all 0.2s;">🎥 Video góc nhìn AI</button>
+    </div>
+
+    <!-- Modal Content (Scrollable) -->
+    <div style="flex: 1; overflow-y: auto; padding: 24px;" id="modal-tab-content">
+      
+      <!-- Tab 1: Overview -->
+      <div id="tab-overview" class="modal-tab-panel">
+        
+        <!-- Stats cards -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 20px;">
+          <div style="border: 1px solid var(--color-border); padding: 12px 16px; border-radius: 12px; background: #f8fafc;">
+            <div style="font-size: 11px; color: var(--color-muted); text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Tổng phương tiện</div>
+            <div id="modal-stat-total" style="font-size: 22px; font-weight: 800; color: #1e293b; margin-top: 4px;">0 <span style="font-size: 11px; font-weight: 500; color: var(--color-muted);">xe</span></div>
+          </div>
+          <div style="border: 1px solid var(--color-border); padding: 12px 16px; border-radius: 12px; background: #f8fafc;">
+            <div style="font-size: 11px; color: var(--color-muted); text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Khung giờ cao điểm</div>
+            <div id="modal-stat-peak" style="font-size: 16px; font-weight: 700; color: #ef4444; margin-top: 6px;">N/A</div>
+          </div>
+          <div style="border: 1px solid var(--color-border); padding: 12px 16px; border-radius: 12px; background: #f8fafc;">
+            <div style="font-size: 11px; color: var(--color-muted); text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Thời gian bắt đầu</div>
+            <div id="modal-stat-start" style="font-size: 13px; font-weight: 600; color: #1e293b; margin-top: 8px;">--</div>
+          </div>
+          <div style="border: 1px solid var(--color-border); padding: 12px 16px; border-radius: 12px; background: #f8fafc;">
+            <div style="font-size: 11px; color: var(--color-muted); text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Thời lượng phiên</div>
+            <div id="modal-stat-duration" style="font-size: 13px; font-weight: 600; color: #1e293b; margin-top: 8px;">--</div>
+          </div>
+        </div>
+
+        <!-- Direction counts -->
+        <div id="direction-container" style="display: none; padding: 12px 16px; border: 1px solid #dbeafe; background: #eff6ff; border-radius: 12px; margin-bottom: 20px; font-size: 13px; color: #1e40af; align-items: center; justify-content: space-around;">
+          <div><strong>Đi vào (Chiều đến):</strong> <span id="direction-in-val">0</span> xe</div>
+          <div style="width: 1px; height: 16px; background: #bfdbfe;"></div>
+          <div><strong>Đi ra (Chiều đi):</strong> <span id="direction-out-val">0</span> xe</div>
+        </div>
+
+        <!-- Charts grid -->
+        <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 20px;" id="charts-grid-container">
+          <!-- Pie/Doughnut Chart -->
+          <div style="border: 1px solid var(--color-border); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; align-items: center; background: #fff;">
+            <h4 style="margin: 0 0 16px 0; font-size: 14px; font-weight: 700; width: 100%;">Cơ cấu phương tiện</h4>
+            <div style="position: relative; width: 180px; height: 180px;">
+              <canvas id="modal-doughnut-chart"></canvas>
+            </div>
+          </div>
+          <!-- Flow Line Chart -->
+          <div style="border: 1px solid var(--color-border); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; background: #fff;">
+            <h4 style="margin: 0 0 16px 0; font-size: 14px; font-weight: 700;">Lưu lượng phương tiện theo thời gian</h4>
+            <div style="position: relative; flex: 1; min-height: 180px; width: 100%;">
+              <canvas id="modal-line-chart"></canvas>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Tab 2: LPR Log -->
+      <div id="tab-lpr" class="modal-tab-panel" style="display: none;">
+        <!-- Search bar inside tab -->
+        <div style="margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+          <input type="text" id="modal-lpr-search" placeholder="Tìm kiếm biển số xe... (ví dụ: 98-T3)" style="flex: 1; padding: 10px 14px; border: 1px solid var(--color-border); border-radius: 8px; font-size: 13px; outline: none;">
+          <span style="font-size: 12px; color: var(--color-muted); font-weight: 600;" id="modal-lpr-count">Tìm thấy: 0 biển số</span>
+        </div>
+
+        <div style="overflow-x: auto; border: 1px solid var(--color-border); border-radius: 10px; max-height: 48vh;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 13px;" class="modal-lpr-table">
+            <thead>
+              <tr style="background: #f8fafc; border-bottom: 1px solid var(--color-border); text-align: left;">
+                <th style="padding: 12px 16px; font-weight: 600; color: #475569;">Thời gian</th>
+                <th style="padding: 12px 16px; font-weight: 600; color: #475569;">Loại xe</th>
+                <th style="padding: 12px 16px; font-weight: 600; color: #475569;">Biển số nhận diện</th>
+                <th style="padding: 12px 16px; font-weight: 600; color: #475569;">Độ tin cậy</th>
+                <th style="padding: 12px 16px; font-weight: 600; color: #475569; text-align: center;">Hình ảnh</th>
+              </tr>
+            </thead>
+            <tbody id="modal-lpr-tbody">
+              <!-- Dynamically populated rows -->
+            </tbody>
+          </table>
+          <div id="modal-lpr-empty" style="display: none; padding: 60px 20px; text-align: center; color: var(--color-muted); font-size: 13px; font-weight: 500;">
+            🚫 Không phát hiện biển số xe nào trong phiên này
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 3: Video AI -->
+      <div id="tab-video" class="modal-tab-panel" style="display: none; text-align: center;">
+        <div id="modal-video-container" style="max-width: 720px; margin: 0 auto; border-radius: 12px; overflow: hidden; border: 1px solid var(--color-border); background: #000;">
+          <video id="modal-video-player" controls style="width: 100%; height: auto; display: block;">
+            Trình duyệt của bạn không hỗ trợ phát thẻ video.
+          </video>
+        </div>
+        <div id="modal-video-empty" style="display: none; padding: 60px 20px; text-align: center; color: var(--color-muted);">
+          <div style="font-size: 48px; margin-bottom: 12px;">📹</div>
+          <h4>Không có bản ghi video kết quả cho phiên phân tích này</h4>
+          <p style="font-size: 13px;">Hệ thống chạy trên luồng trực tiếp không bật chức năng ghi hoặc đã bị xóa file.</p>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+</div>
+
+<script src="/static/js/reports.js?v=2.0"></script>
+{% endblock %}

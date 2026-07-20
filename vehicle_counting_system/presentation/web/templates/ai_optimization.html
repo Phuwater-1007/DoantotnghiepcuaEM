@@ -26,6 +26,18 @@
     
     <form method="POST" action="/ai-config">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="form-group" style="margin-bottom: 24px; padding: 16px; border: 1px solid #dbeafe; border-radius: 10px; background: rgba(59,130,246,.05);">
+        <label style="font-weight: 700; display:block; margin-bottom:10px;">Pipeline phân tích</label>
+        <label style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
+          <input type="checkbox" name="enable_counting_pipeline" value="1" {% if ai_config.enable_counting_pipeline %}checked{% endif %}>
+          Chạy đếm phương tiện
+        </label>
+        <label style="display:flex; gap:8px; align-items:center;">
+          <input type="checkbox" name="enable_lpr_pipeline" value="1" {% if ai_config.enable_lpr_pipeline %}checked{% endif %}>
+          Chạy nhận diện biển số
+        </label>
+        <small class="muted" style="display:block; margin-top:10px;">Chọn một chức năng để chạy riêng, hoặc chọn cả hai để chạy đồng thời bằng hai trạng thái xử lý độc lập.</small>
+      </div>
       <div class="form-group" style="margin-bottom: 24px;">
         <label for="conf_threshold" style="display: flex; justify-content: space-between; font-weight: 600; margin-bottom: 8px;">
           Ngưỡng Tự tin (Confidence)

@@ -14,7 +14,9 @@ from fastapi.responses import JSONResponse, StreamingResponse
 
 from vehicle_counting_system.ai_core.services.video_analysis_runner import _get_shared_yolo_detector
 from vehicle_counting_system.configs.paths import PROJECT_ROOT
+from vehicle_counting_system.configs.settings import settings
 from vehicle_counting_system.core.frame_processor import FrameProcessor
+from vehicle_counting_system.core.independent_pipelines import IndependentAnalysisPipelines
 from vehicle_counting_system.presentation.web.dependencies import get_container, get_current_user
 from vehicle_counting_system.trackers.bytetrack_tracker import ByteTrackTracker
 from vehicle_counting_system.utils.logger import get_logger
@@ -502,6 +504,8 @@ def _process_video(session: _StreamSession) -> None:
     to the appropriate processing routine based on stream type.
     """
     detector = _get_shared_yolo_detector()
+    enable_counting = bool(getattr(settings, "enable_counting_pipeline", True))
+    enable_lpr = bool(getattr(settings, "enable_lpr_pipeline", True))
 
     # Tạo session trong DB ngay khi stream bắt đầu (để vehicle_counts có session_id).
     if session.db is not None:
@@ -515,9 +519,9 @@ def _process_video(session: _StreamSession) -> None:
             )
             session.db_session_id = session_id
             # Bind persistence service to this session.
-            if session.counting_persistence is not None:
+            if enable_counting and session.counting_persistence is not None:
                 session.counting_persistence.bind_session(session_id, session.source_id)
-            if session.lpr_persistence is not None:
+            if enable_lpr and session.lpr_persistence is not None:
                 session.lpr_persistence.bind_session(session_id, session.source_id)
             logger.info("Stream DB session created: #%s for source %s", session_id, session.source_id)
         except Exception:
@@ -525,23 +529,23 @@ def _process_video(session: _StreamSession) -> None:
 
     # Wire counting persistence callback.
     persistence_cb = None
-    if session.counting_persistence is not None:
+    if enable_counting and session.counting_persistence is not None:
         persistence_cb = session.counting_persistence.record
 
     lpr_cb = None
-    if session.lpr_persistence is not None:
+    if enable_lpr and session.lpr_persistence is not None:
         lpr_cb = session.lpr_persistence.record
 
-    processor = FrameProcessor(
+    processor = IndependentAnalysisPipelines(
         detector=detector,
-        tracker=ByteTrackTracker(),
         counting_lines_path=session.config_path,
         frame_size=session.frame_size,
         counting_persistence_callback=persistence_cb,
         lpr_persistence_callback=lpr_cb,
+        enable_counting=enable_counting,
+        enable_lpr=enable_lpr,
+        session_id=session.db_session_id or 0,
     )
-    if session.db_session_id is not None:
-        processor.session_id = session.db_session_id
 
     # Fix #4: Open with RTSP-optimised settings
     cap = _open_capture(session.video_path)
@@ -597,7 +601,7 @@ def _process_video(session: _StreamSession) -> None:
         # Persist results to DB
         _save_stream_results_to_db(session)
 
-        processor.reset()
+        processor.close()
 
         with _registry_lock:
             _active_streams.pop(session.source_id, None)

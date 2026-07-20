@@ -160,6 +160,10 @@ class Settings:
     lpr_debounce_seconds: int = int(os.getenv("LPR_DEBOUNCE_SECONDS", "60"))
     lpr_quality_threshold: float = float(os.getenv("LPR_QUALITY_THRESHOLD", "0.20"))
 
+    # Independent runtime pipelines. Defaults preserve the previous combined behavior.
+    enable_counting_pipeline: bool = _read_bool("ENABLE_COUNTING_PIPELINE", "true")
+    enable_lpr_pipeline: bool = _read_bool("ENABLE_LPR_PIPELINE", "true")
+
     def __post_init__(self) -> None:
         # Chuẩn hóa thiết bị: .env hay dùng "cuda" → PyTorch/Ultralytics ổn định hơn với "cuda:0"
         self.device = self._normalize_device(self.device)

@@ -14,7 +14,7 @@ class ReportService:
             """
             SELECT
                 rs.id,
-                rs.session_id,
+                sess.id AS session_id,
                 rs.report_date,
                 rs.total,
                 rs.per_class_json,
@@ -23,9 +23,11 @@ class ReportService:
                 datetime(sess.started_at, ?) AS started_at,
                 CASE WHEN sess.finished_at IS NULL THEN NULL ELSE datetime(sess.finished_at, ?) END AS finished_at,
                 sess.output_video_path,
-                src.name AS source_name
-            FROM report_snapshots rs
-            JOIN analysis_sessions sess ON sess.id = rs.session_id
+                sess.summary_json,
+                src.name AS source_name,
+                (SELECT COUNT(*) FROM license_plate_events lpe WHERE lpe.session_id = sess.id) AS lpr_total
+            FROM analysis_sessions sess
+            LEFT JOIN report_snapshots rs ON rs.session_id = sess.id
             JOIN sources src ON src.id = sess.source_id
             ORDER BY sess.started_at DESC
             """,
@@ -33,14 +35,17 @@ class ReportService:
         )
         reports: list[dict] = []
         for row in rows:
+            summary = json.loads(row["summary_json"] or "{}")
             reports.append(
                 {
-                    "id": int(row["id"]),
+                    "id": int(row["id"] or row["session_id"]),
                     "session_id": int(row["session_id"]),
-                    "report_date": str(row["report_date"]),
-                    "total": int(row["total"]),
-                    "per_class": json.loads(row["per_class_json"] or "{}"),
-                    "peak_hour_label": str(row["peak_hour_label"]),
+                    "report_date": str(row["report_date"] or str(row["started_at"] or "")[:10]),
+                    "total": int(row["total"] or summary.get("total", 0)),
+                    "per_class": json.loads(row["per_class_json"] or "{}") or summary.get("per_class", {}),
+                    "peak_hour_label": str(row["peak_hour_label"] or "N/A"),
+                    "lpr_total": int(row["lpr_total"] or 0),
+                    "pipelines": summary.get("pipelines", {"counting": True, "lpr": True}),
                     "status": str(row["status"]),
                     "started_at": str(row["started_at"]),
                     "finished_at": row["finished_at"],

@@ -35,6 +35,8 @@ def build_router(templates) -> APIRouter:
         lpr_debounce_seconds: int = Form(...),
         lpr_quality_threshold: float = Form(...),
         allowed_classes: list[str] = Form(default=[]),
+        enable_counting_pipeline: str | None = Form(default=None),
+        enable_lpr_pipeline: str | None = Form(default=None),
     ):
         user = require_admin(request)
         if isinstance(user, RedirectResponse):
@@ -46,7 +48,9 @@ def build_router(templates) -> APIRouter:
                 min_box_area=min_box_area,
                 lpr_debounce_seconds=lpr_debounce_seconds,
                 lpr_quality_threshold=lpr_quality_threshold,
-                allowed_classes=allowed_classes
+                allowed_classes=allowed_classes,
+                enable_counting_pipeline=enable_counting_pipeline is not None,
+                enable_lpr_pipeline=enable_lpr_pipeline is not None,
             )
             container = get_container(request)
             container.activity_log_service.log(

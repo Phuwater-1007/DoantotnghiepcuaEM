@@ -15,6 +15,7 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import List, Tuple, Optional
+from types import SimpleNamespace
 
 from vehicle_counting_system.counters.line_counter import LineCounter
 from vehicle_counting_system.counters.panorama_counter import PanoramaCounter
@@ -67,6 +68,8 @@ class FrameProcessor:
         lpr_persistence_callback=None,
         analysis_mode: str = "line",
         min_track_frames: int = 5,
+        enable_counting: bool = True,
+        enable_lpr: bool = True,
     ):
         # Detector/tracker được inject từ ngoài để giữ module này độc lập.
         self.detector = detector
@@ -74,6 +77,10 @@ class FrameProcessor:
         self.session_id = 0
         self._lpr_persistence_callback = lpr_persistence_callback
         self.analysis_mode = "panorama" if analysis_mode == "panorama" else "line"
+        self.enable_counting = bool(enable_counting)
+        self.enable_lpr = bool(enable_lpr)
+        if not self.enable_counting and not self.enable_lpr:
+            raise ValueError("At least one analysis pipeline must be enabled.")
 
         cfg = load_counting_config(counting_lines_path, frame_size=frame_size)
 
@@ -102,11 +109,13 @@ class FrameProcessor:
         else:
             self.roi_bbox = None
 
-        self.counter = (
-            PanoramaCounter(min_track_frames=min_track_frames)
-            if self.analysis_mode == "panorama"
-            else LineCounter(self.lines, line_directions=self.line_directions)
-        )
+        self.counter = None
+        if self.enable_counting:
+            self.counter = (
+                PanoramaCounter(min_track_frames=min_track_frames)
+                if self.analysis_mode == "panorama"
+                else LineCounter(self.lines, line_directions=self.line_directions)
+            )
         self.classifier = VehicleClassifier()
         self.last_stats = None
         self._last_ts = time.perf_counter()
@@ -115,14 +124,14 @@ class FrameProcessor:
         self._counting_persistence_callback = counting_persistence_callback
 
         # Khởi tạo LPR Service và cấu hình Capture Box
-        self.lpr_service = LPRService(use_gpu=getattr(settings, "use_gpu", True))
+        self.lpr_service = LPRService(use_gpu=getattr(settings, "use_gpu", True)) if self.enable_lpr else None
         self._track_lpr_results = {}
         self._track_ocr_history = {}
         self._track_in_capture_last = {}
         self._lpr_lock = threading.Lock()
 
         # Thread pool cho LPR — không block pipeline chính
-        self._lpr_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="lpr")
+        self._lpr_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="lpr") if self.enable_lpr else None
 
         # Biến cấu hình LPR Keyframe và chống trùng lặp mới
         self.last_lpr_time = 0.0
@@ -479,10 +488,21 @@ class FrameProcessor:
         detections = self._detect_with_optional_crop(frame)
         tracks: List[TrackedObject] = self.tracker.update(detections)
         tracks = self.classifier.classify(tracks)
-        stats = self.counter.process(tracks)
+        stats = self.counter.process(tracks) if self.counter is not None else SimpleNamespace(total=0, per_class={})
 
         # Full-frame analysis deliberately ignores ROI, line and capture-zone rules.
         if self.analysis_mode == "panorama":
+            self.last_stats = stats
+            return tracks, stats
+
+        if not self.enable_lpr:
+            if self._counting_persistence_callback and self.counter is not None and self.counter.pending_events:
+                for event in self.counter.pending_events:
+                    try:
+                        self._counting_persistence_callback(event)
+                    except Exception:
+                        pass
+                self.counter.pending_events.clear()
             self.last_stats = stats
             return tracks, stats
 
@@ -547,7 +567,8 @@ class FrameProcessor:
                     tr.license_plate = None
 
             # Bỏ qua xe có lớp không được đếm trong settings
-            if self.counter._allowed_names and tr.class_name not in self.counter._allowed_names:
+            allowed_names = set(getattr(settings, "allowed_class_names", []))
+            if allowed_names and tr.class_name not in allowed_names:
                 continue
 
             # Kiểm tra xem xe có trong Capture Zone ở frame này hay không
@@ -633,7 +654,7 @@ class FrameProcessor:
                 )
 
         # Forward counting events to persistence layer (nếu có).
-        if self._counting_persistence_callback and self.counter.pending_events:
+        if self._counting_persistence_callback and self.counter is not None and self.counter.pending_events:
             for event in self.counter.pending_events:
                 try:
                     self._counting_persistence_callback(event)
@@ -727,6 +748,8 @@ class FrameProcessor:
         """Cập nhật filter loại xe được đếm. Luôn đảm bảo giữ lại các lớp chính."""
         from vehicle_counting_system.configs.settings import settings as _settings
         base_allowed = {"motorcycle", "car", "truck", "bus"}
+        if self.counter is None:
+            return
         if classes is None or not classes:
             self.counter._allowed_names = base_allowed
         else:
@@ -753,7 +776,7 @@ class FrameProcessor:
         except Exception:
             pass
         try:
-            if hasattr(self.counter, "reset"):
+            if self.counter is not None and hasattr(self.counter, "reset"):
                 self.counter.reset()
         except Exception:
             pass
@@ -786,7 +809,8 @@ class FrameProcessor:
             pass
         # Shutdown LPR thread pool
         try:
-            self._lpr_executor.shutdown(wait=False)
+            if self._lpr_executor is not None:
+                self._lpr_executor.shutdown(wait=False)
         except Exception:
             pass
         self.reset()

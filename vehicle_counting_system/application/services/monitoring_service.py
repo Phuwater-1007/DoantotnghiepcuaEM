@@ -12,6 +12,7 @@ from typing import Any
 
 from vehicle_counting_system.ai_core.services.video_analysis_runner import analyze_video_source
 from vehicle_counting_system.configs.paths import OUTPUT_CSV_DIR, OUTPUT_LOGS_DIR, OUTPUT_VIDEOS_DIR, PROJECT_ROOT
+from vehicle_counting_system.configs.settings import settings
 from vehicle_counting_system.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -376,9 +377,11 @@ class MonitoringService:
                 )
 
             # Bind counting/LPR persistence cho phiên này.
-            if self.counting_persistence_service is not None:
+            enable_counting = bool(getattr(settings, "enable_counting_pipeline", True))
+            enable_lpr = bool(getattr(settings, "enable_lpr_pipeline", True))
+            if enable_counting and self.counting_persistence_service is not None:
                 self.counting_persistence_service.bind_session(session_id, source_id)
-            if self.lpr_persistence_service is not None:
+            if enable_lpr and self.lpr_persistence_service is not None:
                 self.lpr_persistence_service.bind_session(session_id, source_id)
 
             output_path = OUTPUT_VIDEOS_DIR / f"session_{session_id}_result.mp4"
@@ -399,6 +402,8 @@ class MonitoringService:
                 session_id=session_id,
                 analysis_mode=analysis_mode,
                 min_track_frames=min_track_frames,
+                enable_counting=enable_counting,
+                enable_lpr=enable_lpr,
             )
             finished_status = result["status"]
             summary = {
@@ -408,6 +413,7 @@ class MonitoringService:
                 "elapsed_seconds": result["elapsed_seconds"],
                 "analysis_mode": result["analysis_mode"],
                 "min_track_frames": result["min_track_frames"],
+                "pipelines": result["pipelines"],
             }
             self.db.execute(
                 """
@@ -423,7 +429,7 @@ class MonitoringService:
                 ),
             )
             # Only save report snapshot for completed sessions (not stopped/failed)
-            if finished_status == "completed":
+            if finished_status == "completed" and enable_counting:
                 session_row = self.db.fetchone(
                     """SELECT datetime(started_at, ?) AS started_at,
                               datetime(finished_at, ?) AS finished_at
