@@ -496,6 +496,13 @@ class FrameProcessor:
             return tracks, stats
 
         if not self.enable_lpr:
+            # Counting-only still needs the user-facing sequential ID. Without
+            # this, draw_track falls back to ByteTrack's sparse internal ID.
+            for tr in tracks:
+                ax, ay = get_bbox_bottom_center(tr.bbox)
+                if _point_in_polygon((int(ax), int(ay)), self.roi_polygon):
+                    if hasattr(self.tracker, "get_or_assign_display_id"):
+                        self.tracker.get_or_assign_display_id(tr.track_id)
             if self._counting_persistence_callback and self.counter is not None and self.counter.pending_events:
                 for event in self.counter.pending_events:
                     try:

@@ -1,0 +1,33 @@
+{
+  "raw_text": "99A66895",
+  "corrected_text": "99A66895",
+  "nearest_text": "99A66895",
+  "ocr_confidence": 0.7570393197238445,
+  "char_confidences": [
+    0.8590037226676941,
+    0.8562584519386292,
+    0.6981285214424133,
+    0.8428539037704468,
+    0.8219736218452454,
+    0.292903333902359,
+    0.8914843201637268,
+    0.7937086820602417
+  ],
+  "syntax_score": 1.0,
+  "is_plausible": true,
+  "layout": "one_line",
+  "corrections": [],
+  "bbox": [
+    73,
+    406,
+    181,
+    443
+  ],
+  "plate_confidence": 0.7439650893211365,
+  "area_ratio": 0.015318144098219582,
+  "aspect_ratio": 3.010518005773937,
+  "final_confidence": 0.7518096275627613,
+  "rank_score": 0.8634952951595187,
+  "track_id": 153,
+  "vehicle_class": "car"
+}

@@ -6,6 +6,7 @@ import numpy as np
 
 from vehicle_counting_system.core.independent_pipelines import IndependentAnalysisPipelines
 from vehicle_counting_system.core.frame_processor import FrameProcessor
+from vehicle_counting_system.models.tracked_object import TrackedObject
 
 
 class _FakeProcessor:
@@ -102,6 +103,32 @@ class IndependentPipelineModeTests(unittest.TestCase):
             counter_cls.assert_not_called()
             lpr_cls.assert_called_once()
             processor.close()
+
+    def test_counting_only_assigns_sequential_display_id_before_early_return(self):
+        tracked = TrackedObject(49, 2, "car", (10, 10, 80, 80), 0.9)
+
+        class Tracker:
+            def update(self, detections): return [tracked]
+            def get_or_assign_display_id(self, track_id):
+                tracked.display_id = 1
+                return 1
+
+        processor = FrameProcessor.__new__(FrameProcessor)
+        processor.detector = SimpleNamespace(detect=lambda frame: [])
+        processor.tracker = Tracker()
+        processor.classifier = SimpleNamespace(classify=lambda tracks: tracks)
+        processor.counter = SimpleNamespace(
+            process=lambda tracks: SimpleNamespace(total=0, per_class={}), pending_events=[]
+        )
+        processor.analysis_mode = "line"
+        processor.enable_lpr = False
+        processor.roi_polygon = []
+        processor._counting_persistence_callback = None
+        processor.last_stats = None
+        processor._frame_count = 0
+        processor._run_inference(self.frame)
+        self.assertEqual(tracked.track_id, 49)
+        self.assertEqual(tracked.get_display_id(), 1)
 
 
 if __name__ == "__main__":
